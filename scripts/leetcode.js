@@ -196,60 +196,39 @@ function uploadGit(
   /* Get necessary payload data */
   chrome.storage.local.get('leethub_token', (t) => {
     const token = t.leethub_token;
-    if (token) {
-      chrome.storage.local.get('mode_type', (m) => {
-        const mode = m.mode_type;
-        if (mode === 'commit') {
-          /* Get hook */
-          chrome.storage.local.get('leethub_hook', (h) => {
-            const hook = h.leethub_hook;
-            if (hook) {
-              /* Get SHA, if it exists */
-
-              /* to get unique key */
-              const filePath = problemName + fileName;
-              chrome.storage.local.get('stats', (s) => {
-                const { stats } = s;
-                let sha = null;
-
-                if (
-                  stats !== undefined &&
-                  stats.sha !== undefined &&
-                  stats.sha[filePath] !== undefined
-                ) {
-                  sha = stats.sha[filePath];
-                }
-
-                if (action === 'upload') {
-                  /* Upload to git. */
-                  upload(
-                    token,
-                    hook,
-                    code,
-                    problemName,
-                    fileName,
-                    sha,
-                    msg,
-                    cb,
-                  );
-                } else if (action === 'update') {
-                  /* Update on git */
-                  update(
-                    token,
-                    hook,
-                    code,
-                    problemName,
-                    msg,
-                    prepend,
-                    cb,
-                  );
-                }
-              });
-            }
-          });
-        }
-      });
+    if (!token) {
+      return
     }
+    chrome.storage.local.get('mode_type', (m) => {
+      const mode = m.mode_type;
+      if (mode !== 'commit') {
+        return
+      }
+      chrome.storage.local.get('leethub_hook', (h) => {
+        const hook = h.leethub_hook;
+        if (!hook) {
+          return
+        }
+
+        /* Get SHA, if it exists to get unique key */
+        const filePath = problemName + fileName;
+        chrome.storage.local.get('stats', (s) => {
+          const { stats } = s;
+          let sha = null;
+
+          if (stats?.sha?.[filepath] !== undefined) {
+            sha = stats.sha[filePath];
+          }
+
+          /* Handle upload/update to git */
+          if (action === 'upload') {
+            upload(token, hook, code, problemName, fileName, sha, msg, cb);
+          } else if (action === 'update') {
+            update(token, hook, code, problemName, msg, prepend, cb);
+          }
+        });
+      });
+    });
   });
 }
 
