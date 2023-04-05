@@ -5,7 +5,7 @@
   "homepage_url": "https://github.com/QasimWani/LeetHub",
   "version": "1.2.0",
   "author": "Arun Bhardwaj",
-  "browser_action": {
+  "action": {
     "default_icon": "assets/thumbnail.png",
     "default_popup": "popup.html"
   },
@@ -15,14 +15,9 @@
     "128": "assets/thumbnail.png"
   },
   "background": {
-    "scripts": ["scripts/background.js"],
-    "persistent": false
+    "service_worker": "scripts/background.js"
   },
   "permissions": [
-    "https://github.com/*",
-    "https://api.github.com/*",
-    "https://leetcode.com/*",
-    "https://practice.geeksforgeeks.org/*",
     "tabs",
     "unlimitedStorage",
     "storage"
@@ -42,5 +37,7 @@
       "run_at": "document_idle"
     }
   ],
-  "content_security_policy": "script-src 'self' https://code.jquery.com/jquery-3.3.1.min.js https://github.com/login/oauth/authorize https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.js; object-src 'self'"
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
 }
