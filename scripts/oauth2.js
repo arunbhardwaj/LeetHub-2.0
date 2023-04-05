@@ -28,14 +28,8 @@ const oAuth2 = {
     }
 
     chrome.storage.local.set({ pipe_leethub: true }, () => {
-      // opening pipe temporarily
-
-      chrome.tabs.create({ url, active: true }, function () {
-        window.close();
-        chrome.tabs.getCurrent(function (tab) {
-          chrome.tabs.remove(tab.id, function () {});
-        });
-      });
+      // opening pipe temporarily, redirects to github
+      chrome.tabs.create({ url, active: true }, function () {});
     });
   },
 };

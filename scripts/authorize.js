@@ -26,9 +26,13 @@ const localAuth = {
    */
   parseAccessCode(url) {
     if (url.match(/\?error=(.+)/)) {
-      chrome.tabs.getCurrent(function (tab) {
-        chrome.tabs.remove(tab.id, function () {});
-      });
+      // chrome.tabs.getCurrent(function (tab) {
+      //   chrome.tabs.remove(tab.id, function () {});
+      // });
+      chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+        var tab = tabs[0];
+        chrome.tabs.remove(tab.id, function() {})
+    });
     } else {
       // eslint-disable-next-line
       this.requestToken(url.match(/\?code=([\w\/\-]+)/)[1]);
