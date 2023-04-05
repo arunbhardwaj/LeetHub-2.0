@@ -196,7 +196,9 @@ function uploadGit(
   /* Get necessary payload data */
   chrome.storage.local.get('leethub_token', (t) => {
     const token = t.leethub_token;
-    if (!token) {
+    console.log("🚀 ~ file: leetcode.js:199 ~ chrome.storage.local.get ~ t:", t)
+    console.log("🚀 ~ file: leetcode.js:199 ~ chrome.storage.local.get ~ token:", token)
+    if (token == undefined) {
       return
     }
     chrome.storage.local.get('mode_type', (m) => {
@@ -214,7 +216,8 @@ function uploadGit(
         const filePath = problemName + fileName;
         chrome.storage.local.get('stats', (s) => {
           const { stats } = s;
-          let sha = null;
+          console.log("🚀 ~ file: leetcode.js:219 ~ chrome.storage.local.get ~ s:", s)
+          let sha = "";
 
           if (stats?.sha?.[filepath] !== undefined) {
             sha = stats.sha[filePath];
@@ -222,8 +225,10 @@ function uploadGit(
 
           /* Handle upload/update to git */
           if (action === 'upload') {
+            console.log("🚀 ~ file: leetcode.js:225 ~ chrome.storage.local.get ~ action:", action)
             upload(token, hook, code, problemName, fileName, sha, msg, cb);
           } else if (action === 'update') {
+            console.log("🚀 ~ file: leetcode.js:227 ~ chrome.storage.local.get ~ action:", action)
             update(token, hook, code, problemName, msg, prepend, cb);
           }
         });

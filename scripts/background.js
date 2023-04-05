@@ -22,8 +22,12 @@ function handleMessage(request) {
       console.log('Closed pipe.');
     });
 
-    chrome.tabs.getSelected(null, function (tab) {
-      chrome.tabs.remove(tab.id);
+    // chrome.tabs.getSelected(null, function (tab) {
+    //   chrome.tabs.remove(tab.id);
+    // });
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, function(tabs) {
+      var tab = tabs[0];
+      chrome.tabs.remove(tab.id)
     });
 
     /* Go to onboarding for UX */
@@ -37,8 +41,12 @@ function handleMessage(request) {
     alert(
       'Something went wrong while trying to authenticate your profile!',
     );
-    chrome.tabs.getSelected(null, function (tab) {
-      chrome.tabs.remove(tab.id);
+    // chrome.tabs.getSelected(null, function (tab) {
+    //   chrome.tabs.remove(tab.id);
+    // });
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, function(tabs) {
+        var tab = tabs[0];
+        chrome.tabs.remove(tab.id)
     });
   }
 }
