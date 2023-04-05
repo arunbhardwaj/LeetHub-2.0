@@ -1,9 +1,5 @@
 function handleMessage(request) {
-  if (
-    request &&
-    request.closeWebPage === true &&
-    request.isSuccess === true
-  ) {
+  if ( request && request.closeWebPage === true && request.isSuccess === true ) {
     /* Set username */
     chrome.storage.local.set({ leethub_username: request.username });
 
@@ -23,11 +19,7 @@ function handleMessage(request) {
     /* Go to onboarding for UX */
     const urlOnboarding = chrome.runtime.getURL('welcome.html');
     chrome.tabs.create({ url: urlOnboarding, active: true }); // creates new tab
-  } else if (
-    request &&
-    request.closeWebPage === true &&
-    request.isSuccess === true
-  ) {
+  } else if ( request && request.closeWebPage === true && request.isSuccess === false ) {
     alert(
       'Something went wrong while trying to authenticate your profile!',
     );
