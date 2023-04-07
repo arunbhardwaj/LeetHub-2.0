@@ -7,24 +7,21 @@
 </h1>
 
 <p align="center">
-  <a href="https://github.com/QasimWani/LeetHub/blob/main/LICENSE">
+  <a href="https://github.com/arunbhardwaj/LeetHub-1.1/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="license"/>
   </a>
-  <a href="https://discord.gg/anXT9vErxu">
+  <!-- <a href="https://discord.gg/anXT9vErxu">
     <img src="https://img.shields.io/discord/781373810251137074" alt="discord">
-  </a>
-  <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">
+  </a> -->
+  <!-- <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">
     <img src="https://img.shields.io/chrome-web-store/v/aciombdipochlnkbpcbgdpjffcfdbggi.svg" alt="chrome-webstore"/>
-  </a>
-  <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">
+  </a> -->
+  <!-- <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">
     <img src="https://img.shields.io/chrome-web-store/d/aciombdipochlnkbpcbgdpjffcfdbggi.svg" alt="users">
   </a>
-  <a href="https://github.com/QasimWani/LeetHub/graphs/contributors" alt="Contributors">
-    <img src="https://img.shields.io/github/contributors/QasimWani/LeetHub" />
-  </a>
-  <a href="https://twitter.com/intent/tweet?text=LeetHub%20-%20Automatically%20sync%20your%20code%20to%20GitHub%20after%20solving%20any%20leetcode%20problems!&url=https://github.com/QasimWani/LeetHub&hashtags=javascript,github,leetcode,coding,interview,chrome">
-    <img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social">
-  </a>
+  <a href="https://github.com/arunbhardwaj/LeetHub-1.1/graphs/contributors" alt="Contributors">
+    <img src="https://img.shields.io/github/contributors/arunbhardwaj/LeetHub-1.1" />
+  </a> -->
 </p>
 
 <div align="center">
@@ -71,7 +68,7 @@ Moreover, pushing code manually to GitHub from Leetcode is very time consuming. 
 </ol>
 
 
-#### BONUS: Star [this repository](https://github.com/QasimWani/LeetHub) for further development of features. If you want a particular feature, simply [request](https://github.com/QasimWani/LeetHub/labels/feature) for it!
+#### BONUS: Star [this repository](https://github.com/arunbhardwaj/LeetHub-1.1) for further development of features. If you want a particular feature, simply [request](https://github.com/arunbhardwaj/LeetHub-1.1/labels/feature) for it!
 
 
 ## Why did I build LeetHub?

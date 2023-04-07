@@ -235,7 +235,7 @@ function uploadGit(
   fileName,
   commitMsg,
   action,
-  prepend = true,
+  shouldPrependDiscussionPosts = false,
   cb = undefined,
   _diff = undefined,
 ) {
@@ -249,7 +249,7 @@ function uploadGit(
   let hook;
 
   console.log(`UploadGit::${fileName}::${action}`)
-  console.log({code, problemName, fileName, commitMsg, action, prepend, _diff})
+  console.log({code, problemName, fileName, commitMsg, action, shouldPrependDiscussionPosts, _diff})
 
   chrome.storage.local.get('leethub_token')
     .then(({leethub_token}) => {
@@ -285,12 +285,12 @@ function uploadGit(
 
         return upload(token, hook, code, problemName, fileName, sha, commitMsg, cb);
       } else if (action === 'update') {
-        update(token, hook, code, problemName, fileName, commitMsg, prepend, cb);
+        update(token, hook, code, problemName, fileName, commitMsg, shouldPrependDiscussionPosts, cb);
       }
     })
     .catch(err => {
       if (err.message === '409') {
-        update(token, hook, code, problemName, fileName, commitMsg, prepend, cb)
+        update(token, hook, code, problemName, fileName, commitMsg, shouldPrependDiscussionPosts, cb)
       }
     })
     .then(() => {
@@ -585,13 +585,14 @@ document.addEventListener('click', (event) => {
         const addition = `[Discussion Post (created on ${currentDate})](${window.location})  \n`;
         const problemName = window.location.pathname.split('/')[2]; // must be true.
 
-        console.log("Click::Post::update")
+        console.log("Click::Post::update") // This never runs
         uploadGit(
           addition,
           problemName,
           'README.md',
           discussionMsg,
           'update',
+          true,
         );
       }
     }, 1000);
@@ -701,6 +702,7 @@ const loader = setInterval(() => {
             'README.md',
             readmeMsg,
             'upload',
+            false,
           );
         }
       });
@@ -719,6 +721,7 @@ const loader = setInterval(() => {
               'NOTES.md',
               createNotesMsg,
               'upload',
+              false,
             );
           }
         }, 500);
