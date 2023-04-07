@@ -77,16 +77,20 @@ const upload = (
   };
 
   data = JSON.stringify(data);
+  console.log("Upload::data", data)
 
   const xhr = new XMLHttpRequest();
+  xhr.open('PUT', URL, true);
+  xhr.setRequestHeader('Authorization', `token ${token}`);
+  xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
   xhr.addEventListener('readystatechange', function () {
+    console.log("Upload::xhr", xhr)
     if (xhr.readyState === 4) {
       if (xhr.status === 200 || xhr.status === 201) {
         const updatedSha = JSON.parse(xhr.responseText).content.sha; // get updated SHA.
-
         chrome.storage.local.get('stats', (data2) => {
           let { stats } = data2;
-          if (stats === null || stats === {} || stats === undefined) {
+          if (stats == null || stats === {}) {
             // create stats object
             stats = {};
             stats.solved = 0;
@@ -98,7 +102,7 @@ const upload = (
           const filePath = directory + filename;
           // Only increment solved problems statistics once
           // New submission commits twice (README and problem)
-          if (filename === 'README.md' && sha === null) {
+          if (filename === 'README.md' && (sha == null || sha === "")) {
             stats.solved += 1;
             stats.easy += difficulty === 'Easy' ? 1 : 0;
             stats.medium += difficulty === 'Medium' ? 1 : 0;
@@ -106,22 +110,19 @@ const upload = (
           }
           stats.sha[filePath] = updatedSha; // update sha key.
           chrome.storage.local.set({ stats }, () => {
-            console.log(
-              `Successfully committed ${filename} to github`,
-            );
+            console.log( `Successfully committed ${filename} to github`, );
 
-            // if callback is defined, call it
-            if (cb !== undefined) {
+            if (cb != undefined) {
               cb();
             }
           });
         });
+      } else if (xhr.status === 409) {
+        // GitHub Conflict - our SHA value is out of date.
+        console.log("409 status!")
       }
     }
   });
-  xhr.open('PUT', URL, true);
-  xhr.setRequestHeader('Authorization', `token ${token}`);
-  xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
   xhr.send(data);
 };
 
@@ -138,9 +139,12 @@ const update = (
   cb = undefined,
 ) => {
   const URL = `https://api.github.com/repos/${hook}/contents/${directory}/README.md`;
-
+  console.log("attempting an update for README with message:", msg)
   /* Read from existing file on GitHub */
   const xhr = new XMLHttpRequest();
+  xhr.open('GET', URL, true);
+  xhr.setRequestHeader('Authorization', `token ${token}`);
+  xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
   xhr.addEventListener('readystatechange', function () {
     if (xhr.readyState === 4) {
       if (xhr.status === 200 || xhr.status === 201) {
@@ -172,9 +176,6 @@ const update = (
       }
     }
   });
-  xhr.open('GET', URL, true);
-  xhr.setRequestHeader('Authorization', `token ${token}`);
-  xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
   xhr.send();
 };
 
@@ -194,47 +195,53 @@ function uploadGit(
   }
 
   /* Get necessary payload data */
-  chrome.storage.local.get('leethub_token', (t) => {
-    const token = t.leethub_token;
-    console.log("🚀 ~ file: leetcode.js:199 ~ chrome.storage.local.get ~ t:", t)
-    console.log("🚀 ~ file: leetcode.js:199 ~ chrome.storage.local.get ~ token:", token)
-    if (token == undefined) {
-      return
-    }
-    chrome.storage.local.get('mode_type', (m) => {
+  let token;
+  let hook;
+
+  console.log("UploadGit::action", action)
+
+  chrome.storage.local.get('leethub_token')
+    .then((t) => {
+      token = t.leethub_token;
+      console.log("UploadGit::t", t)
+      if (token == undefined) {
+        throw new Error('leethub token is undefined')
+      } 
+      return chrome.storage.local.get('mode_type')
+    }) 
+    .then((m) => {
+      console.log("UploadGit::mode_type", m)
       const mode = m.mode_type;
       if (mode !== 'commit') {
-        return
+        throw new Error('leethub mode is not commit')
       }
-      chrome.storage.local.get('leethub_hook', (h) => {
-        const hook = h.leethub_hook;
-        if (!hook) {
-          return
-        }
-
-        /* Get SHA, if it exists to get unique key */
+      return chrome.storage.local.get('leethub_hook')
+    })
+    .then((h) => {
+      console.log("UploadGit::leethub_hook", h)
+      hook = h.leethub_hook;
+      if (!hook) {
+        throw new Error('leethub hook not defined')
+      }
+      return chrome.storage.local.get('stats')
+    })
+    .then((s) => {
+      
+      if (action === 'upload') {
         const filePath = problemName + fileName;
-        chrome.storage.local.get('stats', (s) => {
-          const { stats } = s;
-          console.log("🚀 ~ file: leetcode.js:219 ~ chrome.storage.local.get ~ s:", s)
-          let sha = "";
+        const { stats } = s;
+        
+        /* Get SHA, if it exists */
+        let sha = (stats?.sha?.[filePath] !== undefined) ? stats.sha[filePath] : "";
 
-          if (stats?.sha?.[filepath] !== undefined) {
-            sha = stats.sha[filePath];
-          }
+        console.log("UploadGit::StorageGet:sha", sha)
 
-          /* Handle upload/update to git */
-          if (action === 'upload') {
-            console.log("🚀 ~ file: leetcode.js:225 ~ chrome.storage.local.get ~ action:", action)
-            upload(token, hook, code, problemName, fileName, sha, msg, cb);
-          } else if (action === 'update') {
-            console.log("🚀 ~ file: leetcode.js:227 ~ chrome.storage.local.get ~ action:", action)
-            update(token, hook, code, problemName, msg, prepend, cb);
-          }
-        });
-      });
-    });
-  });
+        upload(token, hook, code, problemName, fileName, sha, msg, cb);
+      } else if (action === 'update') {
+        update(token, hook, code, problemName, msg, prepend, cb);
+      }
+    })
+    .catch(console.error);
 }
 
 /* Function for finding and parsing the full code. */
@@ -495,6 +502,7 @@ function parseStats() {
   return `Time: ${time} (${timePercentile}), Space: ${space} (${spacePercentile}) - LeetHub`;
 }
 
+/* Discussion Link - When a user makes a new post, the link is prepended to the README for that problem.*/
 document.addEventListener('click', (event) => {
   const element = event.target;
   const oldPath = window.location.pathname;
@@ -522,6 +530,7 @@ document.addEventListener('click', (event) => {
         const addition = `[Discussion Post (created on ${currentDate})](${window.location})  \n`;
         const problemName = window.location.pathname.split('/')[2]; // must be true.
 
+        console.log("Click::Post::update")
         uploadGit(
           addition,
           problemName,
@@ -621,18 +630,16 @@ const loader = setInterval(() => {
       startUpload();
       chrome.storage.local.get('stats', (s) => {
         const { stats } = s;
+        console.log("Loader::Upload::StorageGet:Stats", stats)
         const filePath = problemName + problemName + language;
-        let sha = null;
-        if (
-          stats !== undefined &&
-          stats.sha !== undefined &&
-          stats.sha[filePath] !== undefined
-        ) {
+        let sha = undefined;
+        if ( stats?.sha?.[filePath] !== undefined ) {
           sha = stats.sha[filePath];
         }
+        console.log("Loader::Upload::StorageGet:sha", sha)
 
         /* Only create README if not already created */
-        if (sha === null) {
+        if (sha === undefined) {
           /* @TODO: Change this setTimeout to Promise */
           uploadGit(
             btoa(unescape(encodeURIComponent(probStatement))),
@@ -752,7 +759,7 @@ function startUpload() {
   }
 }
 
-/* This will create a tick mark before "Run Code" button signalling LeetHub has done its job */
+/* This will create a tick mark before "Run Code" button signaling LeetHub has done its job */
 function markUploaded() {
   elem = document.getElementById('leethub_progress_elem');
   if (elem) {
@@ -763,7 +770,7 @@ function markUploaded() {
   }
 }
 
-/* This will create a failed tick mark before "Run Code" button signalling that upload failed */
+/* This will create a failed tick mark before "Run Code" button signaling that upload failed */
 function markUploadFailed() {
   elem = document.getElementById('leethub_progress_elem');
   if (elem) {

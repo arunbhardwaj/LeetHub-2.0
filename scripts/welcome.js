@@ -150,6 +150,7 @@ const linkRepo = (token, name) => {
     if (xhr.readyState === 4) {
       const res = JSON.parse(xhr.responseText);
       const bool = linkStatusCode(xhr.status, name);
+      console.log("🚀 ~ file: welcome.js:153 ~ bool:", bool)
       if (xhr.status === 200) {
         // BUG FIX
         if (!bool) {
@@ -183,22 +184,22 @@ const linkRepo = (token, name) => {
             },
           );
           /* Set Repo Hook */
-          chrome.storage.local.set(
-            { leethub_hook: res.full_name },
-            () => {
+          chrome.storage.local.set({ leethub_hook: res.full_name })
+            .then(() => {
               console.log('Successfully set new repo hook');
+              return chrome.storage.local.get('stats')
+            })
+            .then((psolved) => {
               /* Get problems solved count */
-              chrome.storage.local.get('stats', (psolved) => {
-                const { stats } = psolved;
-                if (stats && stats.solved) {
-                  $('#p_solved').text(stats.solved);
-                  $('#p_solved_easy').text(stats.easy);
-                  $('#p_solved_medium').text(stats.medium);
-                  $('#p_solved_hard').text(stats.hard);
-                }
-              });
-            },
-          );
+              const { stats } = psolved;
+              if (stats && stats.solved) {
+                $('#p_solved').text(stats.solved);
+                $('#p_solved_easy').text(stats.easy);
+                $('#p_solved_medium').text(stats.medium);
+                $('#p_solved_hard').text(stats.hard);
+              }
+            });
+
           /* Hide accordingly */
           document.getElementById('hook_mode').style.display = 'none';
           document.getElementById('commit_mode').style.display =
@@ -221,7 +222,7 @@ const unlinkRepo = () => {
   });
   /* Set Repo Hook to NONE */
   chrome.storage.local.set({ leethub_hook: null }, () => {
-    console.log('Defaulted repo hook to NONE');
+    console.log('Setting repo hook to NONE');
   });
 
   /* Hide accordingly */
