@@ -78,52 +78,103 @@ const upload = (
 
   data = JSON.stringify(data);
   console.log("Upload::data", data)
+  let options = {
+    method: "PUT",
+    headers: {
+      "Authorization": `token ${token}`,
+      "Accept":"application/vnd.github.v3+json",
+    },
+    body: data
+  }
+  let updatedSha;
 
-  const xhr = new XMLHttpRequest();
-  xhr.open('PUT', URL, true);
-  xhr.setRequestHeader('Authorization', `token ${token}`);
-  xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
-  xhr.addEventListener('readystatechange', function () {
-    console.log("Upload::xhr", xhr)
-    if (xhr.readyState === 4) {
-      if (xhr.status === 200 || xhr.status === 201) {
-        const updatedSha = JSON.parse(xhr.responseText).content.sha; // get updated SHA.
-        chrome.storage.local.get('stats', (data2) => {
-          let { stats } = data2;
-          if (stats == null || stats === {}) {
-            // create stats object
-            stats = {};
-            stats.solved = 0;
-            stats.easy = 0;
-            stats.medium = 0;
-            stats.hard = 0;
-            stats.sha = {};
-          }
-          const filePath = directory + filename;
-          // Only increment solved problems statistics once
-          // New submission commits twice (README and problem)
-          if (filename === 'README.md' && (sha == null || sha === "")) {
-            stats.solved += 1;
-            stats.easy += difficulty === 'Easy' ? 1 : 0;
-            stats.medium += difficulty === 'Medium' ? 1 : 0;
-            stats.hard += difficulty === 'Hard' ? 1 : 0;
-          }
-          stats.sha[filePath] = updatedSha; // update sha key.
-          chrome.storage.local.set({ stats }, () => {
-            console.log( `Successfully committed ${filename} to github`, );
-
-            if (cb != undefined) {
-              cb();
-            }
-          });
-        });
-      } else if (xhr.status === 409) {
-        // GitHub Conflict - our SHA value is out of date.
-        console.log("409 status!")
+  return fetch(URL, options)
+    .then(res => {
+      if (res.status === 200 || res.status === 201) {
+        return res.json()
+      } else if (res.status === 409) {
+        throw new Error('409')
       }
-    }
-  });
-  xhr.send(data);
+    })
+    .then(body => {
+      updatedSha = body.content.sha; // get updated SHA.
+      return chrome.storage.local.get('stats')
+    })
+    .then(({stats}) => {
+      if (stats == null || stats === {}) {
+        // create stats object
+        stats = {};
+        stats.solved = 0;
+        stats.easy = 0;
+        stats.medium = 0;
+        stats.hard = 0;
+        stats.sha = {};
+      }
+      const filePath = directory + filename;
+      // Only increment solved problems statistics once
+      // New submission commits twice (README and problem)
+      if (filename === 'README.md' && (sha == null || sha === "")) {
+        stats.solved += 1;
+        stats.easy += difficulty === 'Easy' ? 1 : 0;
+        stats.medium += difficulty === 'Medium' ? 1 : 0;
+        stats.hard += difficulty === 'Hard' ? 1 : 0;
+      }
+      stats.sha[filePath] = updatedSha;
+      console.log("PromiseChain::Upload:updatedSha", updatedSha)
+      return chrome.storage.local.set({ stats })
+    })
+    .then(() => {
+      console.log( `Successfully committed ${filename} to github`, );
+      if (cb != undefined) {
+        cb();
+      }
+    })
+  // const xhr = new XMLHttpRequest();
+  // xhr.open('PUT', URL, true);
+  // xhr.setRequestHeader('Authorization', `token ${token}`);
+  // xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
+  // xhr.onload()
+  // xhr.addEventListener('readystatechange', function () {
+  //   console.log("Upload::xhr", xhr)
+  //   if (xhr.readyState === 4) {
+  //     if (xhr.status === 200 || xhr.status === 201) {
+  //       const updatedSha = JSON.parse(xhr.responseText).content.sha; // get updated SHA.
+  //       chrome.storage.local.get('stats', (data2) => {
+  //         let { stats } = data2;
+  //         if (stats == null || stats === {}) {
+  //           // create stats object
+  //           stats = {};
+  //           stats.solved = 0;
+  //           stats.easy = 0;
+  //           stats.medium = 0;
+  //           stats.hard = 0;
+  //           stats.sha = {};
+  //         }
+  //         const filePath = directory + filename;
+  //         // Only increment solved problems statistics once
+  //         // New submission commits twice (README and problem)
+  //         if (filename === 'README.md' && (sha == null || sha === "")) {
+  //           stats.solved += 1;
+  //           stats.easy += difficulty === 'Easy' ? 1 : 0;
+  //           stats.medium += difficulty === 'Medium' ? 1 : 0;
+  //           stats.hard += difficulty === 'Hard' ? 1 : 0;
+  //         }
+  //         stats.sha[filePath] = updatedSha; // update sha key.
+  //         chrome.storage.local.set({ stats }, () => {
+  //           console.log( `Successfully committed ${filename} to github`, );
+
+  //           if (cb != undefined) {
+  //             cb();
+  //           }
+  //         });
+  //       });
+  //     } else if (xhr.status === 409) {
+  //       // GitHub Conflict - our SHA value is out of date.
+  //       console.log("409 status!")
+  //     }
+  //   }
+  // });
+  // xhr.send(data);
 };
 
 /* Main function for updating code on GitHub Repo */
@@ -134,12 +185,13 @@ const update = (
   hook,
   addition,
   directory,
-  msg,
-  prepend,
+  filename,
+  commitMsg,
+  shouldPreprendDiscussionPosts,
   cb = undefined,
 ) => {
-  const URL = `https://api.github.com/repos/${hook}/contents/${directory}/README.md`;
-  console.log("attempting an update for README with message:", msg)
+  const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
+  console.log(`attempting an update for ${filename} with message:`, commitMsg)
   /* Read from existing file on GitHub */
   const xhr = new XMLHttpRequest();
   xhr.open('GET', URL, true);
@@ -149,14 +201,12 @@ const update = (
     if (xhr.readyState === 4) {
       if (xhr.status === 200 || xhr.status === 201) {
         const response = JSON.parse(xhr.responseText);
-        const existingContent = decodeURIComponent(
-          escape(atob(response.content)),
-        );
+        const existingContent = decodeURIComponent( escape(atob(response.content)), );
         let newContent = '';
 
         /* Discussion posts prepended at top of README */
         /* Future implementations may require appending to bottom of file */
-        if (prepend) {
+        if (shouldPreprendDiscussionPosts) {
           newContent = btoa(
             unescape(encodeURIComponent(addition + existingContent)),
           );
@@ -168,9 +218,9 @@ const update = (
           hook,
           newContent,
           directory,
-          'README.md',
+          filename,
           response.sha,
-          msg,
+          commitMsg,
           cb,
         );
       }
@@ -183,7 +233,7 @@ function uploadGit(
   code,
   problemName,
   fileName,
-  msg,
+  commitMsg,
   action,
   prepend = true,
   cb = undefined,
@@ -198,50 +248,55 @@ function uploadGit(
   let token;
   let hook;
 
-  console.log("UploadGit::action", action)
+  console.log(`UploadGit::${fileName}::${action}`)
+  console.log({code, problemName, fileName, commitMsg, action, prepend, _diff})
 
   chrome.storage.local.get('leethub_token')
-    .then((t) => {
-      token = t.leethub_token;
-      console.log("UploadGit::t", t)
-      if (token == undefined) {
+    .then(({leethub_token}) => {
+      console.log("UploadGit::leethub_token", leethub_token)
+      token = leethub_token
+      if (leethub_token == undefined) {
         throw new Error('leethub token is undefined')
       } 
       return chrome.storage.local.get('mode_type')
     }) 
-    .then((m) => {
-      console.log("UploadGit::mode_type", m)
-      const mode = m.mode_type;
-      if (mode !== 'commit') {
+    .then(({mode_type}) => {
+      console.log("UploadGit::mode_type", mode_type)
+      if (mode_type !== 'commit') {
         throw new Error('leethub mode is not commit')
       }
       return chrome.storage.local.get('leethub_hook')
     })
-    .then((h) => {
-      console.log("UploadGit::leethub_hook", h)
-      hook = h.leethub_hook;
+    .then(({leethub_hook}) => {
+      hook = leethub_hook
       if (!hook) {
         throw new Error('leethub hook not defined')
       }
       return chrome.storage.local.get('stats')
     })
-    .then((s) => {
-      
+    .then(({stats}) => {
       if (action === 'upload') {
         const filePath = problemName + fileName;
-        const { stats } = s;
         
         /* Get SHA, if it exists */
         let sha = (stats?.sha?.[filePath] !== undefined) ? stats.sha[filePath] : "";
 
         console.log("UploadGit::StorageGet:sha", sha)
 
-        upload(token, hook, code, problemName, fileName, sha, msg, cb);
+        return upload(token, hook, code, problemName, fileName, sha, commitMsg, cb);
       } else if (action === 'update') {
-        update(token, hook, code, problemName, msg, prepend, cb);
+        update(token, hook, code, problemName, fileName, commitMsg, prepend, cb);
       }
     })
-    .catch(console.error);
+    .catch(err => {
+      if (err.message === '409') {
+        update(token, hook, code, problemName, fileName, commitMsg, prepend, cb)
+      }
+    })
+    .then(() => {
+      console.log('Updating instead of uploading')
+    })
+    .catch(console.error)
 }
 
 /* Function for finding and parsing the full code. */
@@ -344,7 +399,7 @@ function findCode(
                   fileName,
                   msg,
                   action,
-                  true,
+                  false,
                   cb,
                 );
               }, 2000);
@@ -630,13 +685,12 @@ const loader = setInterval(() => {
       startUpload();
       chrome.storage.local.get('stats', (s) => {
         const { stats } = s;
-        console.log("Loader::Upload::StorageGet:Stats", stats)
+        console.log(`Loader::Upload::${problemName}::StorageGet:Stats`, stats)
+        
         const filePath = problemName + problemName + language;
-        let sha = undefined;
-        if ( stats?.sha?.[filePath] !== undefined ) {
-          sha = stats.sha[filePath];
-        }
-        console.log("Loader::Upload::StorageGet:sha", sha)
+        let sha = (stats?.sha?.[filePath] !== undefined) ? stats.sha[filePath] : undefined;
+
+        console.log(`Loader::Upload::${problemName}::StorageGet:sha`, sha)
 
         /* Only create README if not already created */
         if (sha === undefined) {
