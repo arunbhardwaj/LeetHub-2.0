@@ -63,21 +63,20 @@ const upload = (
   directory,
   filename,
   sha,
-  msg,
+  commitMsg,
   cb = undefined,
 ) => {
-  // To validate user, load user object from GitHub.
   const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
 
   /* Define Payload */
   let data = {
-    message: msg,
+    message: commitMsg,
     content: code,
     sha,
   };
 
   data = JSON.stringify(data);
-  console.log("Upload::data", data)
+
   let options = {
     method: "PUT",
     headers: {
@@ -111,16 +110,17 @@ const upload = (
         stats.sha = {};
       }
       const filePath = directory + filename;
-      // Only increment solved problems statistics once
-      // New submission commits twice (README and problem)
-      if (filename === 'README.md' && (sha == null || sha === "")) {
+
+      // Only increment stats once. New submission commits twice (README and problem)
+      const isFirstCompletion = filename === 'README.md' && (sha == null || sha === "")
+      if (isFirstCompletion) {
         stats.solved += 1;
         stats.easy += difficulty === 'Easy' ? 1 : 0;
         stats.medium += difficulty === 'Medium' ? 1 : 0;
         stats.hard += difficulty === 'Hard' ? 1 : 0;
       }
       stats.sha[filePath] = updatedSha;
-      console.log("PromiseChain::Upload:updatedSha", updatedSha)
+      console.log("Upload:SHAUpdatedAfterUpload", updatedSha)
       return chrome.storage.local.set({ stats })
     })
     .then(() => {
@@ -129,57 +129,16 @@ const upload = (
         cb();
       }
     })
-  // const xhr = new XMLHttpRequest();
-  // xhr.open('PUT', URL, true);
-  // xhr.setRequestHeader('Authorization', `token ${token}`);
-  // xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
-  // xhr.onload()
-  // xhr.addEventListener('readystatechange', function () {
-  //   console.log("Upload::xhr", xhr)
-  //   if (xhr.readyState === 4) {
-  //     if (xhr.status === 200 || xhr.status === 201) {
-  //       const updatedSha = JSON.parse(xhr.responseText).content.sha; // get updated SHA.
-  //       chrome.storage.local.get('stats', (data2) => {
-  //         let { stats } = data2;
-  //         if (stats == null || stats === {}) {
-  //           // create stats object
-  //           stats = {};
-  //           stats.solved = 0;
-  //           stats.easy = 0;
-  //           stats.medium = 0;
-  //           stats.hard = 0;
-  //           stats.sha = {};
-  //         }
-  //         const filePath = directory + filename;
-  //         // Only increment solved problems statistics once
-  //         // New submission commits twice (README and problem)
-  //         if (filename === 'README.md' && (sha == null || sha === "")) {
-  //           stats.solved += 1;
-  //           stats.easy += difficulty === 'Easy' ? 1 : 0;
-  //           stats.medium += difficulty === 'Medium' ? 1 : 0;
-  //           stats.hard += difficulty === 'Hard' ? 1 : 0;
-  //         }
-  //         stats.sha[filePath] = updatedSha; // update sha key.
-  //         chrome.storage.local.set({ stats }, () => {
-  //           console.log( `Successfully committed ${filename} to github`, );
-
-  //           if (cb != undefined) {
-  //             cb();
-  //           }
-  //         });
-  //       });
-  //     } else if (xhr.status === 409) {
-  //       // GitHub Conflict - our SHA value is out of date.
-  //       console.log("409 status!")
-  //     }
-  //   }
-  // });
-  // xhr.send(data);
 };
 
+// function updateStatsProblemSolved(problemPath, ) {
+
+// }
+
 /* Main function for updating code on GitHub Repo */
-/* Currently only used for prepending discussion posts to README */
-/* callback cb is called on success if it is defined */
+/* Read from existing file on GitHub */
+/* Discussion posts prepended at top of README */
+/* Future implementations may require appending to bottom of file */
 const update = (
   token,
   hook,
@@ -191,42 +150,38 @@ const update = (
   cb = undefined,
 ) => {
   const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
-  console.log(`attempting an update for ${filename} with message:`, commitMsg)
-  /* Read from existing file on GitHub */
-  const xhr = new XMLHttpRequest();
-  xhr.open('GET', URL, true);
-  xhr.setRequestHeader('Authorization', `token ${token}`);
-  xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
-  xhr.addEventListener('readystatechange', function () {
-    if (xhr.readyState === 4) {
-      if (xhr.status === 200 || xhr.status === 201) {
-        const response = JSON.parse(xhr.responseText);
-        const existingContent = decodeURIComponent( escape(atob(response.content)), );
-        let newContent = '';
 
-        /* Discussion posts prepended at top of README */
-        /* Future implementations may require appending to bottom of file */
-        if (shouldPreprendDiscussionPosts) {
-          newContent = btoa(
-            unescape(encodeURIComponent(addition + existingContent)),
-          );
-        }
-
-        /* Write file with new content to GitHub */
-        upload(
-          token,
-          hook,
-          newContent,
-          directory,
-          filename,
-          response.sha,
-          commitMsg,
-          cb,
-        );
-      }
+  let options = {
+    method: 'GET',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github.v3+json'
     }
-  });
-  xhr.send();
+  }
+  
+  let responseSHA;
+  return fetch(URL, options)
+    .then(async res => {
+      if (res.status === 200 || res.status === 201) {
+        const body = await res.json()
+        responseSHA = body.sha
+        return body
+      } else {
+        throw new Error("" + res.status)
+      }
+    })
+    .then(body => decodeURIComponent(escape(atob(body.content))))
+    .then(existingContent => (shouldPreprendDiscussionPosts) ? btoa(unescape(encodeURIComponent(addition + existingContent))) : '')
+    .then(newContent => upload(
+      token,
+      hook,
+      newContent,
+      directory,
+      filename,
+      responseSHA,
+      commitMsg,
+      cb,
+    ))
 };
 
 function uploadGit(
@@ -244,16 +199,14 @@ function uploadGit(
     difficulty = _diff.trim();
   }
 
-  /* Get necessary payload data */
   let token;
   let hook;
 
-  console.log(`UploadGit::${fileName}::${action}`)
-  console.log({code, problemName, fileName, commitMsg, action, shouldPrependDiscussionPosts, _diff})
+  console.log(`UploadGit::Action::${action}::File::${fileName}`)
+  console.log(`UploadGit::Action::${action}::Data`, {code, problemName, fileName, commitMsg, action, shouldPrependDiscussionPosts, _diff})
 
-  chrome.storage.local.get('leethub_token')
+  return chrome.storage.local.get('leethub_token')
     .then(({leethub_token}) => {
-      console.log("UploadGit::leethub_token", leethub_token)
       token = leethub_token
       if (leethub_token == undefined) {
         throw new Error('leethub token is undefined')
@@ -261,7 +214,6 @@ function uploadGit(
       return chrome.storage.local.get('mode_type')
     }) 
     .then(({mode_type}) => {
-      console.log("UploadGit::mode_type", mode_type)
       if (mode_type !== 'commit') {
         throw new Error('leethub mode is not commit')
       }
@@ -279,22 +231,23 @@ function uploadGit(
         const filePath = problemName + fileName;
         
         /* Get SHA, if it exists */
-        let sha = (stats?.sha?.[filePath] !== undefined) ? stats.sha[filePath] : "";
+        const sha = (stats?.sha?.[filePath] !== undefined) ? stats.sha[filePath] : "";
 
-        console.log("UploadGit::StorageGet:sha", sha)
+        console.log(`UploadGit::Action::${action}::File::${fileName}::Storage::SHA`, sha)
 
         return upload(token, hook, code, problemName, fileName, sha, commitMsg, cb);
       } else if (action === 'update') {
-        update(token, hook, code, problemName, fileName, commitMsg, shouldPrependDiscussionPosts, cb);
+        return update(token, hook, code, problemName, fileName, commitMsg, shouldPrependDiscussionPosts, cb);
       }
     })
     .catch(err => {
       if (err.message === '409') {
-        update(token, hook, code, problemName, fileName, commitMsg, shouldPrependDiscussionPosts, cb)
+        console.log(`UploadGit::Action::${action}::File::${fileName}::UploadFailed::Updating..`)
+        return update(token, hook, code, problemName, fileName, commitMsg, shouldPrependDiscussionPosts, cb)
       }
     })
     .then(() => {
-      console.log('Updating instead of uploading')
+      console.log(`UploadGit::Action::${action}::File::${fileName}::UpdateSuccess`)
     })
     .catch(console.error)
 }
@@ -313,7 +266,7 @@ function findCode(
   cb = undefined,
 ) {
   /* Get the submission details url from the submission page. */
-  var submissionURL;
+  let submissionURL;
   const e = document.getElementsByClassName('status-column__3SUg');
   if (checkElem(e)) {
     // for normal problem submisson
@@ -327,91 +280,93 @@ function findCode(
     submissionURL = submissionRef.href;
   }
 
-  if (submissionURL != undefined) {
-    /* Request for the submission details page */
-    const xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function () {
-      if (this.readyState == 4 && this.status == 200) {
-        /* received submission details as html reponse. */
-        var doc = new DOMParser().parseFromString(
-          this.responseText,
-          'text/html',
-        );
-        /* the response has a js object called pageData. */
-        /* Pagedata has the details data with code about that submission */
-        var scripts = doc.getElementsByTagName('script');
-        for (var i = 0; i < scripts.length; i++) {
-          var text = scripts[i].innerText;
-          if (text.includes('pageData')) {
-            /* Considering the pageData as text and extract the substring
-            which has the full code */
-            var firstIndex = text.indexOf('submissionCode');
-            var lastIndex = text.indexOf('editCodeUrl');
-            var slicedText = text.slice(firstIndex, lastIndex);
-            /* slicedText has code as like as. (submissionCode: 'Details code'). */
-            /* So finding the index of first and last single inverted coma. */
-            var firstInverted = slicedText.indexOf("'");
-            var lastInverted = slicedText.lastIndexOf("'");
-            /* Extract only the code */
-            var codeUnicoded = slicedText.slice(
-              firstInverted + 1,
-              lastInverted,
-            );
-            /* The code has some unicode. Replacing all unicode with actual characters */
-            var code = codeUnicoded.replace(
-              /\\u[\dA-F]{4}/gi,
-              function (match) {
-                return String.fromCharCode(
-                  parseInt(match.replace(/\\u/g, ''), 16),
-                );
-              },
-            );
+  if (submissionURL == undefined) {
+    return
+  }
 
-            /*
-            for a submisssion in explore section we do not get probStat beforehand
-            so, parse statistics from submisson page
-            */
-            if (!msg) {
-              slicedText = text.slice(
-                text.indexOf('runtime'),
-                text.indexOf('memory'),
+  /* Request for the submission details page */
+  const xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function () {
+    if (this.readyState == 4 && this.status == 200) {
+      /* received submission details as html reponse. */
+      var doc = new DOMParser().parseFromString(
+        this.responseText,
+        'text/html',
+      );
+      /* the response has a js object called pageData. */
+      /* Pagedata has the details data with code about that submission */
+      var scripts = doc.getElementsByTagName('script');
+      for (var i = 0; i < scripts.length; i++) {
+        var text = scripts[i].innerText;
+        if (text.includes('pageData')) {
+          /* Considering the pageData as text and extract the substring
+          which has the full code */
+          var firstIndex = text.indexOf('submissionCode');
+          var lastIndex = text.indexOf('editCodeUrl');
+          var slicedText = text.slice(firstIndex, lastIndex);
+          /* slicedText has code as like as. (submissionCode: 'Details code'). */
+          /* So finding the index of first and last single inverted coma. */
+          var firstInverted = slicedText.indexOf("'");
+          var lastInverted = slicedText.lastIndexOf("'");
+          /* Extract only the code */
+          var codeUnicoded = slicedText.slice(
+            firstInverted + 1,
+            lastInverted,
+          );
+          /* The code has some unicode. Replacing all unicode with actual characters */
+          var code = codeUnicoded.replace(
+            /\\u[\dA-F]{4}/gi,
+            function (match) {
+              return String.fromCharCode(
+                parseInt(match.replace(/\\u/g, ''), 16),
               );
-              const resultRuntime = slicedText.slice(
-                slicedText.indexOf("'") + 1,
-                slicedText.lastIndexOf("'"),
-              );
-              slicedText = text.slice(
-                text.indexOf('memory'),
-                text.indexOf('total_correct'),
-              );
-              const resultMemory = slicedText.slice(
-                slicedText.indexOf("'") + 1,
-                slicedText.lastIndexOf("'"),
-              );
-              msg = `Time: ${resultRuntime}, Memory: ${resultMemory} - LeetHub`;
-            }
+            },
+          );
 
-            if (code != null) {
-              setTimeout(function () {
-                uploadGit(
-                  btoa(unescape(encodeURIComponent(code))),
-                  problemName,
-                  fileName,
-                  msg,
-                  action,
-                  false,
-                  cb,
-                );
-              }, 2000);
-            }
+          /*
+          for a submisssion in explore section we do not get probStat beforehand
+          so, parse statistics from submisson page
+          */
+          if (!msg) {
+            slicedText = text.slice(
+              text.indexOf('runtime'),
+              text.indexOf('memory'),
+            );
+            const resultRuntime = slicedText.slice(
+              slicedText.indexOf("'") + 1,
+              slicedText.lastIndexOf("'"),
+            );
+            slicedText = text.slice(
+              text.indexOf('memory'),
+              text.indexOf('total_correct'),
+            );
+            const resultMemory = slicedText.slice(
+              slicedText.indexOf("'") + 1,
+              slicedText.lastIndexOf("'"),
+            );
+            msg = `Time: ${resultRuntime}, Memory: ${resultMemory} - LeetHub`;
+          }
+
+          if (code != null) {
+            setTimeout(function () {
+              uploadGit(
+                btoa(unescape(encodeURIComponent(code))),
+                problemName,
+                fileName,
+                msg,
+                action,
+                false,
+                cb,
+              );
+            }, 2000);
           }
         }
       }
-    };
+    }
+  };
 
-    xhttp.open('GET', submissionURL, true);
-    xhttp.send();
-  }
+  xhttp.open('GET', submissionURL, true);
+  xhttp.send();
 }
 
 /* Main parser function for the code */
@@ -585,7 +540,6 @@ document.addEventListener('click', (event) => {
         const addition = `[Discussion Post (created on ${currentDate})](${window.location})  \n`;
         const problemName = window.location.pathname.split('/')[2]; // must be true.
 
-        console.log("Click::Post::update") // This never runs
         uploadGit(
           addition,
           problemName,
@@ -633,13 +587,11 @@ function getNotesIfAny() {
 }
 
 const loader = setInterval(() => {
-  let code = null;
-  let probStatement = null;
-  let probStats = null;
   let probType;
+  let success = false;
   const successTag = document.getElementsByClassName('success__3Ai7');
   const resultState = document.getElementById('result-state');
-  var success = false;
+  
   // check success tag for a normal problem
   if (
     checkElem(successTag) &&
@@ -661,92 +613,90 @@ const loader = setInterval(() => {
     probType = EXPLORE_SECTION_PROBLEM;
   }
 
-  if (success) {
-    probStatement = parseQuestion();
-    probStats = parseStats();
+  if (!success) {
+    return 
   }
 
-  if (probStatement !== null) {
-    switch (probType) {
-      case NORMAL_PROBLEM:
-        successTag[0].classList.add('marked_as_success');
-        break;
-      case EXPLORE_SECTION_PROBLEM:
-        resultState.classList.add('marked_as_success');
-        break;
-      default:
-        console.error(`Unknown problem type ${probType}`);
-        return;
+  switch (probType) {
+    case NORMAL_PROBLEM:
+      successTag[0].classList.add('marked_as_success');
+      break;
+    case EXPLORE_SECTION_PROBLEM:
+      resultState.classList.add('marked_as_success');
+      break;
+    default:
+      console.error(`Unknown problem type ${probType}`);
+      return;
+  }
+
+  const probStats = parseStats();
+  const probStatement = parseQuestion();
+  if (probStatement === null) {
+    return
+  }
+
+  const problemName = getProblemNameSlug();
+  const language = findLanguage();
+  if (language === null) {
+    return
+  }
+
+  // start upload indicator here
+  startUpload();
+  chrome.storage.local.get('stats', ({stats}) => {    
+    const filePath = problemName + problemName + language;
+    const sha = (stats?.sha?.[filePath] !== undefined) ? stats.sha[filePath] : undefined;
+
+    /* Only create README if not already created */
+    if (sha === undefined) {
+      /* @TODO: Change this setTimeout to Promise */
+      uploadGit(
+        btoa(unescape(encodeURIComponent(probStatement))),
+        problemName,
+        'README.md',
+        readmeMsg,
+        'upload',
+        false,
+      );
     }
+  });
 
-    const problemName = getProblemNameSlug();
-    const language = findLanguage();
-    if (language !== null) {
-      // start upload indicator here
-      startUpload();
-      chrome.storage.local.get('stats', (s) => {
-        const { stats } = s;
-        console.log(`Loader::Upload::${problemName}::StorageGet:Stats`, stats)
-        
-        const filePath = problemName + problemName + language;
-        let sha = (stats?.sha?.[filePath] !== undefined) ? stats.sha[filePath] : undefined;
-
-        console.log(`Loader::Upload::${problemName}::StorageGet:sha`, sha)
-
-        /* Only create README if not already created */
-        if (sha === undefined) {
-          /* @TODO: Change this setTimeout to Promise */
-          uploadGit(
-            btoa(unescape(encodeURIComponent(probStatement))),
-            problemName,
-            'README.md',
-            readmeMsg,
-            'upload',
-            false,
-          );
-        }
-      });
-
-      /* get the notes and upload it */
-      /* only upload notes if there is any */
-      notes = getNotesIfAny();
-      if (notes.length > 0) {
-        setTimeout(function () {
-          if (notes != undefined && notes.length != 0) {
-            console.log('Create Notes');
-            // means we can upload the notes too
-            uploadGit(
-              btoa(unescape(encodeURIComponent(notes))),
-              problemName,
-              'NOTES.md',
-              createNotesMsg,
-              'upload',
-              false,
-            );
-          }
-        }, 500);
-      }
-
-      /* Upload code to Git */
-      setTimeout(function () {
-        findCode(
-          uploadGit,
+  /* get the notes and only upload it if there are any*/
+  notes = getNotesIfAny();
+  if (notes.length > 0) {
+    setTimeout(function () {
+      if (notes != undefined && notes.length != 0) {
+        console.log('Create Notes');
+        uploadGit(
+          btoa(unescape(encodeURIComponent(notes))),
           problemName,
-          problemName + language,
-          probStats,
+          'NOTES.md',
+          createNotesMsg,
           'upload',
-          // callback is called when the code upload to git is a success
-          () => {
-            if (uploadState['countdown'])
-              clearTimeout(uploadState['countdown']);
-            delete uploadState['countdown'];
-            uploadState.uploading = false;
-            markUploaded();
-          },
-        ); // Encode `code` to base64
-      }, 1000);
-    }
+          false,
+        );
+      }
+    }, 500);
   }
+
+  /* Upload code to Git */
+  setTimeout(function () {
+    findCode(
+      uploadGit,
+      problemName,
+      problemName + language,
+      probStats,
+      'upload',
+      // callback is called when the code upload to git is a success
+      () => {
+        if (uploadState['countdown'])
+          clearTimeout(uploadState['countdown']);
+        delete uploadState['countdown'];
+        uploadState.uploading = false;
+        markUploaded();
+      },
+    ); // Encode `code` to base64
+  }, 1000);
 }, 1000);
 
 /* Since we dont yet have callbacks/promises that helps to find out if things went bad */
