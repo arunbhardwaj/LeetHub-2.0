@@ -135,15 +135,16 @@ const gfgLoader = setInterval(() => {
           if (language !== null) {
             chrome.storage.local.get('stats', (s) => {
               const { stats } = s;
-              const filePath =
-                probName + toKebabCase(title + language);
+              const fileName = toKebabCase(title + language);
+              const filePath = probName + fileName;
               let sha = null;
               if (
                 stats !== undefined &&
-                stats.sha !== undefined &&
-                stats.sha[filePath] !== undefined
+                stats.shas !== undefined &&
+                stats.shas[probName] !== undefined &&
+                stats.shas[probName][fileName] !== undefined
               ) {
-                sha = stats.sha[filePath];
+                sha = stats.shas[probName][fileName];
               }
 
               // Only create README if not already created

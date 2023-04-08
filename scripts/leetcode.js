@@ -60,13 +60,13 @@ const upload = (
   token,
   hook,
   code,
-  directory,
+  problem,
   filename,
   sha,
   commitMsg,
   cb = undefined,
 ) => {
-  const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
+  const URL = `https://api.github.com/repos/${hook}/contents/${problem}/${filename}`;
 
   /* Define Payload */
   let data = {
@@ -107,33 +107,30 @@ const upload = (
         stats.easy = 0;
         stats.medium = 0;
         stats.hard = 0;
-        stats.sha = {};
+        stats.shas = {};
       }
-      const filePath = directory + filename;
+      const filePath = problem + filename;
 
       // Only increment stats once. New submission commits twice (README and problem)
-      const isFirstCompletion = filename === 'README.md' && (sha == null || sha === "")
+      const isFirstCompletion = (stats?.shas?.[problem] === undefined && filename === 'README.md')
       if (isFirstCompletion) {
         stats.solved += 1;
         stats.easy += difficulty === 'Easy' ? 1 : 0;
         stats.medium += difficulty === 'Medium' ? 1 : 0;
         stats.hard += difficulty === 'Hard' ? 1 : 0;
-      }
-      stats.sha[filePath] = updatedSha;
+        stats.shas[problem] = {}
+      } 
+      stats.shas[problem][filename] = updatedSha;
       console.log("Upload:SHAUpdatedAfterUpload", updatedSha)
       return chrome.storage.local.set({ stats })
     })
     .then(() => {
-      console.log( `Successfully committed ${filename} to github`, );
+      console.log('Successfully committed ${filename} to github');
       if (cb != undefined) {
         cb();
       }
     })
 };
-
-// function updateStatsProblemSolved(problemPath, ) {
-
-// }
 
 /* Main function for updating code on GitHub Repo */
 /* Read from existing file on GitHub */
@@ -231,7 +228,7 @@ function uploadGit(
         const filePath = problemName + fileName;
         
         /* Get SHA, if it exists */
-        const sha = (stats?.sha?.[filePath] !== undefined) ? stats.sha[filePath] : "";
+        const sha = (stats?.shas?.problemName?.[fileName] !== undefined) ? stats.shas.problemName[fileName] : "";
 
         console.log(`UploadGit::Action::${action}::File::${fileName}::Storage::SHA`, sha)
 
@@ -244,6 +241,8 @@ function uploadGit(
       if (err.message === '409') {
         console.log(`UploadGit::Action::${action}::File::${fileName}::UploadFailed::Updating..`)
         return update(token, hook, code, problemName, fileName, commitMsg, shouldPrependDiscussionPosts, cb)
+      } else {
+        throw err
       }
     })
     .then(() => {
@@ -645,7 +644,7 @@ const loader = setInterval(() => {
   startUpload();
   chrome.storage.local.get('stats', ({stats}) => {    
     const filePath = problemName + problemName + language;
-    const sha = (stats?.sha?.[filePath] !== undefined) ? stats.sha[filePath] : undefined;
+    const sha = (stats?.shas?.[problemName]?.[problemName+language] !== undefined) ? stats.shas[problemName][problemName+language] : undefined;
 
     /* Only create README if not already created */
     if (sha === undefined) {
