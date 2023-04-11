@@ -780,12 +780,12 @@ function injectStyle() {
 
 function LeetCodeV2() {}
 LeetCodeV2.prototype.findCode = function () {
-  let code;
-  const e = document.getElementsByTagName('code')[0];
-  if (checkElem(e)) {
-    code = e.innerText;
+  const code = document.getElementsByTagName('code');
+  if (!checkElem(code)) {
+    console.error('No solution code found')
+    return null
   }
-  return code;
+  return code[0].innerText;
 };
 LeetCodeV2.prototype.findLanguage = function () {
   const tag = document.querySelector('button[id^="headlessui-listbox-button"]');
