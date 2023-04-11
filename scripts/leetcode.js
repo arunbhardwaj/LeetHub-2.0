@@ -1,25 +1,25 @@
 /* Enum for languages supported by LeetCode. */
-  const languages = {
-    Python: '.py',
-    Python3: '.py',
-    'C++': '.cpp',
-    C: '.c',
-    Java: '.java',
-    'C#': '.cs',
-    JavaScript: '.js',
-    Javascript: '.js',
-    Ruby: '.rb',
-    Swift: '.swift',
-    Go: '.go',
-    Kotlin: '.kt',
-    Scala: '.scala',
-    Rust: '.rs',
-    PHP: '.php',
-    TypeScript: '.ts',
-    MySQL: '.sql',
-    'MS SQL Server': '.sql',
-    Oracle: '.sql',
-  };
+const languages = {
+  Python: '.py',
+  Python3: '.py',
+  'C++': '.cpp',
+  C: '.c',
+  Java: '.java',
+  'C#': '.cs',
+  JavaScript: '.js',
+  Javascript: '.js',
+  Ruby: '.rb',
+  Swift: '.swift',
+  Go: '.go',
+  Kotlin: '.kt',
+  Scala: '.scala',
+  Rust: '.rs',
+  PHP: '.php',
+  TypeScript: '.ts',
+  MySQL: '.sql',
+  'MS SQL Server': '.sql',
+  Oracle: '.sql',
+};
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
@@ -40,8 +40,7 @@ let uploadState = { uploading: false };
 function findLanguage() {
   const tag = [
     ...document.getElementsByClassName('ant-select-selection-selected-value'),
-    ...document.getElementsByClassName('Select-value-label'),
-    ...document.getElementById('headlessui-listbox-button-:r2d:').children, //v2 LeetCode
+    ...document.getElementsByClassName('Select-value-label')  
   ];
   if (tag && tag.length > 0) {
     for (let i = 0; i < tag.length; i += 1) {
@@ -592,14 +591,21 @@ const loader = setInterval(() => {
       return;
   }
 
-  const probStats = parseStats();
-  const probStatement = parseQuestion();
+  let leetCode;
+  if (true) {
+    leetCode = new LeetCodeV1();
+  } else {
+    leetCode = new LeetCodeV2();
+  }
+
+  const probStats = leetCode.parseStats();
+  const probStatement = leetCode.parseQuestion();
   if (probStatement === null) {
     return;
   }
 
-  const problemName = getProblemNameSlug();
-  const language = findLanguage();
+  const problemName = leetCode.getProblemNameSlug();
+  const language = leetCode.findLanguage();
   if (language === null) {
     return;
   }
@@ -628,7 +634,7 @@ const loader = setInterval(() => {
   });
 
   /* get the notes and only upload it if there are any*/
-  notes = getNotesIfAny();
+  notes = leetCode.getNotesIfAny();
   if (notes.length > 0) {
     setTimeout(function () {
       if (notes != undefined && notes.length != 0) {
@@ -647,7 +653,7 @@ const loader = setInterval(() => {
 
   /* Upload code to Git */
   setTimeout(function () {
-    findCode(
+    leetCode.findCode(
       uploadGit,
       problemName,
       problemName + language,
@@ -778,26 +784,239 @@ function injectStyle() {
   document.head.append(style);
 }
 
+function LeetCodeV1() {}
+LeetCodeV1.prototype.findCode = function (
+  uploadGit,
+  problemName,
+  fileName,
+  msg,
+  action,
+  cb = undefined,
+) {
+  /* Get the submission details url from the submission page. */
+  let submissionURL;
+  const e = document.getElementsByClassName('status-column__3SUg');
+  if (checkElem(e)) {
+    // for normal problem submisson
+    const submissionRef = e[1].innerHTML.split(' ')[1];
+    submissionURL = 'https://leetcode.com' + submissionRef.split('=')[1].slice(1, -1);
+  } else {
+    // for a submission in explore section
+    const submissionRef = document.getElementById('result-state');
+    submissionURL = submissionRef.href;
+  }
+
+  if (submissionURL == undefined) {
+    return;
+  }
+
+  /* Request for the submission details page */
+  const xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function () {
+    if (this.readyState == 4 && this.status == 200) {
+      /* received submission details as html reponse. */
+      var doc = new DOMParser().parseFromString(this.responseText, 'text/html');
+      /* the response has a js object called pageData. */
+      /* Pagedata has the details data with code about that submission */
+      var scripts = doc.getElementsByTagName('script');
+      for (var i = 0; i < scripts.length; i++) {
+        var text = scripts[i].innerText;
+        if (text.includes('pageData')) {
+          /* Considering the pageData as text and extract the substring
+          which has the full code */
+          var firstIndex = text.indexOf('submissionCode');
+          var lastIndex = text.indexOf('editCodeUrl');
+          var slicedText = text.slice(firstIndex, lastIndex);
+          /* slicedText has code as like as. (submissionCode: 'Details code'). */
+          /* So finding the index of first and last single inverted coma. */
+          var firstInverted = slicedText.indexOf("'");
+          var lastInverted = slicedText.lastIndexOf("'");
+          /* Extract only the code */
+          var codeUnicoded = slicedText.slice(firstInverted + 1, lastInverted);
+          /* The code has some unicode. Replacing all unicode with actual characters */
+          var code = codeUnicoded.replace(/\\u[\dA-F]{4}/gi, function (match) {
+            return String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16));
+          });
+
+          /*
+          for a submisssion in explore section we do not get probStat beforehand
+          so, parse statistics from submisson page
+          */
+          if (!msg) {
+            slicedText = text.slice(text.indexOf('runtime'), text.indexOf('memory'));
+            const resultRuntime = slicedText.slice(
+              slicedText.indexOf("'") + 1,
+              slicedText.lastIndexOf("'"),
+            );
+            slicedText = text.slice(text.indexOf('memory'), text.indexOf('total_correct'));
+            const resultMemory = slicedText.slice(
+              slicedText.indexOf("'") + 1,
+              slicedText.lastIndexOf("'"),
+            );
+            msg = `Time: ${resultRuntime}, Memory: ${resultMemory} - LeetHub`;
+          }
+
+          if (code != null) {
+            setTimeout(function () {
+              uploadGit(
+                btoa(unescape(encodeURIComponent(code))),
+                problemName,
+                fileName,
+                msg,
+                action,
+                false,
+                cb,
+              );
+            }, 2000);
+          }
+        }
+      }
+    }
+  };
+
+  xhttp.open('GET', submissionURL, true);
+  xhttp.send();
+};
+LeetCodeV1.prototype.findLanguage = function () {
+  const tag = [
+    ...document.getElementsByClassName('ant-select-selection-selected-value'),
+    ...document.getElementsByClassName('Select-value-label')
+  ];
+  if (tag && tag.length > 0) {
+    for (let i = 0; i < tag.length; i += 1) {
+      const elem = tag[i].textContent;
+      if (elem !== undefined && languages[elem] !== undefined) {
+        return languages[elem];
+      }
+    }
+  }
+  return null;
+}
+LeetCodeV1.prototype.getNotesIfAny = function () {
+  // there are no notes on expore
+  if (document.URL.startsWith('https://leetcode.com/explore/')) return '';
+
+  notes = '';
+  if (
+    checkElem(document.getElementsByClassName('notewrap__eHkN')) &&
+    checkElem(
+      document
+        .getElementsByClassName('notewrap__eHkN')[0]
+        .getElementsByClassName('CodeMirror-code'),
+    )
+  ) {
+    notesdiv = document
+      .getElementsByClassName('notewrap__eHkN')[0]
+      .getElementsByClassName('CodeMirror-code')[0];
+    if (notesdiv) {
+      for (i = 0; i < notesdiv.childNodes.length; i++) {
+        if (notesdiv.childNodes[i].childNodes.length == 0) continue;
+        text = notesdiv.childNodes[i].childNodes[0].innerText;
+        if (text) {
+          notes = `${notes}\n${text.trim()}`.trim();
+        }
+      }
+    }
+  }
+  return notes.trim();
+}
+LeetCodeV1.prototype.parseStats = function () {
+  const probStats = document.getElementsByClassName('data__HC-i');
+  if (!checkElem(probStats)) {
+    return null;
+  }
+  const time = probStats[0].textContent;
+  const timePercentile = probStats[1].textContent;
+  const space = probStats[2].textContent;
+  const spacePercentile = probStats[3].textContent;
+
+  return `Time: ${time} (${timePercentile}), Space: ${space} (${spacePercentile}) - LeetHub`;
+}
+LeetCodeV1.prototype.parseQuestion = function () {
+  var questionUrl = window.location.href;
+  if (questionUrl.endsWith('/submissions/')) {
+    questionUrl = questionUrl.substring(0, questionUrl.lastIndexOf('/submissions/') + 1);
+  }
+  const questionElem = document.getElementsByClassName('content__u3I1 question-content__JfgR');
+  const questionDescriptionElem = document.getElementsByClassName('question-description__3U1T');
+  if (checkElem(questionElem)) {
+    const qbody = questionElem[0].innerHTML;
+
+    // Problem title.
+    let qtitle = document.getElementsByClassName('css-v3d350');
+    if (checkElem(qtitle)) {
+      qtitle = qtitle[0].innerHTML;
+    } else {
+      qtitle = 'unknown-problem';
+    }
+
+    // Problem difficulty, each problem difficulty has its own class.
+    const isHard = document.getElementsByClassName('css-t42afm');
+    const isMedium = document.getElementsByClassName('css-dcmtd5');
+    const isEasy = document.getElementsByClassName('css-14oi08n');
+
+    if (checkElem(isEasy)) {
+      difficulty = 'Easy';
+    } else if (checkElem(isMedium)) {
+      difficulty = 'Medium';
+    } else if (checkElem(isHard)) {
+      difficulty = 'Hard';
+    }
+    // Final formatting of the contents of the README for each problem
+    const markdown = `<h2><a href="${questionUrl}">${qtitle}</a></h2><h3>${difficulty}</h3><hr>${qbody}`;
+    return markdown;
+  } else if (checkElem(questionDescriptionElem)) {
+    let questionTitle = document.getElementsByClassName('question-title');
+    if (checkElem(questionTitle)) {
+      questionTitle = questionTitle[0].innerText;
+    } else {
+      questionTitle = 'unknown-problem';
+    }
+
+    const questionBody = questionDescriptionElem[0].innerHTML;
+    const markdown = `<h2>${questionTitle}</h2><hr>${questionBody}`;
+
+    return markdown;
+  }
+}
+LeetCodeV1.prototype.getProblemNameSlug = function () {
+  const questionElem = document.getElementsByClassName('content__u3I1 question-content__JfgR');
+  const questionDescriptionElem = document.getElementsByClassName('question-description__3U1T');
+  let questionTitle = 'unknown-problem';
+  if (checkElem(questionElem)) {
+    let qtitle = document.getElementsByClassName('css-v3d350');
+    if (checkElem(qtitle)) {
+      questionTitle = qtitle[0].innerHTML;
+    }
+  } else if (checkElem(questionDescriptionElem)) {
+    let qtitle = document.getElementsByClassName('question-title');
+    if (checkElem(qtitle)) {
+      questionTitle = qtitle[0].innerText;
+    }
+  }
+  return addLeadingZeros(convertToSlug(questionTitle));
+}
+
 function LeetCodeV2() {}
 LeetCodeV2.prototype.findCode = function () {
   const code = document.getElementsByTagName('code');
   if (!checkElem(code)) {
-    console.error('No solution code found')
-    return null
+    console.error('No solution code found');
+    return null;
   }
   return code[0].innerText;
 };
 LeetCodeV2.prototype.findLanguage = function () {
   const tag = document.querySelector('button[id^="headlessui-listbox-button"]');
   if (!tag) {
-    console.error('No language button found')
-    return null
+    console.error('No language button found');
+    return null;
   }
 
-  const lang = tag.innerText
+  const lang = tag.innerText;
   if (languages[lang] === undefined) {
-    console.error('Unknown Language')
-    return null
+    console.error('Unknown Language');
+    return null;
   }
 
   return languages[lang];
@@ -822,7 +1041,7 @@ LeetCodeV2.prototype.parseQuestionTitle = function () {
     .innerText.split(' ')
     .slice(0, -2)
     .join(' ');
-  
+
   if (questionTitle === '') {
     questionTitle = 'unknown-problem';
   }
@@ -832,17 +1051,19 @@ LeetCodeV2.prototype.parseQuestionTitle = function () {
 LeetCodeV2.prototype.parseQuestionDescription = function () {
   const description = document.getElementsByName('description');
   if (!checkElem(description)) {
-    return null
+    return null;
   }
   return description[0].content;
 };
 LeetCodeV2.prototype.parseQuestionNumber = function () {
   const maxQuestionNumLength = 4;
-  const title = document.getElementsByClassName('mr-2 text-lg font-medium text-label-1 dark:text-dark-label-1')[0].innerText;
-  
-  let num = title.split('.')[0]
+  const title = document.getElementsByClassName(
+    'mr-2 text-lg font-medium text-label-1 dark:text-dark-label-1',
+  )[0].innerText;
+
+  let num = title.split('.')[0];
   if (num.length < maxQuestionNumLength) {
-    num = '0'.repeat(4 - num.length) + num
+    num = '0'.repeat(4 - num.length) + num;
   }
 
   return num;
@@ -856,8 +1077,8 @@ LeetCodeV2.prototype.parseDifficulty = function () {
   return 'unknown';
 };
 LeetCodeV2.prototype.getProblemNameSlug = function () {
-  let questionTitle = convertToSlug(this.parseQuestionTitle())
-  let questionNum = this.parseQuestionNumber()
-  
-  return questionNum + '-' + questionTitle
+  let questionTitle = convertToSlug(this.parseQuestionTitle());
+  let questionNum = this.parseQuestionNumber();
+
+  return questionNum + '-' + questionTitle;
 };
