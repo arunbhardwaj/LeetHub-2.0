@@ -1,25 +1,25 @@
 /* Enum for languages supported by LeetCode. */
-const languages = {
-  Python: '.py',
-  Python3: '.py',
-  'C++': '.cpp',
-  C: '.c',
-  Java: '.java',
-  'C#': '.cs',
-  JavaScript: '.js',
-  Javascript: '.js',
-  Ruby: '.rb',
-  Swift: '.swift',
-  Go: '.go',
-  Kotlin: '.kt',
-  Scala: '.scala',
-  Rust: '.rs',
-  PHP: '.php',
-  TypeScript: '.ts',
-  MySQL: '.sql',
-  'MS SQL Server': '.sql',
-  Oracle: '.sql',
-};
+  const languages = {
+    Python: '.py',
+    Python3: '.py',
+    'C++': '.cpp',
+    C: '.c',
+    Java: '.java',
+    'C#': '.cs',
+    JavaScript: '.js',
+    Javascript: '.js',
+    Ruby: '.rb',
+    Swift: '.swift',
+    Go: '.go',
+    Kotlin: '.kt',
+    Scala: '.scala',
+    Rust: '.rs',
+    PHP: '.php',
+    TypeScript: '.ts',
+    MySQL: '.sql',
+    'MS SQL Server': '.sql',
+    Oracle: '.sql',
+  };
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
@@ -788,16 +788,19 @@ LeetCodeV2.prototype.findCode = function () {
   return code;
 };
 LeetCodeV2.prototype.findLanguage = function () {
-  const tag = [...document.getElementById('headlessui-listbox-button-:r2d:').children];
-  if (tag && tag.length > 0) {
-    for (let i = 0; i < tag.length; i += 1) {
-      const elem = tag[i].textContent;
-      if (elem !== undefined && languages[elem] !== undefined) {
-        return languages[elem];
-      }
-    }
+  const tag = document.querySelector('button[id^="headlessui-listbox-button"]');
+  if (!tag) {
+    console.error('No language button found')
+    return null
   }
-  return null;
+
+  const lang = tag.innerText
+  if (languages[lang] === undefined) {
+    console.error('Unknown Language')
+    return null
+  }
+
+  return languages[lang];
 };
 LeetCodeV2.prototype.getNotesIfAny = function () {};
 LeetCodeV2.prototype.parseStats = function () {
@@ -813,57 +816,48 @@ LeetCodeV2.prototype.parseStats = function () {
 
   return `Time: ${time} (${timePercentile}), Space: ${space} (${spacePercentile}) - LeetHub`;
 };
-LeetCodeV2.prototype.parseQuestion = function () {
-  const question = document.getElementsByName('description')[0].content;
-  return question;
-};
 LeetCodeV2.prototype.parseQuestionTitle = function () {
   let questionTitle = document
     .getElementsByTagName('title')[0]
     .innerText.split(' ')
     .slice(0, -2)
     .join(' ');
+  
   if (questionTitle === '') {
     questionTitle = 'unknown-problem';
   }
+
   return questionTitle;
 };
-LeetCodeV2.prototype.parseQuestionNumber = function () {
-  var questionUrl = window.location.href;
-
-  let x = document.getElementsByClassName(
-    'mr-2 text-lg font-medium text-label-1 dark:text-dark-label-1',
-  )[0].innerText;
+LeetCodeV2.prototype.parseQuestionDescription = function () {
+  const description = document.getElementsByName('description');
+  if (!checkElem(description)) {
+    return null
+  }
+  return description[0].content;
 };
-LeetCodeV2.prototype.parseDifficulty = async function () {
+LeetCodeV2.prototype.parseQuestionNumber = function () {
+  const maxQuestionNumLength = 4;
+  const title = document.getElementsByClassName('mr-2 text-lg font-medium text-label-1 dark:text-dark-label-1')[0].innerText;
+  
+  let num = title.split('.')[0]
+  if (num.length < maxQuestionNumLength) {
+    num = '0'.repeat(4 - num.length) + num
+  }
+
+  return num;
+};
+LeetCodeV2.prototype.parseDifficulty = function () {
   const diffElement = document.getElementsByClassName('mt-3 flex space-x-4');
   if (checkElem(diffElement)) {
     return diffElement[0].children[0].innerText;
-  } else {
-    // We're not on the description page. Nothing we can do.
   }
-  let url = window.location.href;
-  if (url.endsWith('/submissions/')) {
-    url = url.replace('submissions', 'description');
-    diffElement = await fetch(url)
-      .then(res => res.text())
-      .then(html => {
-        // const parser = new DOMParser();
-        // let doc = parser.parseFromString(html, 'text/html');
-        // return doc.getElementsByClassName('mt-3 flex space-x-4');
-        let firstIndex = html.indexOf('Easy')
-        return html.slice(firstIndex, firstIndex+20)
-      })
-      .then(console.log)
-      .catch(console.error);
-  } else {
-    diffElement = document.getElementsByClassName('mt-3 flex space-x-4');
-  }
-
-  if (checkElem(diffElement)) {
-    return 
-  }
-
-  return null;
+  // Else, we're not on the description page. Nothing we can do.
+  return 'unknown';
 };
-LeetCodeV2.prototype.getProblemNameSlug = function () {};
+LeetCodeV2.prototype.getProblemNameSlug = function () {
+  let questionTitle = convertToSlug(this.parseQuestionTitle())
+  let questionNum = this.parseQuestionNumber()
+  
+  return questionNum + '-' + questionTitle
+};
