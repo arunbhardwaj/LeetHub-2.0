@@ -438,7 +438,6 @@ const loader = setInterval(async () => {
     });
 }, 1000);
 
-
 /* Sync to local storage */
 chrome.storage.local.get('isSync', data => {
   keys = [
@@ -464,9 +463,9 @@ chrome.storage.local.get('isSync', data => {
 });
 
 function LeetCodeV1() {
-  this.progressSpinnerElementId = 'leethub_progress_elem'
-  this.progressSpinnerElementClass = 'leethub_progress'
-  this.injectSpinnerStyle()
+  this.progressSpinnerElementId = 'leethub_progress_elem';
+  this.progressSpinnerElementClass = 'leethub_progress';
+  this.injectSpinnerStyle();
 }
 /* Function for finding and parsing the full code. */
 /* - At first find the submission details url. */
@@ -711,7 +710,7 @@ LeetCodeV1.prototype.getSuccessStateAndUpdate = function () {
   return false;
 };
 /* Injects a spinner on left side to the "Run Code" button */
-LeetCodeV1.prototype.startUploadSpinner = function() {
+LeetCodeV1.prototype.startUploadSpinner = function () {
   try {
     elem = document.getElementById('leethub_progress_anchor_element');
     if (!elem) {
@@ -725,9 +724,9 @@ LeetCodeV1.prototype.startUploadSpinner = function() {
   } catch (error) {
     console.log(error);
   }
-}
+};
 /* Inserts an anchor element that is specific to the page you are on (e.g. Explore) */
-LeetCodeV1.prototype.insertToAnchorElement = function(elem) {
+LeetCodeV1.prototype.insertToAnchorElement = function (elem) {
   if (document.URL.startsWith('https://leetcode.com/explore/')) {
     action = document.getElementsByClassName('action');
     if (
@@ -747,7 +746,7 @@ LeetCodeV1.prototype.insertToAnchorElement = function(elem) {
       if (target.childNodes.length > 0) target.childNodes[0].prepend(elem);
     }
   }
-}
+};
 /* Creates a ✔️ tick mark before "Run Code" button signaling LeetHub has done its job */
 LeetCodeV1.prototype.markUploaded = function () {
   elem = document.getElementById(this.progressSpinnerElementId);
@@ -757,7 +756,7 @@ LeetCodeV1.prototype.markUploaded = function () {
       'display: inline-block;transform: rotate(45deg);height:24px;width:12px;border-bottom:7px solid #78b13f;border-right:7px solid #78b13f;';
     elem.style = style;
   }
-}
+};
 /* Creates a ❌ failed tick mark before "Run Code" button signaling that upload failed */
 LeetCodeV1.prototype.markUploadFailed = function () {
   elem = document.getElementById(this.progressSpinnerElementId);
@@ -767,26 +766,24 @@ LeetCodeV1.prototype.markUploadFailed = function () {
       'display: inline-block;transform: rotate(45deg);height:24px;width:12px;border-bottom:7px solid red;border-right:7px solid red;';
     elem.style = style;
   }
-}
-LeetCodeV1.prototype.setProgressSpinnerId = function(progressSpinnerElementId) {
-  this.progressSpinnerElementId = progressSpinnerElementId
-}
-LeetCodeV1.prototype.setProgressSpinnerClass = function(progressSpinnerElementClass) {
-  this.progressSpinnerElementClass = progressSpinnerElementClass
-}
+};
+LeetCodeV1.prototype.setProgressSpinnerId = function (progressSpinnerElementId) {
+  this.progressSpinnerElementId = progressSpinnerElementId;
+};
+LeetCodeV1.prototype.setProgressSpinnerClass = function (progressSpinnerElementClass) {
+  this.progressSpinnerElementClass = progressSpinnerElementClass;
+};
 /* Injects css style required for the upload progress indicator */
 LeetCodeV1.prototype.injectSpinnerStyle = function () {
   const style = document.createElement('style');
-  style.textContent =
-    `.${this.progressSpinnerElementClass} {pointer-events: none;width: 2.0em;height: 2.0em;border: 0.4em solid transparent;border-color: #eee;border-top-color: #3E67EC;border-radius: 50%;animation: loadingspin 1s linear infinite;} @keyframes loadingspin { 100% { transform: rotate(360deg) }}`;
+  style.textContent = `.${this.progressSpinnerElementClass} {pointer-events: none;width: 2.0em;height: 2.0em;border: 0.4em solid transparent;border-color: #eee;border-top-color: #3E67EC;border-radius: 50%;animation: loadingspin 1s linear infinite;} @keyframes loadingspin { 100% { transform: rotate(360deg) }}`;
   document.head.append(style);
-}
-
+};
 
 function LeetCodeV2() {
-  this.progressSpinnerElementId = 'leethub_progress_elem'
-  this.progressSpinnerElementClass = 'leethub_progress'
-  this.injectSpinnerStyle()
+  this.progressSpinnerElementId = 'leethub_progress_elem';
+  this.progressSpinnerElementClass = 'leethub_progress';
+  this.injectSpinnerStyle();
 }
 LeetCodeV2.prototype.findAndUploadCode = function () {
   const code = document.getElementsByTagName('code');
@@ -872,7 +869,7 @@ LeetCodeV2.prototype.getProblemNameSlug = function () {
 
   return questionNum + '-' + questionTitle;
 };
-LeetCodeV2.prototype.startUploadSpinner = function() {
+LeetCodeV2.prototype.startUploadSpinner = function () {
   try {
     elem = document.getElementById('leethub_progress_anchor_element');
     if (!elem) {
@@ -886,8 +883,8 @@ LeetCodeV2.prototype.startUploadSpinner = function() {
   } catch (error) {
     console.log(error);
   }
-}
-LeetCodeV2.prototype.insertToAnchorElement = function(elem) {
+};
+LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
   if (document.URL.startsWith('https://leetcode.com/explore/')) {
     action = document.getElementsByClassName('action');
     if (
@@ -907,7 +904,7 @@ LeetCodeV2.prototype.insertToAnchorElement = function(elem) {
       if (target.childNodes.length > 0) target.childNodes[0].prepend(elem);
     }
   }
-}
+};
 LeetCodeV2.prototype.markUploaded = function () {
   elem = document.getElementById(this.progressSpinnerElementId);
   if (elem) {
@@ -916,7 +913,7 @@ LeetCodeV2.prototype.markUploaded = function () {
       'display: inline-block;transform: rotate(45deg);height:24px;width:12px;border-bottom:7px solid #78b13f;border-right:7px solid #78b13f;';
     elem.style = style;
   }
-}
+};
 LeetCodeV2.prototype.markUploadFailed = function () {
   elem = document.getElementById(this.progressSpinnerElementId);
   if (elem) {
@@ -925,16 +922,15 @@ LeetCodeV2.prototype.markUploadFailed = function () {
       'display: inline-block;transform: rotate(45deg);height:24px;width:12px;border-bottom:7px solid red;border-right:7px solid red;';
     elem.style = style;
   }
-}
-LeetCodeV2.prototype.setProgressSpinnerId = function(progressSpinnerElementId) {
-  this.progressSpinnerElementId = progressSpinnerElementId
-}
-LeetCodeV2.prototype.setProgressSpinnerClass = function(progressSpinnerElementClass) {
-  this.progressSpinnerElementClass = progressSpinnerElementClass
-}
+};
+LeetCodeV2.prototype.setProgressSpinnerId = function (progressSpinnerElementId) {
+  this.progressSpinnerElementId = progressSpinnerElementId;
+};
+LeetCodeV2.prototype.setProgressSpinnerClass = function (progressSpinnerElementClass) {
+  this.progressSpinnerElementClass = progressSpinnerElementClass;
+};
 LeetCodeV2.prototype.injectSpinnerStyle = function () {
   const style = document.createElement('style');
-  style.textContent =
-    `.${this.progressSpinnerElementClass} {pointer-events: none;width: 2.0em;height: 2.0em;border: 0.4em solid transparent;border-color: #eee;border-top-color: #3E67EC;border-radius: 50%;animation: loadingspin 1s linear infinite;} @keyframes loadingspin { 100% { transform: rotate(360deg) }}`;
+  style.textContent = `.${this.progressSpinnerElementClass} {pointer-events: none;width: 2.0em;height: 2.0em;border: 0.4em solid transparent;border-color: #eee;border-top-color: #3E67EC;border-radius: 50%;animation: loadingspin 1s linear infinite;} @keyframes loadingspin { 100% { transform: rotate(360deg) }}`;
   document.head.append(style);
-}
+};
