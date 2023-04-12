@@ -150,7 +150,7 @@ const update = (
           // In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
           // But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
           // EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
-          // Unescape converts percent-encoded hex values into regular ASCII (optional; it just shrinks the string size).
+          // Unescape converts percent-encoded hex values into regular ASCII (optional; it shrinks string size).
           // btoa converts ASCII to base64.
           btoa(unescape(encodeURIComponent(addition + existingContent)))
         : btoa(unescape(encodeURIComponent(existingContent))),
@@ -222,7 +222,6 @@ function uploadGit(
             : '';
 
         console.log(`UploadGit::Action::${action}::File::${fileName}::Storage::SHA`, sha);
-
         return upload(token, hook, code, problemName, fileName, sha, commitMsg, cb);
       } else if (action === 'update') {
         return update(
@@ -247,7 +246,9 @@ function uploadGit(
         throw err;
       }
     })
-    .then(data => (data) ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb) : undefined)
+    .then(data =>
+      data ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb) : undefined,
+    )
     .then(() => {
       console.log(`UploadGit::Action::${action}::File::${fileName}::Update::Success`);
     })
@@ -294,6 +295,7 @@ function parseCode() {
 function checkElem(elem) {
   return elem && elem.length > 0;
 }
+
 function convertToSlug(string) {
   const a = 'àáâäæãåāăąçćčđďèéêëēėęěğǵḧîïíīįìłḿñńǹňôöòóœøōõőṕŕřßśšşșťțûüùúūǘůűųẃẍÿýžźż·/_,:;';
   const b = 'aaaaaaaaaacccddeeeeeeeegghiiiiiilmnnnnoooooooooprrsssssttuuuuuuuuuwxyyzzz------';
@@ -310,6 +312,7 @@ function convertToSlug(string) {
     .replace(/^-+/, '') // Trim - from start of text
     .replace(/-+$/, ''); // Trim - from end of text
 }
+
 function getProblemNameSlug() {
   const questionElem = document.getElementsByClassName('content__u3I1 question-content__JfgR');
   const questionDescriptionElem = document.getElementsByClassName('question-description__3U1T');
@@ -368,49 +371,7 @@ document.addEventListener('click', event => {
   }
 });
 
-const loader = setInterval(() => {
-  let probType;
-  let success = false;
-  const successTag = document.getElementsByClassName('success__3Ai7');
-  const resultState = document.getElementById('result-state');
-
-  // check success tag for a normal problem
-  if (
-    checkElem(successTag) &&
-    successTag[0].className === 'success__3Ai7' &&
-    successTag[0].innerText.trim() === 'Success'
-  ) {
-    console.log(successTag[0]);
-    success = true;
-    probType = NORMAL_PROBLEM;
-  }
-
-  // check success state for a explore section problem
-  else if (
-    resultState &&
-    resultState.className === 'text-success' &&
-    resultState.innerText === 'Accepted'
-  ) {
-    success = true;
-    probType = EXPLORE_SECTION_PROBLEM;
-  }
-
-  if (!success) {
-    return;
-  }
-
-  switch (probType) {
-    case NORMAL_PROBLEM:
-      successTag[0].classList.add('marked_as_success');
-      break;
-    case EXPLORE_SECTION_PROBLEM:
-      resultState.classList.add('marked_as_success');
-      break;
-    default:
-      console.error(`Unknown problem type ${probType}`);
-      return;
-  }
-
+const loader = setInterval(async () => {
   let leetCode;
   if (true) {
     leetCode = new LeetCodeV1();
@@ -418,92 +379,82 @@ const loader = setInterval(() => {
     leetCode = new LeetCodeV2();
   }
 
+  const isSuccessfulSubmission = leetCode.getSuccessStateAndUpdate();
+  if (!isSuccessfulSubmission) {
+    return;
+  }
+
   const probStats = leetCode.parseStats();
   const probStatement = leetCode.parseQuestion();
-  if (probStatement === null) {
+  if (!probStatement) {
+    console.error('Could not find problem statement');
     return;
   }
 
   const problemName = leetCode.getProblemNameSlug();
   const language = leetCode.findLanguage();
-  if (language === null) {
+  if (!language) {
+    console.error('Could not find language');
     return;
   }
 
   // start upload indicator here
   startUpload();
-  chrome.storage.local.get('stats', ({ stats }) => {
-    const filePath = problemName + problemName + language;
-    const sha =
-      stats?.shas?.[problemName]?.[problemName + language] !== undefined
-        ? stats.shas[problemName][problemName + language]
-        : undefined;
 
-    /* Only create README if not already created */
-    // if (sha === undefined) {
-    /* @TODO: Change this setTimeout to Promise */
-    uploadGit(
-      btoa(unescape(encodeURIComponent(probStatement))),
-      problemName,
-      'README.md',
-      readmeMsg,
-      'upload',
-      false,
-    );
-    // }
+  /* Upload README */
+  const updateReadMe = chrome.storage.local.get('stats').then(({ stats }) => {
+    const shaExists = stats?.shas?.[problemName]?.[problemName + language] !== undefined;
+    const sha = shaExists ? stats.shas[problemName][problemName + language] : undefined;
+
+    if (!sha) {
+      uploadGit(
+        btoa(unescape(encodeURIComponent(probStatement))),
+        problemName,
+        'README.md',
+        readmeMsg,
+        'upload',
+        false,
+      );
+    }
   });
 
-  /* get the notes and only upload it if there are any*/
+  /* Upload Notes if any*/
   notes = leetCode.getNotesIfAny();
-  if (notes.length > 0) {
-    setTimeout(function () {
-      if (notes != undefined && notes.length != 0) {
-        console.log('Create Notes');
-        uploadGit(
-          btoa(unescape(encodeURIComponent(notes))),
-          problemName,
-          'NOTES.md',
-          createNotesMsg,
-          'upload',
-          false,
-        );
-      }
-    }, 500);
+  let updateNotes;
+  if (notes != undefined && notes.length > 0) {
+    console.log('Create Notes');
+    updateNotes = uploadGit(
+      btoa(unescape(encodeURIComponent(notes))),
+      problemName,
+      'NOTES.md',
+      createNotesMsg,
+      'upload',
+      false,
+    )
   }
 
   /* Upload code to Git */
-  setTimeout(function () {
-    leetCode.findCode(
-      uploadGit,
-      problemName,
-      problemName + language,
-      probStats,
-      'upload',
-      // callback is called when the code upload to git is a success
-      () => {
-        if (uploadState['countdown']) clearTimeout(uploadState['countdown']);
-        delete uploadState['countdown'];
-        uploadState.uploading = false;
-        markUploaded();
-      },
-    ); // Encode `code` to base64
-  }, 1000);
-}, 1000);
+  const updateCode = leetCode.findCode(
+    uploadGit,
+    problemName,
+    problemName + language,
+    probStats,
+    'upload',
+  );
 
-/* Since we dont yet have callbacks/promises that helps to find out if things went bad */
-/* we will start 10 seconds counter and even after that upload is not complete, then we conclude its failed */
-function startUploadCountDown() {
-  uploadState.uploading = true;
-  uploadState['countdown'] = setTimeout(() => {
-    if ((uploadState.uploading = true)) {
-      // still uploading, then it failed
+  await Promise.all([updateReadMe, updateNotes, updateCode])
+    .then(() => {
+      uploadState.uploading = false;
+      markUploaded();
+    })
+    .catch(err => {
       uploadState.uploading = false;
       markUploadFailed();
-    }
-  }, 10000);
-}
+      console.error(err);
+    });
+}, 1000);
 
-/* we will need specific anchor element that is specific to the page you are in Eg. Explore */
+/* We will need specific anchor element that is specific to the page you are in Eg. Explore */
 function insertToAnchorElement(elem) {
   if (document.URL.startsWith('https://leetcode.com/explore/')) {
     // means we are in explore page
@@ -527,7 +478,7 @@ function insertToAnchorElement(elem) {
   }
 }
 
-/* start upload will inject a spinner on left side to the "Run Code" button */
+/* Start upload will inject a spinner on left side to the "Run Code" button */
 function startUpload() {
   try {
     elem = document.getElementById('leethub_progress_anchor_element');
@@ -538,11 +489,8 @@ function startUpload() {
     }
     elem.innerHTML = `<div id="leethub_progress_elem" class="leethub_progress"></div>`;
     target = insertToAnchorElement(elem);
-    // start the countdown
-    startUploadCountDown();
+    uploadState.uploading = true;
   } catch (error) {
-    // generic exception handler for time being so that existing feature doesnt break but
-    // error gets logged
     console.log(error);
   }
 }
@@ -635,39 +583,40 @@ LeetCodeV1.prototype.findCode = function (
   if (submissionURL == undefined) {
     return;
   }
-
   /* Request for the submission details page */
-  const xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function () {
-    if (this.readyState == 4 && this.status == 200) {
-      /* received submission details as html reponse. */
-      var doc = new DOMParser().parseFromString(this.responseText, 'text/html');
+  return fetch(submissionURL)
+    .then(res => {
+      if (res.status == 200) {
+        return res.text();
+      } else {
+        throw new Error('' + res.status);
+      }
+    })
+    .then(responseText => {
+      const doc = new DOMParser().parseFromString(responseText, 'text/html');
       /* the response has a js object called pageData. */
       /* Pagedata has the details data with code about that submission */
-      var scripts = doc.getElementsByTagName('script');
-      for (var i = 0; i < scripts.length; i++) {
-        var text = scripts[i].innerText;
+      const scripts = doc.getElementsByTagName('script');
+      for (let i = 0; i < scripts.length; i++) {
+        const text = scripts[i].innerText;
         if (text.includes('pageData')) {
-          /* Considering the pageData as text and extract the substring
-          which has the full code */
-          var firstIndex = text.indexOf('submissionCode');
-          var lastIndex = text.indexOf('editCodeUrl');
-          var slicedText = text.slice(firstIndex, lastIndex);
-          /* slicedText has code as like as. (submissionCode: 'Details code'). */
-          /* So finding the index of first and last single inverted coma. */
-          var firstInverted = slicedText.indexOf("'");
-          var lastInverted = slicedText.lastIndexOf("'");
+          /* Extract the full code */
+          const firstIndex = text.indexOf('submissionCode');
+          const lastIndex = text.indexOf('editCodeUrl');
+          let slicedText = text.slice(firstIndex, lastIndex);
+          /* slicedText has form "submissionCode: 'Details code'" */
+          /* Find the index of first and last single inverted coma. */
+          const firstInverted = slicedText.indexOf("'");
+          const lastInverted = slicedText.lastIndexOf("'");
           /* Extract only the code */
-          var codeUnicoded = slicedText.slice(firstInverted + 1, lastInverted);
+          const codeUnicoded = slicedText.slice(firstInverted + 1, lastInverted);
           /* The code has some unicode. Replacing all unicode with actual characters */
-          var code = codeUnicoded.replace(/\\u[\dA-F]{4}/gi, function (match) {
+          const code = codeUnicoded.replace(/\\u[\dA-F]{4}/gi, function (match) {
             return String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16));
           });
 
-          /*
-          for a submisssion in explore section we do not get probStat beforehand
-          so, parse statistics from submisson page
-          */
+          /* For a submission in explore section we do not get probStat beforehand.
+            So, parse statistics from submisson page */
           if (!msg) {
             slicedText = text.slice(text.indexOf('runtime'), text.indexOf('memory'));
             const resultRuntime = slicedText.slice(
@@ -683,25 +632,19 @@ LeetCodeV1.prototype.findCode = function (
           }
 
           if (code != null) {
-            setTimeout(function () {
-              uploadGit(
-                btoa(unescape(encodeURIComponent(code))),
-                problemName,
-                fileName,
-                msg,
-                action,
-                false,
-                cb,
-              );
-            }, 2000);
+            return uploadGit(
+              btoa(unescape(encodeURIComponent(code))),
+              problemName,
+              fileName,
+              msg,
+              action,
+              false,
+              cb,
+            );
           }
         }
       }
-    }
-  };
-
-  xhttp.open('GET', submissionURL, true);
-  xhttp.send();
+    });
 };
 LeetCodeV1.prototype.findLanguage = function () {
   const tag = [
@@ -827,6 +770,33 @@ LeetCodeV1.prototype.getProblemNameSlug = function () {
     }
   }
   return addLeadingZeros(convertToSlug(questionTitle));
+};
+/* Gets the problem type if user submitted correct solution */
+LeetCodeV1.prototype.getSuccessStateAndUpdate = function () {
+  const successTag = document.getElementsByClassName('success__3Ai7');
+  const resultState = document.getElementById('result-state');
+
+  // check success state for a normal problem
+  if (
+    checkElem(successTag) &&
+    successTag[0].className === 'success__3Ai7' &&
+    successTag[0].innerText.trim() === 'Success'
+  ) {
+    console.log(successTag[0]);
+    successTag[0].classList.add('marked_as_success');
+    return true;
+  }
+  // check success state for a explore section problem
+  else if (
+    resultState &&
+    resultState.className === 'text-success' &&
+    resultState.innerText === 'Accepted'
+  ) {
+    resultState.classList.add('marked_as_success');
+    return true;
+  }
+
+  return false;
 };
 
 function LeetCodeV2() {}
