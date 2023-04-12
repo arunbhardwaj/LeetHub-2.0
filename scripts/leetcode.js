@@ -430,11 +430,11 @@ const loader = setInterval(async () => {
       createNotesMsg,
       'upload',
       false,
-    )
+    );
   }
 
   /* Upload code to Git */
-  const updateCode = leetCode.findCode(
+  const updateCode = leetCode.findAndUploadCode(
     problemName,
     problemName + language,
     probStats,
@@ -555,10 +555,9 @@ function LeetCodeV1() {}
 /* Function for finding and parsing the full code. */
 /* - At first find the submission details url. */
 /* - Then send a request for the details page. */
-/* - Finally, parse the code from the html reponse. */
-/* - Also call the callback if available when upload is success */
-
-LeetCodeV1.prototype.findCode = function (
+/* - Parse the code from the html reponse. */
+/* - Parse the stats from the html response (explore section) */
+LeetCodeV1.prototype.findAndUploadCode = function (
   problemName,
   fileName,
   commitMsg,
@@ -798,7 +797,7 @@ LeetCodeV1.prototype.getSuccessStateAndUpdate = function () {
 };
 
 function LeetCodeV2() {}
-LeetCodeV2.prototype.findCode = function () {
+LeetCodeV2.prototype.findAndUploadCode = function () {
   const code = document.getElementsByTagName('code');
   if (!checkElem(code)) {
     console.error('No solution code found');
