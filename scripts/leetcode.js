@@ -435,7 +435,6 @@ const loader = setInterval(async () => {
 
   /* Upload code to Git */
   const updateCode = leetCode.findCode(
-    uploadGit,
     problemName,
     problemName + language,
     probStats,
@@ -560,10 +559,9 @@ function LeetCodeV1() {}
 /* - Also call the callback if available when upload is success */
 
 LeetCodeV1.prototype.findCode = function (
-  uploadGit,
   problemName,
   fileName,
-  msg,
+  commitMsg,
   action,
   cb = undefined,
 ) {
@@ -617,7 +615,7 @@ LeetCodeV1.prototype.findCode = function (
 
           /* For a submission in explore section we do not get probStat beforehand.
             So, parse statistics from submisson page */
-          if (!msg) {
+          if (!commitMsg) {
             slicedText = text.slice(text.indexOf('runtime'), text.indexOf('memory'));
             const resultRuntime = slicedText.slice(
               slicedText.indexOf("'") + 1,
@@ -628,7 +626,7 @@ LeetCodeV1.prototype.findCode = function (
               slicedText.indexOf("'") + 1,
               slicedText.lastIndexOf("'"),
             );
-            msg = `Time: ${resultRuntime}, Memory: ${resultMemory} - LeetHub`;
+            commitMsg = `Time: ${resultRuntime}, Memory: ${resultMemory} - LeetHub`;
           }
 
           if (code != null) {
@@ -636,7 +634,7 @@ LeetCodeV1.prototype.findCode = function (
               btoa(unescape(encodeURIComponent(code))),
               problemName,
               fileName,
-              msg,
+              commitMsg,
               action,
               false,
               cb,
