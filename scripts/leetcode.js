@@ -97,7 +97,7 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
       return chrome.storage.local.set({ stats });
     })
     .then(() => {
-      console.log('Successfully committed ${filename} to github');
+      console.log(`Successfully committed ${filename} to github`);
       if (cb != undefined) {
         cb();
       }
@@ -118,6 +118,16 @@ const update = (
   shouldPreprendDiscussionPosts,
   cb = undefined,
 ) => {
+  console.log(`Update::${filename}::Data`, {
+    token,
+    hook,
+    addition,
+    directory,
+    filename,
+    commitMsg,
+    shouldPreprendDiscussionPosts,
+    cb,
+  });
   const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
 
   let options = {
@@ -129,21 +139,21 @@ const update = (
   };
 
   let responseSHA;
-  return fetch(URL, options)
-    .then(async res => {
-      if (res.status === 200 || res.status === 201) {
-        const body = await res.json();
-        responseSHA = body.sha;
-        return body;
-      } else {
-        throw new Error('' + res.status);
-      }
+  return getUpdatedData(token, hook, directory, filename)
+    .then(data => {
+      responseSHA = data.sha;
+      return decodeURIComponent(escape(atob(data.content)));
     })
-    .then(body => decodeURIComponent(escape(atob(body.content))))
     .then(existingContent =>
       shouldPreprendDiscussionPosts
-        ? btoa(unescape(encodeURIComponent(addition + existingContent)))
-        : '',
+        ? // https://web.archive.org/web/20190623091645/https://monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
+          // In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
+          // But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
+          // EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
+          // Unescape converts percent-encoded hex values into regular ASCII (optional; it just shrinks the string size).
+          // btoa converts ASCII to base64.
+          btoa(unescape(encodeURIComponent(addition + existingContent)))
+        : btoa(unescape(encodeURIComponent(existingContent))),
     )
     .then(newContent =>
       upload(token, hook, newContent, directory, filename, responseSHA, commitMsg, cb),
@@ -229,25 +239,40 @@ function uploadGit(
     })
     .catch(err => {
       if (err.message === '409') {
-        console.log(`UploadGit::Action::${action}::File::${fileName}::UploadFailed::Updating..`);
-        return update(
-          token,
-          hook,
-          code,
-          problemName,
-          fileName,
-          commitMsg,
-          shouldPrependDiscussionPosts,
-          cb,
+        console.log(
+          `UploadGit::Action::${action}::File::${fileName}::Failure::SHAOutdated::Updating SHA...`,
         );
+        return getUpdatedData(token, hook, problemName, fileName);
       } else {
         throw err;
       }
     })
+    .then(data => (data) ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb) : undefined)
     .then(() => {
-      console.log(`UploadGit::Action::${action}::File::${fileName}::UpdateSuccess`);
+      console.log(`UploadGit::Action::${action}::File::${fileName}::Update::Success`);
     })
     .catch(console.error);
+}
+
+async function getUpdatedData(token, hook, directory, filename) {
+  const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
+
+  let options = {
+    method: 'GET',
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+    },
+  };
+
+  return fetch(URL, options).then(async res => {
+    if (res.status === 200 || res.status === 201) {
+      const body = await res.json();
+      return body;
+    } else {
+      throw new Error('' + res.status);
+    }
+  });
 }
 
 /* Main parser function for the code */
@@ -416,15 +441,15 @@ const loader = setInterval(() => {
 
     /* Only create README if not already created */
     // if (sha === undefined) {
-      /* @TODO: Change this setTimeout to Promise */
-      uploadGit(
-        btoa(unescape(encodeURIComponent(probStatement))),
-        problemName,
-        'README.md',
-        readmeMsg,
-        'upload',
-        false,
-      );
+    /* @TODO: Change this setTimeout to Promise */
+    uploadGit(
+      btoa(unescape(encodeURIComponent(probStatement))),
+      problemName,
+      'README.md',
+      readmeMsg,
+      'upload',
+      false,
+    );
     // }
   });
 
@@ -681,7 +706,7 @@ LeetCodeV1.prototype.findCode = function (
 LeetCodeV1.prototype.findLanguage = function () {
   const tag = [
     ...document.getElementsByClassName('ant-select-selection-selected-value'),
-    ...document.getElementsByClassName('Select-value-label')
+    ...document.getElementsByClassName('Select-value-label'),
   ];
   if (tag && tag.length > 0) {
     for (let i = 0; i < tag.length; i += 1) {
@@ -692,7 +717,7 @@ LeetCodeV1.prototype.findLanguage = function () {
     }
   }
   return null;
-}
+};
 /* function to get the notes if there is any
  the note should be opened atleast once for this to work
  this is because the dom is populated after data is fetched by opening the note */
@@ -723,7 +748,7 @@ LeetCodeV1.prototype.getNotesIfAny = function () {
     }
   }
   return notes.trim();
-}
+};
 /* Parser function for time/space stats */
 LeetCodeV1.prototype.parseStats = function () {
   const probStats = document.getElementsByClassName('data__HC-i');
@@ -736,7 +761,7 @@ LeetCodeV1.prototype.parseStats = function () {
   const spacePercentile = probStats[3].textContent;
 
   return `Time: ${time} (${timePercentile}), Space: ${space} (${spacePercentile}) - LeetHub`;
-}
+};
 
 /* Parser function for the question, question title, question difficulty, and tags */
 LeetCodeV1.prototype.parseQuestion = function () {
@@ -785,7 +810,7 @@ LeetCodeV1.prototype.parseQuestion = function () {
 
     return markdown;
   }
-}
+};
 LeetCodeV1.prototype.getProblemNameSlug = function () {
   const questionElem = document.getElementsByClassName('content__u3I1 question-content__JfgR');
   const questionDescriptionElem = document.getElementsByClassName('question-description__3U1T');
@@ -802,7 +827,7 @@ LeetCodeV1.prototype.getProblemNameSlug = function () {
     }
   }
   return addLeadingZeros(convertToSlug(questionTitle));
-}
+};
 
 function LeetCodeV2() {}
 LeetCodeV2.prototype.findCode = function () {
