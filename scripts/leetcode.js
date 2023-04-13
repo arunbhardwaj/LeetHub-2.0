@@ -356,88 +356,6 @@ document.addEventListener('click', event => {
   }
 });
 
-const loader = setInterval(async () => {
-  let leetCode;
-  if (true) {
-    leetCode = new LeetCodeV1();
-  } else {
-    leetCode = new LeetCodeV2();
-  }
-
-  const isSuccessfulSubmission = leetCode.getSuccessStateAndUpdate();
-  if (!isSuccessfulSubmission) {
-    return;
-  }
-
-  const probStats = leetCode.parseStats();
-  const probStatement = leetCode.parseQuestion();
-  if (!probStatement) {
-    console.error('Could not find problem statement');
-    return;
-  }
-
-  const problemName = leetCode.getProblemNameSlug();
-  const language = leetCode.findLanguage();
-  if (!language) {
-    console.error('Could not find language');
-    return;
-  }
-
-  // start upload indicator here
-  leetCode.startUploadSpinner();
-
-  /* Upload README */
-  const updateReadMe = chrome.storage.local.get('stats').then(({ stats }) => {
-    const shaExists = stats?.shas?.[problemName]?.[problemName + language] !== undefined;
-    const sha = shaExists ? stats.shas[problemName][problemName + language] : undefined;
-
-    if (!sha) {
-      return uploadGit(
-        btoa(unescape(encodeURIComponent(probStatement))),
-        problemName,
-        'README.md',
-        readmeMsg,
-        'upload',
-        false,
-      );
-    }
-  });
-
-  /* Upload Notes if any*/
-  notes = leetCode.getNotesIfAny();
-  let updateNotes;
-  if (notes != undefined && notes.length > 0) {
-    console.log('Create Notes');
-    updateNotes = uploadGit(
-      btoa(unescape(encodeURIComponent(notes))),
-      problemName,
-      'NOTES.md',
-      createNotesMsg,
-      'upload',
-      false,
-    );
-  }
-
-  /* Upload code to Git */
-  const updateCode = leetCode.findAndUploadCode(
-    problemName,
-    problemName + language,
-    probStats,
-    'upload',
-  );
-
-  await Promise.all([updateReadMe, updateNotes, updateCode])
-    .then(() => {
-      uploadState.uploading = false;
-      leetCode.markUploaded();
-    })
-    .catch(err => {
-      uploadState.uploading = false;
-      leetCode.markUploadFailed();
-      console.error(err);
-    });
-}, 1000);
-
 /* Sync to local storage */
 chrome.storage.local.get('isSync', data => {
   keys = [
@@ -822,6 +740,23 @@ LeetCodeV2.prototype.parseStats = function () {
 
   return `Time: ${time} (${timePercentile}), Space: ${space} (${spacePercentile}) - LeetHub`;
 };
+LeetCodeV2.prototype.parseQuestion = function () {
+  // Description
+  let qBody = this.parseQuestionDescription();
+
+  // Problem title.
+  let qTitle = this.parseQuestionTitle();
+  let qNum = this.parseQuestionNumber();
+  qNum = parseInt(qNum, 10); // remove leading zeros
+  qTitle = `${qNum}. ${qTitle}`;
+
+  // Problem difficulty
+  difficulty = this.parseDifficulty();
+
+  // Final formatting of the contents of the README for each problem
+  const markdown = `<h2><a href="${questionUrl}">${qTitle}</a></h2><h3>${difficulty}</h3><hr>${qBody}`;
+  return markdown;
+};
 LeetCodeV2.prototype.parseQuestionTitle = function () {
   let questionTitle = document
     .getElementsByTagName('title')[0]
@@ -844,10 +779,12 @@ LeetCodeV2.prototype.parseQuestionDescription = function () {
 };
 LeetCodeV2.prototype.parseQuestionNumber = function () {
   const maxQuestionNumLength = 4;
-  const title = document.getElementsByClassName(
-    'mr-2 text-lg font-medium text-label-1 dark:text-dark-label-1',
-  )[0].innerText;
+  let title = document.getElementsByClassName('mr-2 text-lg font-medium text-label-1');
+  if (!checkElem(title)) {
+    throw new Error('Could not parse question num');
+  }
 
+  title = title[0].innerText;
   let num = title.split('.')[0];
   if (num.length < maxQuestionNumLength) {
     num = '0'.repeat(4 - num.length) + num;
@@ -869,7 +806,17 @@ LeetCodeV2.prototype.getProblemNameSlug = function () {
 
   return questionNum + '-' + questionTitle;
 };
+LeetCodeV2.prototype.getSuccessStateAndUpdate = function () {
+  const successTag = document.querySelectorAll('[data-e2e-locator="submission-result"]');
+  if (checkElem(successTag)) {
+    console.log(successTag[0]);
+    successTag[0].classList.add('marked_as_success');
+    return true;
+  }
+  return false;
+};
 LeetCodeV2.prototype.startUploadSpinner = function () {
+  console.log('starting spinner');
   try {
     elem = document.getElementById('leethub_progress_anchor_element');
     if (!elem) {
@@ -877,33 +824,33 @@ LeetCodeV2.prototype.startUploadSpinner = function () {
       elem.id = 'leethub_progress_anchor_element';
       elem.style = 'margin-right: 20px;padding-top: 2px;';
     }
-    elem.innerHTML = `<div id="${this.progressSpinnerElementId}" class="${this.progressSpinnerElementClass}"></div>`;
-    target = this.insertToAnchorElement(elem);
+    elem.innerHTML = `<div id="${this.progressSpinnerElementId}" class="${this.progressSpinnerElementClass}">hi</div>`;
+    this.insertToAnchorElement(elem);
     uploadState.uploading = true;
   } catch (error) {
     console.log(error);
   }
 };
 LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
-  if (document.URL.startsWith('https://leetcode.com/explore/')) {
-    action = document.getElementsByClassName('action');
-    if (
-      checkElem(action) &&
-      checkElem(action[0].getElementsByClassName('row')) &&
-      checkElem(action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6')) &&
-      action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6').length > 1
-    ) {
-      target = action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6')[1];
-      elem.className = 'pull-left';
-      if (target.childNodes.length > 0) target.childNodes[0].prepend(elem);
-    }
-  } else {
-    if (checkElem(document.getElementsByClassName('action__38Xc'))) {
-      target = document.getElementsByClassName('action__38Xc')[0];
-      elem.className = 'runcode-wrapper__8rXm';
-      if (target.childNodes.length > 0) target.childNodes[0].prepend(elem);
-    }
+  // if (document.URL.startsWith('https://leetcode.com/explore/')) {
+  //   action = document.getElementsByClassName('action');
+  //   if (
+  //     checkElem(action) &&
+  //     checkElem(action[0].getElementsByClassName('row')) &&
+  //     checkElem(action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6')) &&
+  //     action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6').length > 1
+  //   ) {
+  //     target = action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6')[1];
+  //     elem.className = 'pull-left';
+  //     if (target.childNodes.length > 0) target.childNodes[0].prepend(elem);
+  //   }
+  // } else {
+  if (checkElem(document.getElementsByClassName('ml-auto flex items-center space-x-4'))) {
+    const target = document.getElementsByClassName('ml-auto flex items-center space-x-4')[0];
+    elem.className = 'runcode-wrapper__8rXm';
+    if (target.childNodes.length > 0) target.childNodes[0].prepend(elem);
   }
+  // }
 };
 LeetCodeV2.prototype.markUploaded = function () {
   elem = document.getElementById(this.progressSpinnerElementId);
@@ -934,3 +881,110 @@ LeetCodeV2.prototype.injectSpinnerStyle = function () {
   style.textContent = `.${this.progressSpinnerElementClass} {pointer-events: none;width: 2.0em;height: 2.0em;border: 0.4em solid transparent;border-color: #eee;border-top-color: #3E67EC;border-radius: 50%;animation: loadingspin 1s linear infinite;} @keyframes loadingspin { 100% { transform: rotate(360deg) }}`;
   document.head.append(style);
 };
+
+let leetCode;
+const isLeetCodeV2 = document.getElementById('chakra-script') != null;
+if (!isLeetCodeV2) {
+  console.log('v1');
+  leetCode = new LeetCodeV1();
+} else {
+  console.log('v2');
+  leetCode = new LeetCodeV2();
+}
+
+const loader = () => {
+  const intervalId = setInterval(async () => {
+    const isSuccessfulSubmission = leetCode.getSuccessStateAndUpdate();
+    console.log(
+      '🚀 ~ file: leetcode.js:878 ~ loader ~ isSuccessfulSubmission:',
+      isSuccessfulSubmission,
+    );
+    if (!isSuccessfulSubmission) {
+      return;
+    }
+
+    const probStats = leetCode.parseStats();
+    console.log('🚀 ~ file: leetcode.js:884 ~ loader ~ probStats:', probStats);
+    const probStatement = leetCode.parseQuestion();
+    console.log('🚀 ~ file: leetcode.js:886 ~ loader ~ probStatement:', probStatement);
+    if (!probStatement) {
+      console.error('Could not find problem statement');
+      return;
+    }
+
+    const problemName = leetCode.getProblemNameSlug();
+    console.log('🚀 ~ file: leetcode.js:893 ~ loader ~ problemName:', problemName);
+    const language = leetCode.findLanguage();
+    console.log('🚀 ~ file: leetcode.js:895 ~ loader ~ language:', language);
+    if (!language) {
+      console.error('Could not find language');
+      return;
+    }
+
+    // start upload indicator here
+    leetCode.startUploadSpinner();
+
+    /* Upload README */
+    const updateReadMe = chrome.storage.local.get('stats').then(({ stats }) => {
+      const shaExists = stats?.shas?.[problemName]?.[problemName + language] !== undefined;
+      const sha = shaExists ? stats.shas[problemName][problemName + language] : undefined;
+
+      if (!sha) {
+        return uploadGit(
+          btoa(unescape(encodeURIComponent(probStatement))),
+          problemName,
+          'README.md',
+          readmeMsg,
+          'upload',
+          false,
+        );
+      }
+    });
+
+    /* Upload Notes if any*/
+    notes = leetCode.getNotesIfAny();
+    let updateNotes;
+    if (notes != undefined && notes.length > 0) {
+      console.log('Create Notes');
+      updateNotes = uploadGit(
+        btoa(unescape(encodeURIComponent(notes))),
+        problemName,
+        'NOTES.md',
+        createNotesMsg,
+        'upload',
+        false,
+      );
+    }
+
+    /* Upload code to Git */
+    const updateCode = leetCode.findAndUploadCode(
+      problemName,
+      problemName + language,
+      probStats,
+      'upload',
+    );
+
+    await Promise.all([updateReadMe, updateNotes, updateCode])
+      .then(() => {
+        uploadState.uploading = false;
+        leetCode.markUploaded();
+        clearInterval(intervalId);
+      })
+      .catch(err => {
+        uploadState.uploading = false;
+        leetCode.markUploadFailed();
+        console.error(err);
+        clearInterval(intervalId);
+      });
+  }, 1000);
+};
+
+// TODO: have event listeners to be added once the button elements are loaded using Mutation Observer
+// maybe this will help https://stackoverflow.com/questions/68329405/javascript-wait-until-element-loaded-on-website-using-chrome-extension
+// Wait for the submit button to load
+setTimeout(() => {
+  const v1SubmitBtn = document.querySelector('[data-cy="submit-code-btn"]');
+  const v2SubmitBtn = document.querySelector('[data-e2e-locator="console-submit-button"]');
+  const elem = !isLeetCodeV2 ? v1SubmitBtn : v2SubmitBtn;
+  elem.addEventListener('click', loader);
+}, 2000);
