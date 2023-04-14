@@ -1,7 +1,7 @@
 <h1 align="center">
   <a href="https://standardjs.com"><img src="assets/octocode.png" alt="LeetHub - Automatically sync your code to GitHub." width="400"></a>
   <br>
-  <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">LeetHub</a> - Automatically sync your code to GitHub.
+  <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">LeetHub 2.0</a> - Automatically sync your code to GitHub.
   <br>
   <br>
 </h1>
@@ -24,30 +24,22 @@
   </a> -->
 </p>
 
-<div align="center">
+<!-- <div align="center">
   <a href="https://www.producthunt.com/posts/leethub?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-leethub" target="_blank">
     <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=275757&theme=light" alt="LeetHub - Automatically sync your code b/w Leetcode & GitHub. | Product Hunt" />
   </a>
 
   [![Chrome](https://user-images.githubusercontent.com/53124886/111952712-34f12300-8aee-11eb-9fdd-ad579a1eb235.png)](https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi) [![Firefox](https://user-images.githubusercontent.com/53124886/126341427-4a4e57aa-767a-467e-83d2-b31fa3564441.png)](https://addons.mozilla.org/en-US/firefox/addon/leethub/)
-</div>
+</div> -->
 
+<!-- ## LeetHub progress and numbers (YouTube Video):
+[![LeetHub](https://user-images.githubusercontent.com/43754306/165053510-a757c95e-c3bc-49d5-995c-7a52368abd37.png)](https://www.youtube.com/watch?v=o33PIjqlOgw "LeetHub saves lives!") -->
 
+## What is LeetHub 2.0?
+<p>A chrome extension that automatically pushes your code to GitHub when you pass all tests on a <a href="http://leetcode.com/">Leetcode</a> problem. It's forked from the original <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi?hl=en">LeetHub</a> and improves on it to be faster, cleaner and now works with the new LeetCode UI.</p>
 
-## Top 5 Trending JavaScript Repositories
-
-
-## LeetHub progress and numbers (YouTube Video):
-[![LeetHub](https://user-images.githubusercontent.com/43754306/165053510-a757c95e-c3bc-49d5-995c-7a52368abd37.png)](https://www.youtube.com/watch?v=o33PIjqlOgw "LeetHub saves lives!")
-
-## What is LeetHub?
-<p>A chrome extension that automatically pushes your code to GitHub when you pass all tests on a <a href="http://leetcode.com/">Leetcode</a> problem. </p>
-
-
-## How fast is it really?
-### THIS FAST (~400ms, 530x speed improvement)!
-
-![](assets/extension/output.gif)
+### Why not merge with the original LeetHub?
+<p>Recently, both LeetCode and GitHub made changes that broke the functionality of LeetHub. In order to fix these issues and get the extension working, I've had to make some extensive changes that fundamentally change the logic of the underlying code. Due to depth of the changes and the inactivity of the original repo, I've decided to fork, refactor and expand upon the original.</p>
 
 ## Why LeetHub?
 <p> <strong>1.</strong> Recruiters <em>want</em> to see your contributions to the Open Source community, be it through side projects, solving algorithms/data-structures, or contributing to existing OS projects.<br>
@@ -68,17 +60,15 @@ Moreover, pushing code manually to GitHub from Leetcode is very time consuming. 
 </ol>
 
 
-#### BONUS: Star [this repository](https://github.com/arunbhardwaj/LeetHub-1.1) for further development of features. If you want a particular feature, simply [request](https://github.com/arunbhardwaj/LeetHub-1.1/labels/feature) for it!
+#### BONUS: Star [this repository](https://github.com/arunbhardwaj/LeetHub-2.0) for further development of features. If you want a particular feature, simply [request](https://github.com/arunbhardwaj/LeetHub-2.0/labels/feature) for it!
 
 
-## Why did I build LeetHub?
+## Why did I decide to work on LeetHub?
 <p>
-The coding interview is arguably the most important part of your interview process, given you get the interview first. As someone who's received multiple internship offers from Fortune 100 companies, getting the interview in the first place is not easy!<br>
-And that's what LeetHub is supposed to do: indirectly improving your coding skills while improving your portfolio to ACE that interview at <em>insert_name_here</em>!
+After the recent SVB bank closure and growing layoffs, it became clear to me that maintaining your skills are incredibly important. In that effort, it helps to have a source to contain all your learnings over the years: a repo you can go back to and see your commit history and any notes you've taken. With the previous extension broken, and other extensions requiring extra permissions that made me feel suspicious, I decided to build one out myself using the original as a starting point.
 </p>
 
 # Let's see you ACE that coding interview!
-
 
 ![leetcode view](assets/extension/leetcode.png)
 
@@ -103,5 +93,3 @@ npm run format-test   Test all code is formatted properly
 npm run lint          Lint JavaScript
 npm run lint-test     Test all code is linted properly
 ```
-
-#### And that should be it! Get Hacking...
