@@ -50,7 +50,6 @@ Moreover, pushing code manually to GitHub from Leetcode is very time consuming. 
 
 ## How does LeetHub work?     
 
-<h4> Your LeetHub portfolio could look like <a href="https://github.com/tanyarajhans/LeetCode"> this</a>!  </h4>
 <p>It's as simple as:</p>
 <ol>
   <li>After installation, launch LeetHub.</li>
