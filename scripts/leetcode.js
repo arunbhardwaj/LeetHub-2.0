@@ -222,7 +222,7 @@ function uploadGit(
     })
     .then(data =>
       data ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb) : undefined,
-    )
+    ).catch(console.error)
 }
 
 /* Gets updated GitHub data for the specific file in repo in question */
