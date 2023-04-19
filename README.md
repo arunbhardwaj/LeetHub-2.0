@@ -1,13 +1,13 @@
 <h1 align="center">
-  <a href="https://standardjs.com"><img src="assets/octocode.png" alt="LeetHub - Automatically sync your code to GitHub." width="400"></a>
+  <a href="https://standardjs.com"><img src="assets/octocode.png" alt="LeetHub v2 - Automatically sync your code to GitHub." width="400"></a>
   <br>
-  <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">LeetHub 2.0</a> - Automatically sync your code to GitHub.
+  <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">LeetHub v2</a> - Automatically sync your code to GitHub.
   <br>
   <br>
 </h1>
 
 <p align="center">
-  <a href="https://github.com/arunbhardwaj/LeetHub-1.1/blob/main/LICENSE">
+  <a href="https://github.com/arunbhardwaj/LeetHub-2.0/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="license"/>
   </a>
   <!-- <a href="https://discord.gg/anXT9vErxu">
