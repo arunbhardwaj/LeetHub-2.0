@@ -64,7 +64,7 @@ Moreover, pushing code manually to GitHub from Leetcode is very time consuming. 
 
 ## Why did I decide to work on LeetHub?
 <p>
-After the recent SVB bank closure and growing layoffs, it became clear to me that maintaining your skills are incredibly important. In that effort, it helps to have a source to contain all your learnings over the years: a repo you can go back to and see your commit history and any notes you've taken. With the previous extension broken, and other extensions requiring extra permissions that made me feel suspicious, I decided to build one out myself using the original as a starting point.
+After the recent SVB bank closure and growing layoffs, it became clear to me that maintaining your skills is incredibly important. In that effort, it helps to have a source to contain all your learnings over the years: a repo you can go back to and see your commit history and any notes you've taken. With the previous and other extensions broken by recent LeetCode and GitHub changes, I decided to build one out myself using the original as a starting point.
 </p>
 
 # Let's see you ACE that coding interview!
