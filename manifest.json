@@ -18,7 +18,6 @@
     "service_worker": "scripts/background.js"
   },
   "permissions": [
-    "tabs",
     "unlimitedStorage",
     "storage"
   ],
