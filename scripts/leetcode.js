@@ -81,25 +81,26 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
     });
 };
 
-const getAndInitializeStats = problem => {
-  return chrome.storage.local.get('stats').then(({ stats }) => {
-    if (stats == null || stats === {}) {
-      // create stats object
-      stats = {};
-      stats.solved = 0;
-      stats.easy = 0;
-      stats.medium = 0;
-      stats.hard = 0;
-      stats.shas = {};
-    }
+const getAndInitializeStats = (problem) => {
+  return chrome.storage.local.get('stats')
+    .then(({ stats }) => {
+      if (stats == null || stats === {}) {
+        // create stats object
+        stats = {};
+        stats.solved = 0;
+        stats.easy = 0;
+        stats.medium = 0;
+        stats.hard = 0;
+        stats.shas = {};
+      }
 
-    if (stats.shas[problem] == null) {
-      stats.shas[problem] = {};
-    }
+      if (stats.shas[problem] == null) {
+        stats.shas[problem] = {};
+      }
 
-    return stats;
-  });
-};
+      return stats
+    })
+}
 
 const incrementStats = () => {
   return chrome.storage.local.get('stats').then(({ stats }) => {
@@ -107,18 +108,19 @@ const incrementStats = () => {
     stats.easy += difficulty === 'Easy' ? 1 : 0;
     stats.medium += difficulty === 'Medium' ? 1 : 0;
     stats.hard += difficulty === 'Hard' ? 1 : 0;
-    return chrome.storage.local.set({ stats });
-  });
-};
+    return chrome.storage.local.set({ stats })
+  })
+}
 
-const checkAlreadyCompleted = problemName => {
-  return chrome.storage.local.get('stats').then(({ stats }) => {
-    if (stats?.shas?.[problemName] == null) {
-      return false;
-    }
-    return true;
-  });
-};
+const checkAlreadyCompleted = (problemName) => {
+  return chrome.storage.local.get('stats')
+    .then(({ stats }) => {
+      if (stats?.shas?.[problemName] == null) {
+        return false
+      }
+      return true
+    })
+}
 
 /* Main function for updating code on GitHub Repo */
 /* Read from existing file on GitHub */
@@ -153,12 +155,12 @@ const update = (
     .then(existingContent =>
       shouldPreprendDiscussionPosts
         ? // https://web.archive.org/web/20190623091645/https://monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
-          // In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
-          // But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
-          // EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
-          // Unescape converts percent-encoded hex values into regular ASCII (optional; it shrinks string size).
-          // btoa converts ASCII to base64.
-          btoa(unescape(encodeURIComponent(addition + existingContent)))
+        // In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
+        // But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
+        // EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
+        // Unescape converts percent-encoded hex values into regular ASCII (optional; it shrinks string size).
+        // btoa converts ASCII to base64.
+        btoa(unescape(encodeURIComponent(addition + existingContent)))
         : btoa(unescape(encodeURIComponent(existingContent))),
     )
     .then(newContent =>
@@ -235,11 +237,7 @@ function uploadGit(
         throw err;
       }
     })
-    .then(data =>
-      data != null
-        ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb)
-        : undefined,
-    );
+    .then(data => (data != null) ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb) : undefined)
 }
 
 /* Gets updated GitHub data for the specific file in repo in question */
@@ -254,13 +252,14 @@ async function getUpdatedData(token, hook, directory, filename) {
     },
   };
 
-  return fetch(URL, options).then(res => {
-    if (res.status === 200 || res.status === 201) {
-      return res.json();
-    } else {
-      throw new Error('' + res.status);
-    }
-  });
+  return fetch(URL, options)
+    .then(res => {
+      if (res.status === 200 || res.status === 201) {
+        return res.json();
+      } else {
+        throw new Error('' + res.status);
+      }
+    });
 }
 
 /* Checks if an elem/array exists and has length */
@@ -334,7 +333,7 @@ function LeetCodeV1() {
   this.progressSpinnerElementClass = 'leethub_progress';
   this.injectSpinnerStyle();
 }
-LeetCodeV1.prototype.init = async function () {};
+LeetCodeV1.prototype.init = async function () { };
 /* Function for finding and parsing the full code. */
 /* - At first find the submission details url. */
 /* - Then send a request for the details page. */
@@ -651,29 +650,9 @@ function LeetCodeV2() {
   this.injectSpinnerStyle();
 }
 LeetCodeV2.prototype.init = async function () {
+  // Get submission ID
   const submissionUrl = window.location.href;
-  // Get the question title from the submission url
-  const questionSlug = submissionUrl.split('/submissions/')[0].split('/problems/')[1].slice(0);
-
-  // Get the latest submission ID from the question submissions page
-  const submissionIdQuery = {
-    query:
-      '\n    query submissionList($offset: Int!, $limit: Int!, $lastKey: String, $questionSlug: String!, $lang: Int, $status: Int) {\n  questionSubmissionList(\n    offset: $offset\n    limit: $limit\n    lastKey: $lastKey\n    questionSlug: $questionSlug\n    lang: $lang\n    status: $status\n  ) {\n    lastKey\n    hasNext\n    submissions {\n      id\n      title\n      titleSlug\n      status\n      statusDisplay\n      lang\n      langName\n      runtime\n      timestamp\n      url\n      isPending\n      memory\n      hasNotes\n      notes\n    }\n  }\n}\n    ',
-    variables: { lastKey: null, offset: 0, limit: 1, questionSlug: questionSlug },
-    operationName: 'submissionList',
-  };
-  const submissionListOptions = {
-    method: 'POST',
-    headers: {
-      cookie: document.cookie, // required to authorize the API request
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(submissionIdQuery),
-  };
-
-  const submissionId = await fetch('https://leetcode.com/graphql/', submissionListOptions)
-    .then(res => res.json())
-    .then(res => res.data.questionSubmissionList.submissions[0].id);
+  const submissionId = parseInt(submissionUrl.split('/submissions/')[1].slice(0, -1));
 
   // Query for getting the solution runtime and memory stats, the code, the coding language, the question id, question title and question difficulty
   const submissionDetailsQuery = {
@@ -747,7 +726,7 @@ LeetCodeV2.prototype.getLanguageExtension = function () {
 
   return languages[lang];
 };
-LeetCodeV2.prototype.getNotesIfAny = function () {};
+LeetCodeV2.prototype.getNotesIfAny = function () { };
 LeetCodeV2.prototype.getProblemNameSlug = function () {
   const slugTitle = this.submissionData.question.titleSlug;
   const qNum = this.submissionData.question.questionId;
@@ -778,7 +757,7 @@ LeetCodeV2.prototype.parseStats = function () {
   }
 
   // Doesn't work unless we wait for page to finish loading.
-  setTimeout(() => {}, 1000);
+  setTimeout(() => { }, 1000);
   const probStats = document.getElementsByClassName('flex w-full pb-4')[0].innerText.split('\n');
   if (!checkElem(probStats)) {
     return null;
@@ -828,7 +807,7 @@ LeetCodeV2.prototype.parseQuestionTitle = function () {
 };
 LeetCodeV2.prototype.parseQuestionDescription = function () {
   if (this.submissionData != null) {
-    return this.submissionData.question.content;
+    return this.submissionData.question.content
   }
 
   const description = document.getElementsByName('description');
@@ -940,20 +919,20 @@ if (!isLeetCodeV2) {
 }
 
 const loader = () => {
-  let iterations = 0;
+  let iterations = 0
   const intervalId = setInterval(async () => {
     try {
       const isSuccessfulSubmission = leetCode.getSuccessStateAndUpdate();
       if (!isSuccessfulSubmission) {
-        iterations++;
+        iterations++
         if (iterations > 9) {
-          clearInterval(intervalId); // poll for max 10 attempts (10 seconds)
+          clearInterval(intervalId) // poll for max 10 attempts (10 seconds)
         }
         return;
       }
 
       // If successful, stop polling
-      clearInterval(intervalId);
+      clearInterval(intervalId)
 
       // For v2, query LeetCode API for submission results
       await leetCode.init();
@@ -969,7 +948,7 @@ const loader = () => {
       }
 
       const problemName = leetCode.getProblemNameSlug();
-      const alreadyCompleted = await checkAlreadyCompleted(problemName);
+      const alreadyCompleted = await checkAlreadyCompleted(problemName)
       const language = leetCode.getLanguageExtension();
       if (!language) {
         throw new Error('Could not find language');
@@ -980,7 +959,7 @@ const loader = () => {
 
       /* Upload README */
       const updateReadMe = await chrome.storage.local.get('stats').then(({ stats }) => {
-        const shaExists = stats?.shas?.[problemName]?.['README.md'] !== undefined;
+        const shaExists = stats?.shas?.[problemName]?.["README.md"] !== undefined;
 
         if (!shaExists) {
           return uploadGit(
@@ -1016,14 +995,20 @@ const loader = () => {
         'upload',
       );
 
-      await Promise.all([updateReadMe, updateNotes, updateCode]);
+      await Promise.all([
+        updateReadMe,
+        updateNotes,
+        updateCode,
+      ])
 
       uploadState.uploading = false;
       leetCode.markUploaded();
 
       if (!alreadyCompleted) {
-        incrementStats();
+        incrementStats()
       }
+
+
     } catch (err) {
       uploadState.uploading = false;
       leetCode.markUploadFailed();
