@@ -651,9 +651,19 @@ function LeetCodeV2() {
 }
 LeetCodeV2.prototype.init = async function () {
   // Get submission ID
-  const submissionUrl = window.location.href;
-  const submissionId = parseInt(submissionUrl.split('/submissions/')[1].slice(0, -1));
-
+  // const submissionUrl = window.location.href;
+  // const submissionId = parseInt(submissionUrl.split('/submissions/')[1].slice(0, -1));
+  async function getSubmissionId() {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const submissionNode = document.getElementsByClassName('text-label-r flex items-center justify-center gap-1 rounded px-3 py-1 text-xs font-medium leading-[16px]')[0].parentNode
+        const submissionId = submissionNode.getAttribute('href').split('=')[1] // '/problems/two-sum/post-solution?submissionId=999594717'
+        resolve(submissionId);
+      }, 100);
+    });
+  }
+  const submissionId = await getSubmissionId()
+  
   // Query for getting the solution runtime and memory stats, the code, the coding language, the question id, question title and question difficulty
   const submissionDetailsQuery = {
     query:
