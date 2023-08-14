@@ -1,29 +1,29 @@
 /* Enum for languages supported by LeetCode. */
 const languages = {
-  Python: '.py',
-  Python3: '.py',
-  'C++': '.cpp',
   C: '.c',
-  Java: '.java',
+  'C++': '.cpp',
   'C#': '.cs',
+  Dart: '.dart',
+  Elixir: '.ex',
+  Erlang: '.erl',
+  Go: '.go',
+  Java: '.java',
   JavaScript: '.js',
   Javascript: '.js',
-  Ruby: '.rb',
-  Swift: '.swift',
-  Go: '.go',
   Kotlin: '.kt',
-  Scala: '.scala',
-  Rust: '.rs',
-  PHP: '.php',
-  TypeScript: '.ts',
   MySQL: '.sql',
   'MS SQL Server': '.sql',
   Oracle: '.sql',
+  PHP: '.php',
+  Python: '.py',
+  Python3: '.py',
   Racket: '.rkt',
-  Erlang: '.erl',
-  Elixir: '.ex',
-  Dart: '.dart',
-};
+  Ruby: '.rb',
+  Rust: '.rs',
+  Scala: '.scala',
+  Swift: '.swift',
+  TypeScript: '.ts',
+}
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
@@ -655,7 +655,6 @@ function LeetCodeV2() {
   this.injectSpinnerStyle();
 }
 LeetCodeV2.prototype.init = async function () {
-  // Get submission ID
   async function getSubmissionId() {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
