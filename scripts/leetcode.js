@@ -925,7 +925,19 @@ chrome.storage.local.get('isSync', data => {
 });
 
 let leetCode;
-const isLeetCodeV2 = document.getElementById('chakra-script') != null;
+const isLeetCodeV2 = () => {
+  const rootElementNextApp = !!document.querySelector("#__next");
+  const bodyContainsChakraUILight = !!document.querySelector(
+    "body.chakra-ui-light"
+  );
+  const bodyContainsChakraUIDark = !!document.querySelector(
+    "body.chakra-ui-dark"
+  );
+  return (
+    rootElementNextApp || bodyContainsChakraUIDark || bodyContainsChakraUILight
+  );
+}
+
 if (!isLeetCodeV2) {
   leetCode = new LeetCodeV1();
 } else {
