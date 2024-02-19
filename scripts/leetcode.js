@@ -658,10 +658,7 @@ LeetCodeV2.prototype.init = async function () {
   async function getSubmissionId() {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        const submissionNode = document.getElementsByClassName(
-          'text-label-r flex items-center justify-center gap-1 rounded px-3 py-1 text-xs font-medium leading-[16px]',
-        )[0].parentNode;
-        const submissionId = submissionNode.getAttribute('href').split('=')[1]; // '/problems/two-sum/post-solution?submissionId=999594717'
+        const submissionId = document.URL.match(/\/(\d+)\/?$/)[1]; // '/problems/two-sum/post-solution?submissionId=999594717'
         resolve(submissionId);
       }, 100);
     });
@@ -924,15 +921,7 @@ chrome.storage.local.get('isSync', data => {
   }
 });
 
-let leetCode;
-const isLeetCodeV2 = document.getElementById('chakra-script') != null;
-if (!isLeetCodeV2) {
-  leetCode = new LeetCodeV1();
-} else {
-  leetCode = new LeetCodeV2();
-}
-
-const loader = () => {
+const loader = (leetCode) => {
   let iterations = 0;
   const intervalId = setInterval(async () => {
     try {
@@ -1026,21 +1015,43 @@ const loader = () => {
   }, 1000);
 };
 
-function handleCtrlEnter(event) {
-  if (event.key === 'Enter' && event.ctrlKey) {
-    loader()
+const isMacOS = window.navigator.userAgent.includes('Mac');
+
+// Submit by Keyboard Shortcuts only support on LeetCode v2
+function submitByShortcuts(event, leetCodeV2) {
+  const isEnterKey = event.key === 'Enter';
+
+  // Adapt to MacOS operating system
+  if (isEnterKey && ((isMacOS && event.metaKey) || (!isMacOS && event.ctrlKey))) {
+    loader(leetCodeV2);
   }
 }
 
-// TODO: have event listeners to be added once the button elements are loaded using Mutation Observer
-// maybe this will help https://stackoverflow.com/questions/68329405/javascript-wait-until-element-loaded-on-website-using-chrome-extension
-// Wait for the submit button to load
-setTimeout(() => {
+// Use MutationObserver to determine when the submit button elements are loaded
+const observer = new MutationObserver(function (_mutations, observer) {
   const v1SubmitBtn = document.querySelector('[data-cy="submit-code-btn"]');
   const v2SubmitBtn = document.querySelector('[data-e2e-locator="console-submit-button"]');
-  const submitBtn = !isLeetCodeV2 ? v1SubmitBtn : v2SubmitBtn;
-  submitBtn.addEventListener('click', loader);
+  const textareaList = document.getElementsByTagName('textarea');
+  const textarea = textareaList.length === 4 ? textareaList[2] : textareaList[1];
 
-  const textarea = document.getElementsByTagName('textarea')[0]
-  textarea.addEventListener('keydown', handleCtrlEnter)
-}, 2000);
+  if(v1SubmitBtn) {
+    observer.disconnect();
+
+    const leetCode = new LeetCodeV1();
+    v1SubmitBtn.addEventListener('click', () => loader(leetCode));
+    return;
+  }
+
+  if(v2SubmitBtn && textarea) {
+    observer.disconnect();
+
+    const leetCode = new LeetCodeV2();
+    v2SubmitBtn.addEventListener('click', () => loader(leetCode));
+    textarea.addEventListener('keydown', e => submitByShortcuts(e, leetCode));
+  }
+});
+
+observer.observe(document.body, {
+  childList: true,
+  subtree: true,
+});
