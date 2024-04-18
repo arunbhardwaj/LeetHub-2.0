@@ -658,9 +658,9 @@ LeetCodeV2.prototype.init = async function () {
   async function getSubmissionId() {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        const submissionId = document.URL.match(/\/(\d+)\/?$/)[1]; // '/problems/two-sum/post-solution?submissionId=999594717'
-        resolve(submissionId);
-      }, 100);
+        const submissionId = document.URL.match(/\/(\d+)\/?$/)[1]; // '/problems/two-sum/submissions/1180327225/'
+        resolve(submissionId); 
+      }, 300);
     });
   }
   const submissionId = await getSubmissionId();
@@ -871,11 +871,11 @@ LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
     //   }
     return;
   }
-
-  if (checkElem(document.getElementsByClassName('ml-auto flex items-center space-x-4'))) {
-    const target = document.getElementsByClassName('ml-auto flex items-center space-x-4')[0];
+  // TODO: target within the Run and Submit div regardless of UI position of submit button
+  let target = document.querySelector('[data-e2e-locator="console-submit-button"]').parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.childNodes
+  if (checkElem(target)) {
     elem.className = 'runcode-wrapper__8rXm';
-    if (target.childNodes.length > 0) target.childNodes[0].prepend(elem);
+    target[0].appendChild(elem);
   }
 };
 LeetCodeV2.prototype.markUploaded = function () {
@@ -1046,11 +1046,14 @@ const observer = new MutationObserver(function (_mutations, observer) {
     observer.disconnect();
 
     const leetCode = new LeetCodeV2();
-    v2SubmitBtn.addEventListener('click', () => loader(leetCode));
-    textarea.addEventListener('keydown', e => submitByShortcuts(e, leetCode));
+    if (!!!v2SubmitBtn.onclick) {
+      v2SubmitBtn.onclick = () => loader(leetCode);
+      textarea.addEventListener('keydown', e => submitByShortcuts(e, leetCode));
+    }
   }
 });
 
+// Submission location
 observer.observe(document.body, {
   childList: true,
   subtree: true,
