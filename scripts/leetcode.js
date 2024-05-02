@@ -87,7 +87,7 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
 
 const getAndInitializeStats = problem => {
   return chrome.storage.local.get('stats').then(({ stats }) => {
-    if (stats == null || stats === {}) {
+    if (stats == null || isEmpty(stats)) {
       // create stats object
       stats = {};
       stats.solved = 0;
@@ -1027,6 +1027,16 @@ function submitByShortcuts(event, leetCodeV2) {
   }
 }
 
+function isEmpty(obj) {
+  for (const prop in obj) {
+    if (Object.hasOwn(obj, prop)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Use MutationObserver to determine when the submit button elements are loaded
 const observer = new MutationObserver(function (_mutations, observer) {
   const v1SubmitBtn = document.querySelector('[data-cy="submit-code-btn"]');
@@ -1053,7 +1063,6 @@ const observer = new MutationObserver(function (_mutations, observer) {
   }
 });
 
-// Submission location
 observer.observe(document.body, {
   childList: true,
   subtree: true,
