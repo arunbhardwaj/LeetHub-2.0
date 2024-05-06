@@ -87,7 +87,7 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
 
 const getAndInitializeStats = problem => {
   return chrome.storage.local.get('stats').then(({ stats }) => {
-    if (stats == null || Object.keys(stats).length === 0 ) {
+    if (stats == null || stats === {}) {
       // create stats object
       stats = {};
       stats.solved = 0;
