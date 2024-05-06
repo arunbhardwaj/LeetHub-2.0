@@ -42,7 +42,7 @@ let uploadState = { uploading: false };
 
 /* Main function for uploading code to GitHub repo, and callback cb is called if success */
 const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undefined) => {
-  const URL = `https://api.github.com/repos/${hook}/contents/${problem}/${filename}`;
+  const URL = `https://api.github.com/repos/${hook}/contents/LeetCode/${difficulty}/${problem}/${filename}`;
 
   /* Define Payload */
   let data = {
@@ -87,7 +87,7 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
 
 const getAndInitializeStats = problem => {
   return chrome.storage.local.get('stats').then(({ stats }) => {
-    if (stats == null || stats === {}) {
+    if (stats == null || Object.keys(stats).length === 0 ) {
       // create stats object
       stats = {};
       stats.solved = 0;
@@ -138,7 +138,7 @@ const update = (
   shouldPreprendDiscussionPosts,
   cb = undefined,
 ) => {
-  const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
+  const URL = `https://api.github.com/repos/${hook}/contents/LeetCode/${difficulty}/${directory}/${filename}`;
 
   let options = {
     method: 'GET',
@@ -248,7 +248,7 @@ function uploadGit(
 
 /* Gets updated GitHub data for the specific file in repo in question */
 async function getUpdatedData(token, hook, directory, filename) {
-  const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
+  const URL = `https://api.github.com/repos/${hook}/contents/LeetCode/${difficulty}/${directory}/${filename}`;
 
   let options = {
     method: 'GET',
