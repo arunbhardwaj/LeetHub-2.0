@@ -1,4 +1,4 @@
-function handleMessage(request) {
+function handleMessage(request, sender, sendResponse) {
   if ( request && request.closeWebPage === true && request.isSuccess === true ) {
     /* Set username */
     chrome.storage.local.set({ leethub_username: request.username });
@@ -27,7 +27,14 @@ function handleMessage(request) {
         var tab = tabs[0];
         chrome.tabs.remove(tab.id)
     });
+  } else if ( request.type === 'LEETCODE_SUBMISSION') {
+    chrome.webNavigation.onHistoryStateUpdated.addListener(e = function (details) {
+      let submissionId = (details.url.includes('submissions')) ? details.url.match(/\/(\d+)\/?$/)[1] : null;
+      sendResponse({submissionId})
+      chrome.webNavigation.onHistoryStateUpdated.removeListener(e)
+    }, {url: [{hostSuffix: 'leetcode.com'}]})
   }
+  return true
 }
 
 chrome.runtime.onMessage.addListener(handleMessage);

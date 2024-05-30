@@ -936,20 +936,16 @@ const loader = (leetCode) => {
 
       // For v2, query LeetCode API for submission results
       await leetCode.init();
-      console.log(`init done`)
 
       const probStats = leetCode.parseStats();
       if (!probStats) {
         throw new LeetHubError('SubmissionStatsNotFound');
       }
-      console.log(`parseStats done`)
-
 
       const probStatement = leetCode.parseQuestion();
       if (!probStatement) {
         throw new LeetHubError('ProblemStatementNotFound');
       }
-      console.log(`probStatement done`)
 
       const problemName = leetCode.getProblemNameSlug();
       const alreadyCompleted = await checkAlreadyCompleted(problemName);
@@ -960,7 +956,6 @@ const loader = (leetCode) => {
 
       // start upload indicator here
       leetCode.startSpinner();
-      console.log(`startSpinner done`)
 
       /* Upload README */
       const updateReadMe = await chrome.storage.local.get('stats').then(({ stats }) => {
@@ -1001,18 +996,12 @@ const loader = (leetCode) => {
       );
 
       await Promise.all([updateReadMe, updateNotes, updateCode]);
-      console.log(`Promises done`)
-
 
       uploadState.uploading = false;
       leetCode.markUploaded();
-      console.log(`markUploaded done`)
-
 
       if (!alreadyCompleted) {
         incrementStats();
-        console.log(`incrementStats done`)
-
       }
     } catch (err) {
       uploadState.uploading = false;
@@ -1068,26 +1057,17 @@ const observer = new MutationObserver(function (_mutations, observer) {
     if (!!!v2SubmitBtn.onclick) {
       textarea.addEventListener('keydown', e => submitByShortcuts(e, leetCode));
       v2SubmitBtn.onclick = async () => {
-        leetCode.submissionId = await chrome.runtime.sendMessage({type: 'LEETCODE_SUBMISSION'})
-        //  = submissionId
-        console.log('observer::onclick::submissionId', leetCode.submissionId)
+        const {submissionId} = await chrome.runtime.sendMessage({type: 'LEETCODE_SUBMISSION'})
+        if (submissionId == null) {
+          console.log(new LeetHubError('SubmissionIdNotFound'))
+          return
+        }
+        leetCode.submissionId = submissionId
         loader(leetCode)
       };
     }
   }
 });
-
-
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  console.log("leetcode.js::msg_received", {msg})
-  if (msg.type === "URL_CHANGE") {
-    console.log('setting up observer', new Date().toLocaleTimeString())
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-  }
-})
 
 observer.observe(document.body, {
   childList: true,

@@ -20,7 +20,7 @@
   "permissions": [
     "unlimitedStorage",
     "storage",
-    "activeTab"
+    "webNavigation"
   ],
   "content_scripts": [
     {
