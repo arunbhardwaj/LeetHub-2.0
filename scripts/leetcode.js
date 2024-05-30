@@ -655,16 +655,34 @@ function LeetCodeV2() {
   this.injectSpinnerStyle();
 }
 LeetCodeV2.prototype.init = async function () {
-  async function getSubmissionId() {
+  function getSubmissionId() {
+    let iterations = 0
+    return new Promise((resolve, reject) => {
+      const intervalId = setInterval(async () => {
+        let { current_leetcode_submission: submissionId } = await chrome.storage.local.get('current_leetcode_submission')
+        console.log(`getSubmissionId::iteration_${iterations}::${submissionId}`)
+        if (submissionId) {
+          await chrome.storage.local.remove('current_leetcode_submission')
+          clearInterval(intervalId)
+          resolve(submissionId)
+          return
+        } else if (iterations > 5) {
+          clearInterval(intervalId)
+          reject('leethub_err::submissionIdNotFound')
+          return
+        }
+        iterations++
+      }, 100)
+    })
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const submissionId = document.URL.match(/\/(\d+)\/?$/)[1]; // '/problems/two-sum/submissions/1180327225/'
         resolve(submissionId); 
-      }, 300);
+      }, 1000);
     });
   }
   const submissionId = await getSubmissionId();
-
+  console.log(`leetcodev2::getSubmissionId::${submissionId}`)
   // Query for getting the solution runtime and memory stats, the code, the coding language, the question id, question title and question difficulty
   const submissionDetailsQuery = {
     query:
@@ -767,8 +785,6 @@ LeetCodeV2.prototype.parseStats = function () {
     );
   }
 
-  // Doesn't work unless we wait for page to finish loading.
-  setTimeout(() => { }, 1000);
   const probStats = document.getElementsByClassName('flex w-full pb-4')[0].innerText.split('\n');
   if (!checkElem(probStats)) {
     return null;
@@ -872,10 +888,16 @@ LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
     return;
   }
   // TODO: target within the Run and Submit div regardless of UI position of submit button
-  let target = document.querySelector('[data-e2e-locator="console-submit-button"]').parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.childNodes
-  if (checkElem(target)) {
+  // let target = document.querySelector('[data-e2e-locator="console-submit-button"]').parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.childNodes
+  // if (checkElem(target)) {
+  //   elem.className = 'runcode-wrapper__8rXm';
+  //   target[0].appendChild(elem);
+  // }
+
+  let target =  document.querySelector('[data-e2e-locator="submission-result"]').parentElement
+  if (target) {
     elem.className = 'runcode-wrapper__8rXm';
-    target[0].appendChild(elem);
+    target.appendChild(elem);
   }
 };
 LeetCodeV2.prototype.markUploaded = function () {
@@ -939,16 +961,20 @@ const loader = (leetCode) => {
 
       // For v2, query LeetCode API for submission results
       await leetCode.init();
+      console.log(`init done`)
 
       const probStats = leetCode.parseStats();
       if (!probStats) {
         throw new Error('Could not get submission stats');
       }
+      console.log(`parseStats done`)
+
 
       const probStatement = leetCode.parseQuestion();
       if (!probStatement) {
         throw new Error('Could not find problem statement');
       }
+      console.log(`probStatement done`)
 
       const problemName = leetCode.getProblemNameSlug();
       const alreadyCompleted = await checkAlreadyCompleted(problemName);
@@ -959,6 +985,7 @@ const loader = (leetCode) => {
 
       // start upload indicator here
       leetCode.startSpinner();
+      console.log(`startSpinner done`)
 
       /* Upload README */
       const updateReadMe = await chrome.storage.local.get('stats').then(({ stats }) => {
@@ -999,12 +1026,18 @@ const loader = (leetCode) => {
       );
 
       await Promise.all([updateReadMe, updateNotes, updateCode]);
+      console.log(`Promises done`)
+
 
       uploadState.uploading = false;
       leetCode.markUploaded();
+      console.log(`markUploaded done`)
+
 
       if (!alreadyCompleted) {
         incrementStats();
+        console.log(`incrementStats done`)
+
       }
     } catch (err) {
       uploadState.uploading = false;
@@ -1053,15 +1086,33 @@ const observer = new MutationObserver(function (_mutations, observer) {
   }
 
   if(v2SubmitBtn && textarea) {
+    console.log('disconnecting observer', new Date().toLocaleTimeString())
     observer.disconnect();
 
     const leetCode = new LeetCodeV2();
     if (!!!v2SubmitBtn.onclick) {
-      v2SubmitBtn.onclick = () => loader(leetCode);
+      v2SubmitBtn.onclick = async () => {
+        let submissionId = await chrome.runtime.sendMessage({type: 'LEETCODE_SUBMISSION'})
+        console.log('observer::onclick::submissionId', submissionId)
+
+        loader(leetCode)
+      };
       textarea.addEventListener('keydown', e => submitByShortcuts(e, leetCode));
     }
   }
 });
+
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  console.log("leetcode.js::msg_received", {msg})
+  if (msg.type === "URL_CHANGE") {
+    console.log('setting up observer', new Date().toLocaleTimeString())
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
+})
 
 observer.observe(document.body, {
   childList: true,
