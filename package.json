@@ -11,6 +11,7 @@
     "lint-test": "eslint **/*.{js,jsx,ts,tsx} --color"
   },
   "devDependencies": {
+    "chrome-types": "^0.1.282",
     "eslint-plugin-jsx-a11y": "^6.4.1",
     "eslint-plugin-prettier": "^3.1.4",
     "eslint-plugin-react": "^7.21.5",

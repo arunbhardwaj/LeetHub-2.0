@@ -87,7 +87,7 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
 
 const getAndInitializeStats = problem => {
   return chrome.storage.local.get('stats').then(({ stats }) => {
-    if (stats == null || stats === {}) {
+    if (stats == null || isEmpty(stats)) {
       // create stats object
       stats = {};
       stats.solved = 0;
@@ -193,20 +193,20 @@ function uploadGit(
     .then(({ leethub_token }) => {
       token = leethub_token;
       if (leethub_token == undefined) {
-        throw new Error('leethub token is undefined');
+        throw new LeetHubError('LeethubTokenUndefined');
       }
       return chrome.storage.local.get('mode_type');
     })
     .then(({ mode_type }) => {
       if (mode_type !== 'commit') {
-        throw new Error('leethub mode is not commit');
+        throw new LeetHubError('LeetHubNotAuthorizedByGit');
       }
       return chrome.storage.local.get('leethub_hook');
     })
     .then(({ leethub_hook }) => {
       hook = leethub_hook;
       if (!hook) {
-        throw new Error('leethub hook not defined');
+        throw new LeetHubError('NoRepoDefined');
       }
       return chrome.storage.local.get('stats');
     })
@@ -650,20 +650,13 @@ LeetCodeV1.prototype.markUploadFailed = function () {
 
 function LeetCodeV2() {
   this.submissionData;
+  this.submissionId;
   this.progressSpinnerElementId = 'leethub_progress_elem';
   this.progressSpinnerElementClass = 'leethub_progress';
   this.injectSpinnerStyle();
 }
 LeetCodeV2.prototype.init = async function () {
-  async function getSubmissionId() {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const submissionId = document.URL.match(/\/(\d+)\/?$/)[1]; // '/problems/two-sum/submissions/1180327225/'
-        resolve(submissionId); 
-      }, 300);
-    });
-  }
-  const submissionId = await getSubmissionId();
+  const submissionId = this.submissionId
 
   // Query for getting the solution runtime and memory stats, the code, the coding language, the question id, question title and question difficulty
   const submissionDetailsQuery = {
@@ -695,7 +688,7 @@ LeetCodeV2.prototype.findAndUploadCode = function (
 ) {
   const code = this.getCode();
   if (!code) {
-    throw new Error('No solution code found');
+    throw new LeetHubError('SolutionCodeNotFound');
   }
 
   return uploadGit(
@@ -727,12 +720,12 @@ LeetCodeV2.prototype.getLanguageExtension = function () {
 
   const tag = document.querySelector('button[id^="headlessui-listbox-button"]');
   if (!tag) {
-    throw new Error('No language button found');
+    throw new LeetHubError('LanguageButtonNotFound');
   }
 
   const lang = tag.innerText;
   if (languages[lang] === undefined) {
-    throw new Error('Unknown Language: ' + { lang });
+    throw new LeetHubError(`UnknownLanguage::${lang}`);
   }
 
   return languages[lang];
@@ -767,8 +760,6 @@ LeetCodeV2.prototype.parseStats = function () {
     );
   }
 
-  // Doesn't work unless we wait for page to finish loading.
-  setTimeout(() => { }, 1000);
   const probStats = document.getElementsByClassName('flex w-full pb-4')[0].innerText.split('\n');
   if (!checkElem(probStats)) {
     return null;
@@ -872,10 +863,10 @@ LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
     return;
   }
   // TODO: target within the Run and Submit div regardless of UI position of submit button
-  let target = document.querySelector('[data-e2e-locator="console-submit-button"]').parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.childNodes
-  if (checkElem(target)) {
+  let target = document.querySelector('[data-e2e-locator="submission-result"]').parentElement
+  if (target) {
     elem.className = 'runcode-wrapper__8rXm';
-    target[0].appendChild(elem);
+    target.appendChild(elem);
   }
 };
 LeetCodeV2.prototype.markUploaded = function () {
@@ -942,19 +933,19 @@ const loader = (leetCode) => {
 
       const probStats = leetCode.parseStats();
       if (!probStats) {
-        throw new Error('Could not get submission stats');
+        throw new LeetHubError('SubmissionStatsNotFound');
       }
 
       const probStatement = leetCode.parseQuestion();
       if (!probStatement) {
-        throw new Error('Could not find problem statement');
+        throw new LeetHubError('ProblemStatementNotFound');
       }
 
       const problemName = leetCode.getProblemNameSlug();
       const alreadyCompleted = await checkAlreadyCompleted(problemName);
       const language = leetCode.getLanguageExtension();
       if (!language) {
-        throw new Error('Could not find language');
+        throw new LeetHubError('LanguageNotFound');
       }
 
       // start upload indicator here
@@ -1027,6 +1018,16 @@ function submitByShortcuts(event, leetCodeV2) {
   }
 }
 
+function isEmpty(obj) {
+  for (const prop in obj) {
+    if (Object.hasOwn(obj, prop)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Use MutationObserver to determine when the submit button elements are loaded
 const observer = new MutationObserver(function (_mutations, observer) {
   const v1SubmitBtn = document.querySelector('[data-cy="submit-code-btn"]');
@@ -1047,14 +1048,28 @@ const observer = new MutationObserver(function (_mutations, observer) {
 
     const leetCode = new LeetCodeV2();
     if (!!!v2SubmitBtn.onclick) {
-      v2SubmitBtn.onclick = () => loader(leetCode);
       textarea.addEventListener('keydown', e => submitByShortcuts(e, leetCode));
+      v2SubmitBtn.onclick = async () => {
+        const {submissionId} = await chrome.runtime.sendMessage({type: 'LEETCODE_SUBMISSION'})
+        if (submissionId == null) {
+          console.log(new LeetHubError('SubmissionIdNotFound'))
+          return
+        }
+        leetCode.submissionId = submissionId
+        loader(leetCode)
+      };
     }
   }
 });
 
-// Submission location
 observer.observe(document.body, {
   childList: true,
   subtree: true,
 });
+
+class LeetHubError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'LeetHubErr'
+  }
+}

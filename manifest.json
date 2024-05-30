@@ -19,21 +19,22 @@
   },
   "permissions": [
     "unlimitedStorage",
-    "storage"
+    "storage",
+    "webNavigation"
   ],
   "content_scripts": [
     {
-      "matches": [
-        "https://leetcode.com/*",
-        "https://github.com/*",
-        "https://practice.geeksforgeeks.org/*"
-      ],
-      "js": [
-        "scripts/leetcode.js",
-        "scripts/authorize.js",
-        "scripts/gfg.js"
-      ],
+      "matches": ["https://leetcode.com/*"],
+      "js": ["scripts/leetcode.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://github.com/*"],
+      "js": ["scripts/authorize.js"]
+    },
+    {
+      "matches": ["https://practice.geeksforgeeks.org/*"],
+      "js": ["scripts/gfg.js"]
     }
   ],
   "content_security_policy": {
