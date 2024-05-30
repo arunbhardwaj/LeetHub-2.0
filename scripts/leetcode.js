@@ -193,20 +193,20 @@ function uploadGit(
     .then(({ leethub_token }) => {
       token = leethub_token;
       if (leethub_token == undefined) {
-        throw new Error('leethub token is undefined');
+        throw new LeetHubError('LeethubTokenUndefined');
       }
       return chrome.storage.local.get('mode_type');
     })
     .then(({ mode_type }) => {
       if (mode_type !== 'commit') {
-        throw new Error('leethub mode is not commit');
+        throw new LeetHubError('LeetHubNotAuthorizedByGit');
       }
       return chrome.storage.local.get('leethub_hook');
     })
     .then(({ leethub_hook }) => {
       hook = leethub_hook;
       if (!hook) {
-        throw new Error('leethub hook not defined');
+        throw new LeetHubError('NoRepoDefined');
       }
       return chrome.storage.local.get('stats');
     })
@@ -650,39 +650,14 @@ LeetCodeV1.prototype.markUploadFailed = function () {
 
 function LeetCodeV2() {
   this.submissionData;
+  this.submissionId;
   this.progressSpinnerElementId = 'leethub_progress_elem';
   this.progressSpinnerElementClass = 'leethub_progress';
   this.injectSpinnerStyle();
 }
 LeetCodeV2.prototype.init = async function () {
-  function getSubmissionId() {
-    let iterations = 0
-    return new Promise((resolve, reject) => {
-      const intervalId = setInterval(async () => {
-        let { current_leetcode_submission: submissionId } = await chrome.storage.local.get('current_leetcode_submission')
-        console.log(`getSubmissionId::iteration_${iterations}::${submissionId}`)
-        if (submissionId) {
-          await chrome.storage.local.remove('current_leetcode_submission')
-          clearInterval(intervalId)
-          resolve(submissionId)
-          return
-        } else if (iterations > 5) {
-          clearInterval(intervalId)
-          reject('leethub_err::submissionIdNotFound')
-          return
-        }
-        iterations++
-      }, 100)
-    })
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const submissionId = document.URL.match(/\/(\d+)\/?$/)[1]; // '/problems/two-sum/submissions/1180327225/'
-        resolve(submissionId); 
-      }, 1000);
-    });
-  }
-  const submissionId = await getSubmissionId();
-  console.log(`leetcodev2::getSubmissionId::${submissionId}`)
+  const submissionId = this.submissionId
+
   // Query for getting the solution runtime and memory stats, the code, the coding language, the question id, question title and question difficulty
   const submissionDetailsQuery = {
     query:
@@ -713,7 +688,7 @@ LeetCodeV2.prototype.findAndUploadCode = function (
 ) {
   const code = this.getCode();
   if (!code) {
-    throw new Error('No solution code found');
+    throw new LeetHubError('SolutionCodeNotFound');
   }
 
   return uploadGit(
@@ -745,12 +720,12 @@ LeetCodeV2.prototype.getLanguageExtension = function () {
 
   const tag = document.querySelector('button[id^="headlessui-listbox-button"]');
   if (!tag) {
-    throw new Error('No language button found');
+    throw new LeetHubError('LanguageButtonNotFound');
   }
 
   const lang = tag.innerText;
   if (languages[lang] === undefined) {
-    throw new Error('Unknown Language: ' + { lang });
+    throw new LeetHubError(`UnknownLanguage::${lang}`);
   }
 
   return languages[lang];
@@ -965,14 +940,14 @@ const loader = (leetCode) => {
 
       const probStats = leetCode.parseStats();
       if (!probStats) {
-        throw new Error('Could not get submission stats');
+        throw new LeetHubError('SubmissionStatsNotFound');
       }
       console.log(`parseStats done`)
 
 
       const probStatement = leetCode.parseQuestion();
       if (!probStatement) {
-        throw new Error('Could not find problem statement');
+        throw new LeetHubError('ProblemStatementNotFound');
       }
       console.log(`probStatement done`)
 
@@ -980,7 +955,7 @@ const loader = (leetCode) => {
       const alreadyCompleted = await checkAlreadyCompleted(problemName);
       const language = leetCode.getLanguageExtension();
       if (!language) {
-        throw new Error('Could not find language');
+        throw new LeetHubError('LanguageNotFound');
       }
 
       // start upload indicator here
@@ -1091,13 +1066,13 @@ const observer = new MutationObserver(function (_mutations, observer) {
 
     const leetCode = new LeetCodeV2();
     if (!!!v2SubmitBtn.onclick) {
+      textarea.addEventListener('keydown', e => submitByShortcuts(e, leetCode));
       v2SubmitBtn.onclick = async () => {
-        let submissionId = await chrome.runtime.sendMessage({type: 'LEETCODE_SUBMISSION'})
-        console.log('observer::onclick::submissionId', submissionId)
-
+        leetCode.submissionId = await chrome.runtime.sendMessage({type: 'LEETCODE_SUBMISSION'})
+        //  = submissionId
+        console.log('observer::onclick::submissionId', leetCode.submissionId)
         loader(leetCode)
       };
-      textarea.addEventListener('keydown', e => submitByShortcuts(e, leetCode));
     }
   }
 });
@@ -1118,3 +1093,10 @@ observer.observe(document.body, {
   childList: true,
   subtree: true,
 });
+
+class LeetHubError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'LeetHubErr'
+  }
+}
