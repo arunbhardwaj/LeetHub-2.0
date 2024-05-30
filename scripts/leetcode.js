@@ -863,13 +863,7 @@ LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
     return;
   }
   // TODO: target within the Run and Submit div regardless of UI position of submit button
-  // let target = document.querySelector('[data-e2e-locator="console-submit-button"]').parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.childNodes
-  // if (checkElem(target)) {
-  //   elem.className = 'runcode-wrapper__8rXm';
-  //   target[0].appendChild(elem);
-  // }
-
-  let target =  document.querySelector('[data-e2e-locator="submission-result"]').parentElement
+  let target = document.querySelector('[data-e2e-locator="submission-result"]').parentElement
   if (target) {
     elem.className = 'runcode-wrapper__8rXm';
     target.appendChild(elem);
@@ -1050,7 +1044,6 @@ const observer = new MutationObserver(function (_mutations, observer) {
   }
 
   if(v2SubmitBtn && textarea) {
-    console.log('disconnecting observer', new Date().toLocaleTimeString())
     observer.disconnect();
 
     const leetCode = new LeetCodeV2();
