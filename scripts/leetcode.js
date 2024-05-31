@@ -14,6 +14,7 @@ const languages = {
   MySQL: '.sql',
   'MS SQL Server': '.sql',
   Oracle: '.sql',
+  Pandas: '.py',
   PHP: '.php',
   Python: '.py',
   Python3: '.py',
@@ -1008,6 +1009,16 @@ const loader = (leetCode) => {
 
 const isMacOS = window.navigator.userAgent.includes('Mac');
 
+// Get SubmissionID by listening for URL changes to `/submissions/(d+)` format
+async function listenForSubmissionId() {
+  const {submissionId} = await chrome.runtime.sendMessage({type: 'LEETCODE_SUBMISSION'})
+  if (submissionId == null) {
+    console.log(new LeetHubError('SubmissionIdNotFound'))
+    return
+  }
+  return submissionId
+}
+
 // Submit by Keyboard Shortcuts only support on LeetCode v2
 function submitByShortcuts(event, leetCodeV2) {
   const isEnterKey = event.key === 'Enter';
@@ -1033,7 +1044,7 @@ const observer = new MutationObserver(function (_mutations, observer) {
   const v1SubmitBtn = document.querySelector('[data-cy="submit-code-btn"]');
   const v2SubmitBtn = document.querySelector('[data-e2e-locator="console-submit-button"]');
   const textareaList = document.getElementsByTagName('textarea');
-  const textarea = textareaList.length === 4 ? textareaList[2] : textareaList[1];
+  const textarea = textareaList.length === 4 ? textareaList[2] : (textareaList.length === 2 ? textareaList[0] : textareaList[1]);
 
   if(v1SubmitBtn) {
     observer.disconnect();
@@ -1048,13 +1059,13 @@ const observer = new MutationObserver(function (_mutations, observer) {
 
     const leetCode = new LeetCodeV2();
     if (!!!v2SubmitBtn.onclick) {
-      textarea.addEventListener('keydown', e => submitByShortcuts(e, leetCode));
+      textarea.addEventListener('keydown', async e => {
+        const submissionId = await listenForSubmissionId()
+        leetCode.submissionId = submissionId
+        submitByShortcuts(e, leetCode)}
+      );
       v2SubmitBtn.onclick = async () => {
-        const {submissionId} = await chrome.runtime.sendMessage({type: 'LEETCODE_SUBMISSION'})
-        if (submissionId == null) {
-          console.log(new LeetHubError('SubmissionIdNotFound'))
-          return
-        }
+        const submissionId = await listenForSubmissionId()
         leetCode.submissionId = submissionId
         loader(leetCode)
       };

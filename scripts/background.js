@@ -27,12 +27,12 @@ function handleMessage(request, sender, sendResponse) {
         var tab = tabs[0];
         chrome.tabs.remove(tab.id)
     });
-  } else if ( request.type === 'LEETCODE_SUBMISSION') {
+  } else if ( request.type === 'LEETCODE_SUBMISSION' ) {
     chrome.webNavigation.onHistoryStateUpdated.addListener(e = function (details) {
-      let submissionId = (details.url.includes('submissions')) ? details.url.match(/\/submissions\/(\d+)\//)[1] : null;
+      const submissionId = details.url.match(/\/submissions\/(\d+)\//)[1];
       sendResponse({submissionId})
       chrome.webNavigation.onHistoryStateUpdated.removeListener(e)
-    }, {url: [{hostSuffix: 'leetcode.com'}]})
+    }, {url: [{hostSuffix: 'leetcode.com'}, {pathContains: 'submissions'}]})
   }
   return true
 }
