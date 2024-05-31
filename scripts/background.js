@@ -29,7 +29,7 @@ function handleMessage(request, sender, sendResponse) {
     });
   } else if ( request.type === 'LEETCODE_SUBMISSION') {
     chrome.webNavigation.onHistoryStateUpdated.addListener(e = function (details) {
-      let submissionId = (details.url.includes('submissions')) ? details.url.match(/\/(\d+)\/?$/)[1] : null;
+      let submissionId = (details.url.includes('submissions')) ? details.url.match(/\/submissions\/(\d+)\//)[1] : null;
       sendResponse({submissionId})
       chrome.webNavigation.onHistoryStateUpdated.removeListener(e)
     }, {url: [{hostSuffix: 'leetcode.com'}]})
