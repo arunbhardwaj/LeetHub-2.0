@@ -3,7 +3,7 @@
   "name": "LeetHub v2",
   "description": "Automatically integrate your Leetcode & GeeksforGeeks submissions to GitHub",
   "homepage_url": "https://github.com/arunbhardwaj/LeetHub-2.0",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "author": "Arun Bhardwaj",
   "action": {
     "default_icon": "assets/thumbnail.png",

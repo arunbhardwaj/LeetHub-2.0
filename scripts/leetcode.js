@@ -24,10 +24,11 @@ const languages = {
   Scala: '.scala',
   Swift: '.swift',
   TypeScript: '.ts',
-}
+};
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
+const updateReadmeMsg = 'Update README - Topic Tags';
 const discussionMsg = 'Prepend discussion post - LeetHub';
 const createNotesMsg = 'Attach NOTES - LeetHub';
 
@@ -41,9 +42,14 @@ let difficulty = '';
 /* state of upload for progress */
 let uploadState = { uploading: false };
 
+const getPath = (problem, filename) => {
+  return (filename) ? `${problem}/${filename}` : problem
+}
+
 /* Main function for uploading code to GitHub repo, and callback cb is called if success */
 const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undefined) => {
-  const URL = `https://api.github.com/repos/${hook}/contents/${problem}/${filename}`;
+  const path = getPath(problem, filename);
+  const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
   /* Define Payload */
   let data = {
@@ -79,8 +85,8 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
       return chrome.storage.local.set({ stats });
     })
     .then(() => {
-      console.log(`Successfully committed ${filename} to github`);
-      if (cb != undefined) {
+      console.log(`Successfully committed ${getPath(problem, filename)} to github`);
+      if (cb) {
         cb();
       }
     });
@@ -158,12 +164,12 @@ const update = (
     .then(existingContent =>
       shouldPreprendDiscussionPosts
         ? // https://web.archive.org/web/20190623091645/https://monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
-        // In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
-        // But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
-        // EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
-        // Unescape converts percent-encoded hex values into regular ASCII (optional; it shrinks string size).
-        // btoa converts ASCII to base64.
-        btoa(unescape(encodeURIComponent(addition + existingContent)))
+          // In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
+          // But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
+          // EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
+          // Unescape converts percent-encoded hex values into regular ASCII (optional; it shrinks string size).
+          // btoa converts ASCII to base64.
+          btoa(unescape(encodeURIComponent(addition + existingContent)))
         : btoa(unescape(encodeURIComponent(existingContent))),
     )
     .then(newContent =>
@@ -249,7 +255,8 @@ function uploadGit(
 
 /* Gets updated GitHub data for the specific file in repo in question */
 async function getUpdatedData(token, hook, directory, filename) {
-  const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
+  const path = getPath(directory, filename)
+  const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
   let options = {
     method: 'GET',
@@ -339,7 +346,7 @@ function LeetCodeV1() {
   this.progressSpinnerElementClass = 'leethub_progress';
   this.injectSpinnerStyle();
 }
-LeetCodeV1.prototype.init = async function () { };
+LeetCodeV1.prototype.init = async function () {};
 /* Function for finding and parsing the full code. */
 /* - At first find the submission details url. */
 /* - Then send a request for the details page. */
@@ -657,12 +664,12 @@ function LeetCodeV2() {
   this.injectSpinnerStyle();
 }
 LeetCodeV2.prototype.init = async function () {
-  const submissionId = this.submissionId
+  const submissionId = this.submissionId;
 
   // Query for getting the solution runtime and memory stats, the code, the coding language, the question id, question title and question difficulty
   const submissionDetailsQuery = {
     query:
-      '\n    query submissionDetails($submissionId: Int!) {\n  submissionDetails(submissionId: $submissionId) {\n    runtime\n    runtimeDisplay\n    runtimePercentile\n    runtimeDistribution\n    memory\n    memoryDisplay\n    memoryPercentile\n    memoryDistribution\n    code\n    timestamp\n    statusCode\n    lang {\n      name\n      verboseName\n    }\n    question {\n      questionId\n    title\n    titleSlug\n    content\n    difficulty\n    }\n    notes\n    topicTags {\n      tagId\n      slug\n      name\n    }\n    runtimeError\n  }\n}\n    ',
+      '\n    query submissionDetails($submissionId: Int!) {\n  submissionDetails(submissionId: $submissionId) {\n    runtime\n    runtimeDisplay\n    runtimePercentile\n    runtimeDistribution\n    memory\n    memoryDisplay\n    memoryPercentile\n    memoryDistribution\n    code\n    timestamp\n    statusCode\n    lang {\n      name\n      verboseName\n    }\n    question {\n      questionId\n    title\n    titleSlug\n    content\n    difficulty\n  topicTags {\n    name\n    slug\n    }\n   }\n    notes\n    topicTags {\n      tagId\n      slug\n      name\n    }\n    runtimeError\n  }\n}\n    ',
     variables: { submissionId: submissionId },
     operationName: 'submissionDetails',
   };
@@ -731,7 +738,7 @@ LeetCodeV2.prototype.getLanguageExtension = function () {
 
   return languages[lang];
 };
-LeetCodeV2.prototype.getNotesIfAny = function () { };
+LeetCodeV2.prototype.getNotesIfAny = function () {};
 LeetCodeV2.prototype.getProblemNameSlug = function () {
   const slugTitle = this.submissionData.question.titleSlug;
   const qNum = this.submissionData.question.questionId;
@@ -864,7 +871,7 @@ LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
     return;
   }
   // TODO: target within the Run and Submit div regardless of UI position of submit button
-  let target = document.querySelector('[data-e2e-locator="submission-result"]').parentElement
+  let target = document.querySelector('[data-e2e-locator="submission-result"]').parentElement;
   if (target) {
     elem.className = 'runcode-wrapper__8rXm';
     target.appendChild(elem);
@@ -888,6 +895,87 @@ LeetCodeV2.prototype.markUploadFailed = function () {
     elem.style = style;
   }
 };
+LeetCodeV2.prototype.updateReadmeTopicTagsWithProblem = async function (problemName) {
+  const { leethub_token, leethub_hook, stats } = await chrome.storage.local.get([
+    'leethub_token',
+    'leethub_hook',
+    'stats',
+  ]);
+  const { content } = await getUpdatedData(leethub_token, leethub_hook, 'README.md');
+  
+  let readme = decodeURIComponent(escape(atob(content)));
+  for (let topic of this.submissionData.question.topicTags) {
+    readme = appendProblemToTopic(topic.name, readme, leethub_hook, problemName);
+  }
+  readme = sortTopicTablesInMarkdown(readme)
+  readme = btoa(unescape(encodeURIComponent(readme)));
+  return uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload');
+};
+
+// Appends a problem title to each Topic section in the README.md
+function appendProblemToTopic(topic, markdownFile, hook, problem) {
+  const url = `https://github.com/${hook}/tree/master/${problem}`;
+
+  // Check if a table already belongs to topic, or add it
+  let topicTableIndex = markdownFile.indexOf(`# ${topic}`);
+  if (topicTableIndex === -1) {
+    markdownFile += `\n# ${topic}\n|  |\n| ------- |\n`;
+  }
+
+  // Find the Topic table
+  topicTableIndex = markdownFile.lastIndexOf(`# ${topic}`);
+  const nextTableIndex = markdownFile.indexOf('# ', topicTableIndex + 1);
+  let topicTable = nextTableIndex === -1 ? markdownFile.slice(topicTableIndex) : markdownFile.slice(topicTableIndex, nextTableIndex);
+  topicTable = topicTable.trim();
+
+  // Check if the problem exists in table, prevent duplicate add
+  const problemIndex = topicTable.indexOf(problem);
+  if (problemIndex !== -1) {
+    return markdownFile;
+  }
+
+  // Append problem to the Topic 
+  const newRow = `| [${problem}](${url}) |`;
+  topicTable = [topicTable, newRow, '\n'].join('\n');
+
+  // Replace the old Topic table with the updated one in the markdown file
+  markdownFile = markdownFile.slice(0, topicTableIndex) + topicTable + (nextTableIndex === -1 ? '' : markdownFile.slice(nextTableIndex));
+
+  return markdownFile;
+}
+
+// Sorts each Topic table by the problem number
+function sortTopicTablesInMarkdown(markdownFile) {
+  let topics = markdownFile.split('# ');
+
+  // Remove the first element (empty) and next element (repo title + description)
+  topics.shift();
+  let description = topics.shift();
+
+  // Loop over each problem topic
+  topics = topics.map(section => {
+    let lines = section.trim().split('\n');
+
+    // Get the problem topic
+    let topic = lines.shift();
+
+    // Remove the header and header separator
+    lines = lines.slice(2);
+
+    lines.sort((a, b) => {
+      let numA = parseInt(a.match(/\/(\d+)-/)[1]);
+      let numB = parseInt(b.match(/\/(\d+)-/)[1]);
+      return numA - numB;
+    });
+
+    // Reconstruct the section
+    return ['# ' + topic].concat('|  |', '| ------- |', lines).join('\n');
+  });
+
+  // Reconstruct the file
+  markdownFile = [ '# ' + description.trim(), '\n' ] .concat(topics) .join('\n');
+  return markdownFile
+};
 
 /* Sync to local storage */
 chrome.storage.local.get('isSync', data => {
@@ -905,7 +993,7 @@ chrome.storage.local.get('isSync', data => {
         chrome.storage.local.set({ [key]: data[key] });
       });
     });
-    chrome.storage.local.set({ isSync: true }, data => {
+    chrome.storage.local.set({ isSync: true }, () => {
       console.log('LeetHub Synced to local values');
     });
   } else {
@@ -913,10 +1001,11 @@ chrome.storage.local.get('isSync', data => {
   }
 });
 
-const loader = (leetCode) => {
+const loader = leetCode => {
   let iterations = 0;
   const intervalId = setInterval(async () => {
     try {
+      leetCode.startSpinner();
       const isSuccessfulSubmission = leetCode.getSuccessStateAndUpdate();
       if (!isSuccessfulSubmission) {
         iterations++;
@@ -948,9 +1037,6 @@ const loader = (leetCode) => {
       if (!language) {
         throw new LeetHubError('LanguageNotFound');
       }
-
-      // start upload indicator here
-      leetCode.startSpinner();
 
       /* Upload README */
       const updateReadMe = await chrome.storage.local.get('stats').then(({ stats }) => {
@@ -990,7 +1076,10 @@ const loader = (leetCode) => {
         'upload',
       );
 
-      await Promise.all([updateReadMe, updateNotes, updateCode]);
+      /* Group problem into its relevant topics */
+      const updateReadMeWithTopicTag = leetCode.updateReadmeTopicTagsWithProblem(problemName);
+      
+      await Promise.all([updateReadMe, updateNotes, updateCode, updateReadMeWithTopicTag]);
 
       uploadState.uploading = false;
       leetCode.markUploaded();
@@ -1011,12 +1100,12 @@ const isMacOS = window.navigator.userAgent.includes('Mac');
 
 // Get SubmissionID by listening for URL changes to `/submissions/(d+)` format
 async function listenForSubmissionId() {
-  const {submissionId} = await chrome.runtime.sendMessage({type: 'LEETCODE_SUBMISSION'})
+  const { submissionId } = await chrome.runtime.sendMessage({ type: 'LEETCODE_SUBMISSION' });
   if (submissionId == null) {
-    console.log(new LeetHubError('SubmissionIdNotFound'))
-    return
+    console.log(new LeetHubError('SubmissionIdNotFound'));
+    return;
   }
-  return submissionId
+  return submissionId;
 }
 
 // Submit by Keyboard Shortcuts only support on LeetCode v2
@@ -1044,9 +1133,14 @@ const observer = new MutationObserver(function (_mutations, observer) {
   const v1SubmitBtn = document.querySelector('[data-cy="submit-code-btn"]');
   const v2SubmitBtn = document.querySelector('[data-e2e-locator="console-submit-button"]');
   const textareaList = document.getElementsByTagName('textarea');
-  const textarea = textareaList.length === 4 ? textareaList[2] : (textareaList.length === 2 ? textareaList[0] : textareaList[1]);
+  const textarea =
+    textareaList.length === 4
+      ? textareaList[2]
+      : textareaList.length === 2
+      ? textareaList[0]
+      : textareaList[1];
 
-  if(v1SubmitBtn) {
+  if (v1SubmitBtn) {
     observer.disconnect();
 
     const leetCode = new LeetCodeV1();
@@ -1054,20 +1148,20 @@ const observer = new MutationObserver(function (_mutations, observer) {
     return;
   }
 
-  if(v2SubmitBtn && textarea) {
+  if (v2SubmitBtn && textarea) {
     observer.disconnect();
 
     const leetCode = new LeetCodeV2();
     if (!!!v2SubmitBtn.onclick) {
       textarea.addEventListener('keydown', async e => {
-        const submissionId = await listenForSubmissionId()
-        leetCode.submissionId = submissionId
-        submitByShortcuts(e, leetCode)}
-      );
+        const submissionId = await listenForSubmissionId();
+        leetCode.submissionId = submissionId;
+        submitByShortcuts(e, leetCode);
+      });
       v2SubmitBtn.onclick = async () => {
-        const submissionId = await listenForSubmissionId()
-        leetCode.submissionId = submissionId
-        loader(leetCode)
+        const submissionId = await listenForSubmissionId();
+        leetCode.submissionId = submissionId;
+        loader(leetCode);
       };
     }
   }
@@ -1080,7 +1174,7 @@ observer.observe(document.body, {
 
 class LeetHubError extends Error {
   constructor(message) {
-    super(message)
-    this.name = 'LeetHubErr'
+    super(message);
+    this.name = 'LeetHubErr';
   }
 }
