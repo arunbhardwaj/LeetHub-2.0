@@ -655,6 +655,9 @@ LeetCodeV1.prototype.markUploadFailed = function () {
     elem.style = style;
   }
 };
+LeetCodeV1.prototype.updateReadmeTopicTagsWithProblem = function () {
+  console.log(`Skipping...updating README with tags is not supported on old UI`)
+}
 
 function LeetCodeV2() {
   this.submissionData;
