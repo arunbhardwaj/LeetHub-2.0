@@ -36,6 +36,8 @@ const createNotesMsg = 'Attach NOTES - LeetHub';
 const NORMAL_PROBLEM = 0;
 const EXPLORE_SECTION_PROBLEM = 1;
 
+const WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS = 100
+
 /* Difficulty of most recenty submitted question */
 let difficulty = '';
 
@@ -246,11 +248,11 @@ function uploadGit(
         throw err;
       }
     })
-    .then(data =>
-      data != null
+    .then(data => 
+      data != null // if it isn't null, then we didn't uplaod successfully the first time, and must have retrieved new data and reuploaded
         ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb)
-        : undefined,
-    );
+        : undefined
+    )
 }
 
 /* Gets updated GitHub data for the specific file in repo in question */
@@ -912,7 +914,9 @@ LeetCodeV2.prototype.updateReadmeTopicTagsWithProblem = async function (problemN
   }
   readme = sortTopicTablesInMarkdown(readme)
   readme = btoa(unescape(encodeURIComponent(readme)));
-  return uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload');
+  return new Promise((resolve, reject) => 
+    setTimeout(() => resolve(), WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS)
+  ).then(() => uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload'))
 };
 
 // Appends a problem title to each Topic section in the README.md
@@ -1112,13 +1116,11 @@ async function listenForSubmissionId() {
 }
 
 // Submit by Keyboard Shortcuts only support on LeetCode v2
-function submitByShortcuts(event, leetCodeV2) {
+function wasSubmittedByKeyboard(event) {
   const isEnterKey = event.key === 'Enter';
 
   // Adapt to MacOS operating system
-  if (isEnterKey && ((isMacOS && event.metaKey) || (!isMacOS && event.ctrlKey))) {
-    loader(leetCodeV2);
-  }
+  return isEnterKey && ((isMacOS && event.metaKey) || (!isMacOS && event.ctrlKey))
 }
 
 function isEmpty(obj) {
@@ -1156,19 +1158,24 @@ const observer = new MutationObserver(function (_mutations, observer) {
 
     const leetCode = new LeetCodeV2();
     if (!!!v2SubmitBtn.onclick) {
-      textarea.addEventListener('keydown', async e => {
-        const submissionId = await listenForSubmissionId();
-        leetCode.submissionId = submissionId;
-        submitByShortcuts(e, leetCode);
-      });
-      v2SubmitBtn.onclick = async () => {
-        const submissionId = await listenForSubmissionId();
-        leetCode.submissionId = submissionId;
-        loader(leetCode);
-      };
+      textarea.addEventListener('keydown', e => v2SubmissionHandler(leetCode, e));
+      v2SubmitBtn.onclick = e => v2SubmissionHandler(leetCode, e)
     }
   }
 });
+
+async function v2SubmissionHandler(leetCode, event) {  
+  console.log(`v2SubmissionHandler::event`, {event})
+  if (event.type !== 'click' && !wasSubmittedByKeyboard(event)) {
+    return
+  }
+
+  // is click or is ctrl enter
+  const submissionId = await listenForSubmissionId();
+  leetCode.submissionId = submissionId;
+  loader(leetCode)
+  return true
+}
 
 observer.observe(document.body, {
   childList: true,
@@ -1181,3 +1188,93 @@ class LeetHubError extends Error {
     this.name = 'LeetHubErr';
   }
 }
+
+(showManualSubmitBtn = () => {
+  const getSubmissionPageBtns = () => {
+    return document.querySelector('.flex.flex-none.gap-2:not(.justify-center):not(.justify-between)')
+  }
+
+  const createToolTip = () => {
+    const toolTip = document.createElement('div');
+    toolTip.id = 'leethub-upload-tooltip';
+    toolTip.textContent = 'Manually upload this submission to GitHub.\nThis will OVERWRITE your current submission.\nFrequent use of this feature may get you\nrate-limited for an hour.';
+    toolTip.className = 'fixed bg-sd-popover text-sd-popover-foreground rounded-sd-md z-modal text-xs text-left font-normal whitespace-pre-line shadow p-3 border-sd-border border cursor-default translate-y-20 transition-opacity opacity-0 transition-delay-1000 duration-300 group-hover:opacity-100';
+    return toolTip;
+  }
+
+  const createGitIcon = () => {
+    const uploadIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    uploadIcon.setAttribute('id', 'leethub-upload-icon')
+    uploadIcon.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    uploadIcon.setAttribute('width', '16');
+    uploadIcon.setAttribute('height', '17');
+    uploadIcon.setAttribute('viewBox', '0 0 38.999866 56.642887');
+  
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute('style', 'fill:#fcfcfc;fill-opacity:1;stroke:#ffffff;stroke-width:3;stroke-dasharray:none;stroke-opacity:1')
+    path.setAttribute('d', 'm 19.775372,2.121319 -9.072314,9.072314 a 0.51539412,0.66999737 45 0 0 -0.109554,0.838192 0.49679682,0.64582142 45 0 0 0.810286,-0.125057 l 7.846033,-7.846033 v 30.608468 a 0.47397466,0.47397466 0 0 0 0.473873,0.473873 h 0.0093 a 0.51713218,0.51713218 0 0 0 0.516765,-0.517281 V 4.018877 l 7.559745,7.560262 a 0.62190211,0.49679682 45 0 0 0.793233,0.107487 0.64518265,0.51539412 45 0 0 -0.09198,-0.820621 l -8.033101,-8.033102 0.0047,-0.0047 z m 7.81141,17.001029 v 0.999939 l 5.229655,0.01189 a 3.6922154,3.6922154 0 0 1 3.683496,3.692281 v 26.633 a 3.6835681,3.6835681 0 0 1 -3.683496,3.683496 H 6.1834371 a 3.6835681,3.6835681 0 0 1 -3.683496,-3.683496 v -26.633 a 3.6835681,3.6835681 0 0 1 3.683496,-3.683496 H 11.538666 V 19.143023 H 6.3121111 a 4.8119141,4.8119141 0 0 0 -4.812109,4.812109 v 26.375651 a 4.8119141,4.8119141 0 0 0 4.812109,4.81211 H 32.687762 a 4.8119141,4.8119141 0 0 0 4.81211,-4.81211 V 23.955128 a 4.8220648,4.8220648 0 0 0 -4.81211,-4.822444 z');
+  
+    uploadIcon.appendChild(path);
+    return uploadIcon
+  }
+  
+  const addManualSubmitBtn = () => {
+    const btns = getSubmissionPageBtns()
+    if (btns.innerText.includes('Solution') && !btns.innerText.includes('LeetHub')) {
+      btns.appendChild((() => {
+        const btn = document.createElement('button'); 
+        btn.innerText = 'Sync w/ LeetHub'; 
+        btn.setAttribute('style', 'background-color:darkorange')
+        btn.setAttribute('class', 'group whitespace-nowrap focus:outline-none text-label-r bg-green-s dark:bg-dark-blue-s hover:bg-green-3 dark:hover:bg-dark-blue-3 flex items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium')
+  
+        btn.prepend(createGitIcon())
+        btn.appendChild(createToolTip())
+        btn.addEventListener('click', debounce(() => {
+          // Manual submission event doesn't need to wait for submission url. It already has it.
+          const leetCode = new LeetCodeV2()
+          const submissionId = window.location.href.match(/leetcode\.com\/.*\/submissions\/(\d+)/)[1];
+          leetCode.submissionId = submissionId
+          loader(leetCode)
+          return
+        }, 5000, true))
+        return btn
+      })())  
+    }
+  }
+
+  const submissionPageBtnsObserver = new MutationObserver((_, observer) => {
+    const url = window.location.href
+    const btns = getSubmissionPageBtns()
+    
+    if (btns && btns.children.length < 3 && url.match(/\/submissions\//)) {
+      observer.disconnect()
+      addManualSubmitBtn()
+    }
+  })
+  
+  window.navigation.addEventListener('navigate', () => {
+    const isSubmissionUrl = window.location.href.match(/leetcode\.com\/(.*)\/submissions\/(\d+)/);
+    if (isSubmissionUrl) {
+      submissionPageBtnsObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+      })
+    }
+  })
+
+  // Returns a function that can be immediately invoked but will start a timeout of 'wait' milliseconds before it can be called again.
+  function debounce(func, wait, invokeBeforeTimeout) {
+    let timeout;
+    return function() {
+      const context = this, args = arguments;
+      const later = function() {
+        timeout = null;
+        if (!invokeBeforeTimeout) func.apply(context, args);
+      };
+      const callNow = invokeBeforeTimeout && !timeout;
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+      if (callNow) func.apply(context, args);
+    };
+  };
+})()
