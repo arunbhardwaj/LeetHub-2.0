@@ -1012,31 +1012,7 @@ function sortTopicTablesInMarkdown(markdownFile) {
   return markdownFile
 };
 
-/* Sync to local storage */
-chrome.storage.local.get('isSync', data => {
-  keys = [
-    'leethub_token',
-    'leethub_username',
-    'pipe_leethub',
-    'stats',
-    'leethub_hook',
-    'mode_type',
-  ];
-  if (!data || !data.isSync) {
-    keys.forEach(key => {
-      chrome.storage.sync.get(key, data => {
-        chrome.storage.local.set({ [key]: data[key] });
-      });
-    });
-    chrome.storage.local.set({ isSync: true }, () => {
-      console.log('LeetHub Synced to local values');
-    });
-  } else {
-    console.log('LeetHub Local storage already synced!');
-  }
-});
-
-const loader = leetCode => {
+function loader(leetCode) {
   let iterations = 0;
   const intervalId = setInterval(async () => {
     try {
@@ -1193,7 +1169,6 @@ const observer = new MutationObserver(function (_mutations, observer) {
 });
 
 async function v2SubmissionHandler(leetCode, event) {  
-  console.log(`v2SubmissionHandler::event`, {event})
   if (event.type !== 'click' && !wasSubmittedByKeyboard(event)) {
     return
   }
@@ -1204,6 +1179,30 @@ async function v2SubmissionHandler(leetCode, event) {
   loader(leetCode)
   return true
 }
+
+/* Sync to local storage */
+chrome.storage.local.get('isSync', data => {
+  keys = [
+    'leethub_token',
+    'leethub_username',
+    'pipe_leethub',
+    'stats',
+    'leethub_hook',
+    'mode_type',
+  ];
+  if (!data || !data.isSync) {
+    keys.forEach(key => {
+      chrome.storage.sync.get(key, data => {
+        chrome.storage.local.set({ [key]: data[key] });
+      });
+    });
+    chrome.storage.local.set({ isSync: true }, () => {
+      console.log('LeetHub Synced to local values');
+    });
+  } else {
+    console.log('LeetHub Local storage already synced!');
+  }
+});
 
 observer.observe(document.body, {
   childList: true,
