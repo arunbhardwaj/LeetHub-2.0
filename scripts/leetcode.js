@@ -1131,7 +1131,6 @@ const loader = leetCode => {
   }, 1000);
 };
 
-const isMacOS = window.navigator.userAgent.includes('Mac');
 
 // Get SubmissionID by listening for URL changes to `/submissions/(d+)` format
 async function listenForSubmissionId() {
@@ -1146,6 +1145,7 @@ async function listenForSubmissionId() {
 // Submit by Keyboard Shortcuts only support on LeetCode v2
 function wasSubmittedByKeyboard(event) {
   const isEnterKey = event.key === 'Enter';
+  const isMacOS = window.navigator.userAgent.includes('Mac');
 
   // Adapt to MacOS operating system
   return isEnterKey && ((isMacOS && event.metaKey) || (!isMacOS && event.ctrlKey))
