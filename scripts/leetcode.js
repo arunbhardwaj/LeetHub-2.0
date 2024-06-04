@@ -94,6 +94,7 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
     });
 };
 
+// Returns stats object. If it didn't exist, initializes stats with default difficulty values and initializes the sha object for problem
 const getAndInitializeStats = problem => {
   return chrome.storage.local.get('stats').then(({ stats }) => {
     if (stats == null || isEmpty(stats)) {
@@ -121,7 +122,7 @@ const incrementStats = () => {
     stats.medium += difficulty === 'Medium' ? 1 : 0;
     stats.hard += difficulty === 'Hard' ? 1 : 0;
     return chrome.storage.local.set({ stats });
-  });
+  }).then(() => updatePersistentStats(difficulty));
 };
 
 const checkAlreadyCompleted = problemName => {
@@ -197,29 +198,22 @@ function uploadGit(
   let token;
   let hook;
 
-  return chrome.storage.local
-    .get('leethub_token')
-    .then(({ leethub_token }) => {
+  return chrome.storage.local.get(['leethub_token', 'mode_type', 'leethub_hook', 'stats'])
+    .then(({ leethub_token, leethub_hook, mode_type, stats }) => {
       token = leethub_token;
       if (leethub_token == undefined) {
         throw new LeetHubError('LeethubTokenUndefined');
       }
-      return chrome.storage.local.get('mode_type');
-    })
-    .then(({ mode_type }) => {
+      
       if (mode_type !== 'commit') {
         throw new LeetHubError('LeetHubNotAuthorizedByGit');
       }
-      return chrome.storage.local.get('leethub_hook');
-    })
-    .then(({ leethub_hook }) => {
+      
       hook = leethub_hook;
       if (!hook) {
         throw new LeetHubError('NoRepoDefined');
       }
-      return chrome.storage.local.get('stats');
-    })
-    .then(({ stats }) => {
+      
       if (action === 'upload') {
         /* Get SHA, if it exists */
         const sha =
@@ -249,7 +243,7 @@ function uploadGit(
       }
     })
     .then(data => 
-      data != null // if it isn't null, then we didn't uplaod successfully the first time, and must have retrieved new data and reuploaded
+      data != null // if it isn't null, then we didn't upload successfully the first time, and must have retrieved new data and reuploaded
         ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb)
         : undefined
     )
@@ -258,6 +252,7 @@ function uploadGit(
 /* Gets updated GitHub data for the specific file in repo in question */
 async function getUpdatedData(token, hook, directory, filename) {
   const path = getPath(directory, filename)
+  console.log(`getUpdatedData::path`, {path})
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
   let options = {
@@ -269,12 +264,45 @@ async function getUpdatedData(token, hook, directory, filename) {
   };
 
   return fetch(URL, options).then(res => {
+    console.log(`getUpdatedData::response`, {res})
     if (res.status === 200 || res.status === 201) {
       return res.json();
     } else {
       throw new Error('' + res.status);
     }
   });
+}
+
+// Returns the persistent stats or an emtpy stats object
+async function getPersistentStats() {
+  const {leethub_token, leethub_hook} = await chrome.storage.local.get(['leethub_token, leethub_hook']);
+  let statsJson, stats;
+  try {
+    statsJson = await getUpdatedData(leethub_token, leethub_hook, 'stats.json', '')
+    console.log(`getPersistentStats::statsJson`, {statsJson})
+    stats = JSON.parse(statsJson)
+  } catch (e) {
+    if (e.message !== 404) {
+      console.log(new LeetHubError('Error getting persistent stats.'), e)
+    } else {
+      console.log('Persistent stats not found...creating stats instead')
+    }
+  }
+  console.log(`getPersistentStats::stats::defined?`, stats == null)
+  return (stats) ? stats : getAndInitializeStats('stats.json') 
+}
+
+// Updates or creates the persistent stats
+async function updatePersistentStats(difficulty) {
+  let stats = await getPersistentStats()
+  console.log(`updatePersistentStats::stats`, {stats})
+  stats[difficulty.toLowerCase()] += 1
+  stats.solved += 1
+  console.log(`updatePersistentStats::after`, {stats})
+  let statsEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(stats))))
+  return new Promise((resolve) => { //update after a delay
+    setTimeout(() => resolve(uploadGit(statsEncoded, 'stats.json', '', `Updated stats`, 'upload')), WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS)
+  })
 }
 
 /* Checks if an elem/array exists and has length */
@@ -1092,7 +1120,7 @@ const loader = leetCode => {
       leetCode.markUploaded();
 
       if (!alreadyCompleted) {
-        incrementStats();
+        incrementStats(); // Increments local and persistent stats
       }
     } catch (err) {
       uploadState.uploading = false;
