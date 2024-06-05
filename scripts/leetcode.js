@@ -93,11 +93,11 @@ const getAndInitializeStats = problem => {
   return chrome.storage.local.get('stats').then(({ stats }) => {
     if (stats == null || isEmpty(stats)) {
       stats = {};
+      stats.shas = {};
       stats.solved = 0;
       stats.easy = 0;
       stats.medium = 0;
       stats.hard = 0;
-      stats.shas = {};
     }
 
     if (stats.shas[problem] == null) {
