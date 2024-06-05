@@ -49,7 +49,7 @@ const getPath = (problem, filename) => {
 }
 
 /* Main function for uploading code to GitHub repo, and callback cb is called if success */
-const upload = (token, hook, content, problem, filename, sha, message, cb = Function.prototype()) => {
+const upload = (token, hook, content, problem, filename, sha, message) => {
   const path = getPath(problem, filename);
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
@@ -86,12 +86,7 @@ const upload = (token, hook, content, problem, filename, sha, message, cb = Func
       stats.shas[problem][filename] = newSha;
       return chrome.storage.local.set({ stats });
     })
-    .then(() => {
-      console.log(`Successfully committed ${getPath(problem, filename)} to github`);
-      if (cb) {
-        cb();
-      }
-    });
+    .then(() => console.log(`Successfully committed ${getPath(problem, filename)} to github`));
 };
 
 // Returns stats object. If it didn't exist, initializes stats with default difficulty values and initializes the sha object for problem
@@ -146,7 +141,6 @@ const update = (
   filename,
   commitMsg,
   shouldPreprendDiscussionPosts,
-  cb = undefined,
 ) => {
   const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
 
@@ -176,7 +170,7 @@ const update = (
         : btoa(unescape(encodeURIComponent(existingContent))),
     )
     .then(newContent =>
-      upload(token, hook, newContent, directory, filename, responseSHA, commitMsg, cb),
+      upload(token, hook, newContent, directory, filename, responseSHA, commitMsg),
     );
 };
 
@@ -214,18 +208,9 @@ function uploadGit(
             ? stats.shas[problemName][fileName]
             : '';
 
-        return upload(token, hook, code, problemName, fileName, sha, commitMsg, cb);
+        return upload(token, hook, code, problemName, fileName, sha, commitMsg);
       } else if (action === 'update') {
-        return update(
-          token,
-          hook,
-          code,
-          problemName,
-          fileName,
-          commitMsg,
-          shouldPrependDiscussionPosts,
-          cb,
-        );
+        return update(token, hook, code, problemName, fileName, commitMsg, shouldPrependDiscussionPosts);
       }
     })
     .catch(err => {
@@ -237,7 +222,7 @@ function uploadGit(
     })
     .then(data => 
       data != null // if it isn't null, then we didn't upload successfully the first time, and must have retrieved new data and reuploaded
-        ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb)
+        ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg)
         : undefined
     )
 }
@@ -716,7 +701,6 @@ LeetCodeV2.prototype.findAndUploadCode = function (
   fileName,
   commitMsg,
   action,
-  cb = undefined,
 ) {
   const code = this.getCode();
   if (!code) {
