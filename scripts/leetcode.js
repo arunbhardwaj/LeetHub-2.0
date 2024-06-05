@@ -53,7 +53,6 @@ const upload = (token, hook, content, problem, filename, sha, message) => {
   const path = getPath(problem, filename);
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
-  /* Define Payload */
   let data = {
     message,
     content,
