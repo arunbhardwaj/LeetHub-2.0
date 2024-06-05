@@ -1122,8 +1122,8 @@ const observer = new MutationObserver(function (_mutations, observer) {
     textareaList.length === 4
       ? textareaList[2]
       : textareaList.length === 2
-      ? textareaList[0]
-      : textareaList[1];
+        ? textareaList[0]
+        : textareaList[1];
 
   if (v1SubmitBtn) {
     observer.disconnect();
