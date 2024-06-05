@@ -36,7 +36,7 @@ const createNotesMsg = 'Attach NOTES - LeetHub';
 const NORMAL_PROBLEM = 0;
 const EXPLORE_SECTION_PROBLEM = 1;
 
-const WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS = 100
+const WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS = 100;
 
 /* Difficulty of most recenty submitted question */
 let difficulty = '';
@@ -45,8 +45,8 @@ let difficulty = '';
 let uploadState = { uploading: false };
 
 const getPath = (problem, filename) => {
-  return (filename) ? `${problem}/${filename}` : problem
-}
+  return filename ? `${problem}/${filename}` : problem;
+};
 
 /* Main function for uploading code to GitHub repo, and callback cb is called if success */
 const upload = (token, hook, content, problem, filename, sha, message) => {
@@ -93,7 +93,6 @@ const upload = (token, hook, content, problem, filename, sha, message) => {
 const getAndInitializeStats = problem => {
   return chrome.storage.local.get('stats').then(({ stats }) => {
     if (stats == null || isEmpty(stats)) {
-      // create stats object
       stats = {};
       stats.solved = 0;
       stats.easy = 0;
@@ -111,13 +110,16 @@ const getAndInitializeStats = problem => {
 };
 
 const incrementStats = () => {
-  return chrome.storage.local.get('stats').then(({ stats }) => {
-    stats.solved += 1;
-    stats.easy += difficulty === 'Easy' ? 1 : 0;
-    stats.medium += difficulty === 'Medium' ? 1 : 0;
-    stats.hard += difficulty === 'Hard' ? 1 : 0;
-    return chrome.storage.local.set({ stats });
-  }).then(() => updatePersistentStats(difficulty));
+  return chrome.storage.local
+    .get('stats')
+    .then(({ stats }) => {
+      stats.solved += 1;
+      stats.easy += difficulty === 'Easy' ? 1 : 0;
+      stats.medium += difficulty === 'Medium' ? 1 : 0;
+      stats.hard += difficulty === 'Hard' ? 1 : 0;
+      return chrome.storage.local.set({ stats });
+    })
+    .then(() => updatePersistentStats(difficulty));
 };
 
 const checkAlreadyCompleted = problemName => {
@@ -140,37 +142,28 @@ const update = (
   directory,
   filename,
   commitMsg,
-  shouldPreprendDiscussionPosts,
+  shouldPreprendDiscussionPosts
 ) => {
-  const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
-
-  let options = {
-    method: 'GET',
-    headers: {
-      Authorization: `token ${token}`,
-      Accept: 'application/vnd.github.v3+json',
-    },
-  };
-
   let responseSHA;
+
   return getUpdatedData(token, hook, directory, filename)
     .then(data => {
       responseSHA = data.sha;
       return decodeURIComponent(escape(atob(data.content)));
     })
     .then(existingContent =>
+      // https://web.archive.org/web/20190623091645/https://monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
+      // In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
+      // But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
+      // EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
+      // Unescape converts percent-encoded hex values into regular ASCII (optional; it shrinks string size).
+      // btoa converts ASCII to base64.
       shouldPreprendDiscussionPosts
-        ? // https://web.archive.org/web/20190623091645/https://monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
-          // In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
-          // But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
-          // EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
-          // Unescape converts percent-encoded hex values into regular ASCII (optional; it shrinks string size).
-          // btoa converts ASCII to base64.
-          btoa(unescape(encodeURIComponent(addition + existingContent)))
-        : btoa(unescape(encodeURIComponent(existingContent))),
+        ? btoa(unescape(encodeURIComponent(addition + existingContent)))
+        : btoa(unescape(encodeURIComponent(existingContent)))
     )
     .then(newContent =>
-      upload(token, hook, newContent, directory, filename, responseSHA, commitMsg),
+      upload(token, hook, newContent, directory, filename, responseSHA, commitMsg)
     );
 };
 
@@ -180,27 +173,28 @@ function uploadGit(
   fileName,
   commitMsg,
   action,
-  shouldPrependDiscussionPosts = false,
+  shouldPrependDiscussionPosts = false
 ) {
   let token;
   let hook;
 
-  return chrome.storage.local.get(['leethub_token', 'mode_type', 'leethub_hook', 'stats'])
+  return chrome.storage.local
+    .get(['leethub_token', 'mode_type', 'leethub_hook', 'stats'])
     .then(({ leethub_token, leethub_hook, mode_type, stats }) => {
       token = leethub_token;
       if (leethub_token == undefined) {
         throw new LeetHubError('LeethubTokenUndefined');
       }
-      
+
       if (mode_type !== 'commit') {
         throw new LeetHubError('LeetHubNotAuthorizedByGit');
       }
-      
+
       hook = leethub_hook;
       if (!hook) {
         throw new LeetHubError('NoRepoDefined');
       }
-      
+
       if (action === 'upload') {
         /* Get SHA, if it exists */
         const sha =
@@ -210,7 +204,15 @@ function uploadGit(
 
         return upload(token, hook, code, problemName, fileName, sha, commitMsg);
       } else if (action === 'update') {
-        return update(token, hook, code, problemName, fileName, commitMsg, shouldPrependDiscussionPosts);
+        return update(
+          token,
+          hook,
+          code,
+          problemName,
+          fileName,
+          commitMsg,
+          shouldPrependDiscussionPosts
+        );
       }
     })
     .catch(err => {
@@ -220,17 +222,17 @@ function uploadGit(
         throw err;
       }
     })
-    .then(data => 
+    .then(data =>
       data != null // if it isn't null, then we didn't upload successfully the first time, and must have retrieved new data and reuploaded
         ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg)
         : undefined
-    )
+    );
 }
 
 /* Gets updated GitHub data for the specific file in repo in question */
 async function getUpdatedData(token, hook, directory, filename) {
-  const path = getPath(directory, filename)
-  console.log(`getUpdatedData::path`, {path})
+  const path = getPath(directory, filename);
+  console.log(`getUpdatedData::path`, { path });
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
   let options = {
@@ -242,7 +244,7 @@ async function getUpdatedData(token, hook, directory, filename) {
   };
 
   return fetch(URL, options).then(res => {
-    console.log(`getUpdatedData::response`, {res})
+    console.log(`getUpdatedData::response`, { res });
     if (res.status === 200 || res.status === 201) {
       return res.json();
     } else {
@@ -253,34 +255,40 @@ async function getUpdatedData(token, hook, directory, filename) {
 
 // Returns the persistent stats or an emtpy stats object
 async function getPersistentStats() {
-  const {leethub_token, leethub_hook} = await chrome.storage.local.get(['leethub_token, leethub_hook']);
+  const { leethub_token, leethub_hook } = await chrome.storage.local.get([
+    'leethub_token, leethub_hook',
+  ]);
   let statsJson, stats;
   try {
-    statsJson = await getUpdatedData(leethub_token, leethub_hook, 'stats.json', '')
-    console.log(`getPersistentStats::statsJson`, {statsJson})
-    stats = JSON.parse(statsJson)
+    statsJson = await getUpdatedData(leethub_token, leethub_hook, 'stats.json', '');
+    console.log(`getPersistentStats::statsJson`, { statsJson });
+    stats = JSON.parse(statsJson);
   } catch (e) {
     if (e.message !== 404) {
-      console.log(new LeetHubError('Error getting persistent stats.'), e)
+      console.log(new LeetHubError('Error getting persistent stats.'), e);
     } else {
-      console.log('Persistent stats not found...creating stats instead')
+      console.log('Persistent stats not found...creating stats instead');
     }
   }
-  console.log(`getPersistentStats::stats::defined?`, stats == null)
-  return (stats) ? stats : getAndInitializeStats('stats.json') 
+  console.log(`getPersistentStats::stats::defined?`, stats == null);
+  return stats ? stats : getAndInitializeStats('stats.json');
 }
 
 // Updates or creates the persistent stats
 async function updatePersistentStats(difficulty) {
-  let stats = await getPersistentStats()
-  console.log(`updatePersistentStats::stats`, {stats})
-  stats[difficulty.toLowerCase()] += 1
-  stats.solved += 1
-  console.log(`updatePersistentStats::after`, {stats})
-  let statsEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(stats))))
-  return new Promise((resolve) => { //update after a delay
-    setTimeout(() => resolve(uploadGit(statsEncoded, 'stats.json', '', `Updated stats`, 'upload')), WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS)
-  })
+  let stats = await getPersistentStats();
+  console.log(`updatePersistentStats::stats`, { stats });
+  stats[difficulty.toLowerCase()] += 1;
+  stats.solved += 1;
+  console.log(`updatePersistentStats::after`, { stats });
+  let statsEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(stats))));
+  return new Promise(resolve => {
+    //update after a delay
+    setTimeout(
+      () => resolve(uploadGit(statsEncoded, 'stats.json', '', `Updated stats`, 'upload')),
+      WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
+    );
+  });
 }
 
 /* Checks if an elem/array exists and has length */
@@ -360,12 +368,7 @@ LeetCodeV1.prototype.init = async function () {};
 /* - Then send a request for the details page. */
 /* - Parse the code from the html reponse. */
 /* - Parse the stats from the html response (explore section) */
-LeetCodeV1.prototype.findAndUploadCode = function (
-  problemName,
-  fileName,
-  commitMsg,
-  action,
-) {
+LeetCodeV1.prototype.findAndUploadCode = function (problemName, fileName, commitMsg, action) {
   /* Get the submission details url from the submission page. */
   let submissionURL;
   const e = document.getElementsByClassName('status-column__3SUg');
@@ -420,12 +423,12 @@ LeetCodeV1.prototype.findAndUploadCode = function (
             slicedText = text.slice(text.indexOf('runtime'), text.indexOf('memory'));
             const resultRuntime = slicedText.slice(
               slicedText.indexOf("'") + 1,
-              slicedText.lastIndexOf("'"),
+              slicedText.lastIndexOf("'")
             );
             slicedText = text.slice(text.indexOf('memory'), text.indexOf('total_correct'));
             const resultMemory = slicedText.slice(
               slicedText.indexOf("'") + 1,
-              slicedText.lastIndexOf("'"),
+              slicedText.lastIndexOf("'")
             );
             commitMsg = `Time: ${resultRuntime}, Memory: ${resultMemory} - LeetHub`;
           }
@@ -437,7 +440,7 @@ LeetCodeV1.prototype.findAndUploadCode = function (
               fileName,
               commitMsg,
               action,
-              false,
+              false
             );
           }
         }
@@ -471,9 +474,7 @@ LeetCodeV1.prototype.getNotesIfAny = function () {
   if (
     checkElem(document.getElementsByClassName('notewrap__eHkN')) &&
     checkElem(
-      document
-        .getElementsByClassName('notewrap__eHkN')[0]
-        .getElementsByClassName('CodeMirror-code'),
+      document.getElementsByClassName('notewrap__eHkN')[0].getElementsByClassName('CodeMirror-code')
     )
   ) {
     notesdiv = document
@@ -662,8 +663,8 @@ LeetCodeV1.prototype.markUploadFailed = function () {
   }
 };
 LeetCodeV1.prototype.updateReadmeTopicTagsWithProblem = function () {
-  console.log(`Skipping...updating README with tags is not supported on old UI`)
-}
+  console.log(`Skipping...updating README with tags is not supported on old UI`);
+};
 
 function LeetCodeV2() {
   this.submissionData;
@@ -677,8 +678,7 @@ LeetCodeV2.prototype.init = async function () {
 
   // Query for getting the solution runtime and memory stats, the code, the coding language, the question id, question title and question difficulty
   const submissionDetailsQuery = {
-    query:
-      `\n    query submissionDetails($submissionId: Int!) {\n submissionDetails(submissionId: $submissionId) {\n runtime\n    runtimeDisplay\n    runtimePercentile\n    runtimeDistribution\n    memory\n    memoryDisplay\n    memoryPercentile\n    memoryDistribution\n    code\n    timestamp\n    statusCode\n lang {\n name\n      verboseName\n }\n question {\n questionId\n    questionFrontendId\n    title\n    titleSlug\n    content\n    difficulty\n topicTags {\n name\n    slug\n }\n }\n    notes\n    runtimeError\n  }\n}\n    `,
+    query: `\n    query submissionDetails($submissionId: Int!) {\n submissionDetails(submissionId: $submissionId) {\n runtime\n    runtimeDisplay\n    runtimePercentile\n    runtimeDistribution\n    memory\n    memoryDisplay\n    memoryPercentile\n    memoryDistribution\n    code\n    timestamp\n    statusCode\n lang {\n name\n      verboseName\n }\n question {\n questionId\n    questionFrontendId\n    title\n    titleSlug\n    content\n    difficulty\n topicTags {\n name\n    slug\n }\n }\n    notes\n    runtimeError\n  }\n}\n    `,
     variables: { submissionId: submissionId },
     operationName: 'submissionDetails',
   };
@@ -696,12 +696,7 @@ LeetCodeV2.prototype.init = async function () {
 
   this.submissionData = data;
 };
-LeetCodeV2.prototype.findAndUploadCode = function (
-  problemName,
-  fileName,
-  commitMsg,
-  action,
-) {
+LeetCodeV2.prototype.findAndUploadCode = function (problemName, fileName, commitMsg, action) {
   const code = this.getCode();
   if (!code) {
     throw new LeetHubError('SolutionCodeNotFound');
@@ -713,7 +708,7 @@ LeetCodeV2.prototype.findAndUploadCode = function (
     fileName,
     commitMsg,
     action,
-    false,
+    false
   );
 };
 LeetCodeV2.prototype.getCode = function () {
@@ -771,7 +766,7 @@ LeetCodeV2.prototype.parseStats = function () {
       this.submissionData.runtimeDisplay,
       runtimePercentile,
       this.submissionData.memoryDisplay,
-      spacePercentile,
+      spacePercentile
     );
   }
 
@@ -909,16 +904,16 @@ LeetCodeV2.prototype.updateReadmeTopicTagsWithProblem = async function (problemN
     'stats',
   ]);
   const { content } = await getUpdatedData(leethub_token, leethub_hook, 'README.md');
-  
+
   let readme = decodeURIComponent(escape(atob(content)));
   for (let topic of this.submissionData.question.topicTags) {
     readme = appendProblemToTopic(topic.name, readme, leethub_hook, problemName);
   }
-  readme = sortTopicTablesInMarkdown(readme)
+  readme = sortTopicTablesInMarkdown(readme);
   readme = btoa(unescape(encodeURIComponent(readme)));
-  return new Promise((resolve, reject) => 
+  return new Promise((resolve, reject) =>
     setTimeout(() => resolve(), WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS)
-  ).then(() => uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload'))
+  ).then(() => uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload'));
 };
 
 // Appends a problem title to each Topic section in the README.md
@@ -934,7 +929,10 @@ function appendProblemToTopic(topic, markdownFile, hook, problem) {
   // Find the Topic table
   topicTableIndex = markdownFile.lastIndexOf(`# ${topic}`);
   const nextTableIndex = markdownFile.indexOf('# ', topicTableIndex + 1);
-  let topicTable = nextTableIndex === -1 ? markdownFile.slice(topicTableIndex) : markdownFile.slice(topicTableIndex, nextTableIndex);
+  let topicTable =
+    nextTableIndex === -1
+      ? markdownFile.slice(topicTableIndex)
+      : markdownFile.slice(topicTableIndex, nextTableIndex);
   topicTable = topicTable.trim();
 
   // Check if the problem exists in table, prevent duplicate add
@@ -943,12 +941,15 @@ function appendProblemToTopic(topic, markdownFile, hook, problem) {
     return markdownFile;
   }
 
-  // Append problem to the Topic 
+  // Append problem to the Topic
   const newRow = `| [${problem}](${url}) |`;
   topicTable = [topicTable, newRow, '\n'].join('\n');
 
   // Replace the old Topic table with the updated one in the markdown file
-  markdownFile = markdownFile.slice(0, topicTableIndex) + topicTable + (nextTableIndex === -1 ? '' : markdownFile.slice(nextTableIndex));
+  markdownFile =
+    markdownFile.slice(0, topicTableIndex) +
+    topicTable +
+    (nextTableIndex === -1 ? '' : markdownFile.slice(nextTableIndex));
 
   return markdownFile;
 }
@@ -982,9 +983,9 @@ function sortTopicTablesInMarkdown(markdownFile) {
   });
 
   // Reconstruct the file
-  markdownFile = [ '# ' + description.trim(), '\n' ] .concat(topics) .join('\n');
-  return markdownFile
-};
+  markdownFile = ['# ' + description.trim(), '\n'].concat(topics).join('\n');
+  return markdownFile;
+}
 
 function loader(leetCode) {
   let iterations = 0;
@@ -1034,7 +1035,7 @@ function loader(leetCode) {
             'README.md',
             readmeMsg,
             'upload',
-            false,
+            false
           );
         }
       });
@@ -1049,7 +1050,7 @@ function loader(leetCode) {
           'NOTES.md',
           createNotesMsg,
           'upload',
-          false,
+          false
         );
       }
 
@@ -1058,12 +1059,12 @@ function loader(leetCode) {
         problemName,
         problemName + language,
         probStats,
-        'upload',
+        'upload'
       );
 
       /* Group problem into its relevant topics */
       const updateReadMeWithTopicTag = leetCode.updateReadmeTopicTagsWithProblem(problemName);
-      
+
       await Promise.all([updateReadMe, updateNotes, updateCode, updateReadMeWithTopicTag]);
 
       uploadState.uploading = false;
@@ -1079,12 +1080,13 @@ function loader(leetCode) {
       console.error(err);
     }
   }, 1000);
-};
-
+}
 
 // Get SubmissionID by listening for URL changes to `/submissions/(d+)` format
 async function listenForSubmissionId() {
-  const { submissionId } = await chrome.runtime.sendMessage({ type: 'LEETCODE_SUBMISSION' });
+  const { submissionId } = await chrome.runtime.sendMessage({
+    type: 'LEETCODE_SUBMISSION',
+  });
   if (submissionId == null) {
     console.log(new LeetHubError('SubmissionIdNotFound'));
     return;
@@ -1098,7 +1100,7 @@ function wasSubmittedByKeyboard(event) {
   const isMacOS = window.navigator.userAgent.includes('Mac');
 
   // Adapt to MacOS operating system
-  return isEnterKey && ((isMacOS && event.metaKey) || (!isMacOS && event.ctrlKey))
+  return isEnterKey && ((isMacOS && event.metaKey) || (!isMacOS && event.ctrlKey));
 }
 
 function isEmpty(obj) {
@@ -1137,21 +1139,21 @@ const observer = new MutationObserver(function (_mutations, observer) {
     const leetCode = new LeetCodeV2();
     if (!!!v2SubmitBtn.onclick) {
       textarea.addEventListener('keydown', e => v2SubmissionHandler(leetCode, e));
-      v2SubmitBtn.onclick = e => v2SubmissionHandler(leetCode, e)
+      v2SubmitBtn.onclick = e => v2SubmissionHandler(leetCode, e);
     }
   }
 });
 
-async function v2SubmissionHandler(leetCode, event) {  
+async function v2SubmissionHandler(leetCode, event) {
   if (event.type !== 'click' && !wasSubmittedByKeyboard(event)) {
-    return
+    return;
   }
 
   // is click or is ctrl enter
   const submissionId = await listenForSubmissionId();
   leetCode.submissionId = submissionId;
-  loader(leetCode)
-  return true
+  loader(leetCode);
+  return true;
 }
 
 /* Sync to local storage */
@@ -1192,90 +1194,114 @@ class LeetHubError extends Error {
 
 (showManualSubmitBtn = () => {
   const getSubmissionPageBtns = () => {
-    return document.querySelector('.flex.flex-none.gap-2:not(.justify-center):not(.justify-between)')
-  }
+    return document.querySelector(
+      '.flex.flex-none.gap-2:not(.justify-center):not(.justify-between)'
+    );
+  };
 
   const createToolTip = () => {
     const toolTip = document.createElement('div');
     toolTip.id = 'leethub-upload-tooltip';
-    toolTip.textContent = 'Manually upload this submission to GitHub (beta).\nThis will OVERWRITE your current submission.\nPlease be mindful of your GitHub rate-limits.';
-    toolTip.className = 'fixed bg-sd-popover text-sd-popover-foreground rounded-sd-md z-modal text-xs text-left font-normal whitespace-pre-line shadow p-3 border-sd-border border cursor-default translate-y-20 transition-opacity opacity-0 transition-delay-1000 duration-300 group-hover:opacity-100';
+    toolTip.textContent =
+      'Manually upload this submission to GitHub (beta).\nThis will OVERWRITE your current submission.\nPlease be mindful of your GitHub rate-limits.';
+    toolTip.className =
+      'fixed bg-sd-popover text-sd-popover-foreground rounded-sd-md z-modal text-xs text-left font-normal whitespace-pre-line shadow p-3 border-sd-border border cursor-default translate-y-20 transition-opacity opacity-0 transition-delay-1000 duration-300 group-hover:opacity-100';
     return toolTip;
-  }
+  };
 
   const createGitIcon = () => {
-    const uploadIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    uploadIcon.setAttribute('id', 'leethub-upload-icon')
+    const uploadIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    uploadIcon.setAttribute('id', 'leethub-upload-icon');
     uploadIcon.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     uploadIcon.setAttribute('width', '16');
     uploadIcon.setAttribute('height', '17');
     uploadIcon.setAttribute('viewBox', '0 0 38.999866 56.642887');
-  
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute('style', 'fill:#fcfcfc;fill-opacity:1;stroke:#ffffff;stroke-width:3;stroke-dasharray:none;stroke-opacity:1')
-    path.setAttribute('d', 'm 19.775372,2.121319 -9.072314,9.072314 a 0.51539412,0.66999737 45 0 0 -0.109554,0.838192 0.49679682,0.64582142 45 0 0 0.810286,-0.125057 l 7.846033,-7.846033 v 30.608468 a 0.47397466,0.47397466 0 0 0 0.473873,0.473873 h 0.0093 a 0.51713218,0.51713218 0 0 0 0.516765,-0.517281 V 4.018877 l 7.559745,7.560262 a 0.62190211,0.49679682 45 0 0 0.793233,0.107487 0.64518265,0.51539412 45 0 0 -0.09198,-0.820621 l -8.033101,-8.033102 0.0047,-0.0047 z m 7.81141,17.001029 v 0.999939 l 5.229655,0.01189 a 3.6922154,3.6922154 0 0 1 3.683496,3.692281 v 26.633 a 3.6835681,3.6835681 0 0 1 -3.683496,3.683496 H 6.1834371 a 3.6835681,3.6835681 0 0 1 -3.683496,-3.683496 v -26.633 a 3.6835681,3.6835681 0 0 1 3.683496,-3.683496 H 11.538666 V 19.143023 H 6.3121111 a 4.8119141,4.8119141 0 0 0 -4.812109,4.812109 v 26.375651 a 4.8119141,4.8119141 0 0 0 4.812109,4.81211 H 32.687762 a 4.8119141,4.8119141 0 0 0 4.81211,-4.81211 V 23.955128 a 4.8220648,4.8220648 0 0 0 -4.81211,-4.822444 z');
-  
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute(
+      'style',
+      'fill:#fcfcfc;fill-opacity:1;stroke:#ffffff;stroke-width:3;stroke-dasharray:none;stroke-opacity:1'
+    );
+    path.setAttribute(
+      'd',
+      'm 19.775372,2.121319 -9.072314,9.072314 a 0.51539412,0.66999737 45 0 0 -0.109554,0.838192 0.49679682,0.64582142 45 0 0 0.810286,-0.125057 l 7.846033,-7.846033 v 30.608468 a 0.47397466,0.47397466 0 0 0 0.473873,0.473873 h 0.0093 a 0.51713218,0.51713218 0 0 0 0.516765,-0.517281 V 4.018877 l 7.559745,7.560262 a 0.62190211,0.49679682 45 0 0 0.793233,0.107487 0.64518265,0.51539412 45 0 0 -0.09198,-0.820621 l -8.033101,-8.033102 0.0047,-0.0047 z m 7.81141,17.001029 v 0.999939 l 5.229655,0.01189 a 3.6922154,3.6922154 0 0 1 3.683496,3.692281 v 26.633 a 3.6835681,3.6835681 0 0 1 -3.683496,3.683496 H 6.1834371 a 3.6835681,3.6835681 0 0 1 -3.683496,-3.683496 v -26.633 a 3.6835681,3.6835681 0 0 1 3.683496,-3.683496 H 11.538666 V 19.143023 H 6.3121111 a 4.8119141,4.8119141 0 0 0 -4.812109,4.812109 v 26.375651 a 4.8119141,4.8119141 0 0 0 4.812109,4.81211 H 32.687762 a 4.8119141,4.8119141 0 0 0 4.81211,-4.81211 V 23.955128 a 4.8220648,4.8220648 0 0 0 -4.81211,-4.822444 z'
+    );
+
     uploadIcon.appendChild(path);
-    return uploadIcon
-  }
-  
+    return uploadIcon;
+  };
+
   const addManualSubmitBtn = () => {
-    const btns = getSubmissionPageBtns()
+    const btns = getSubmissionPageBtns();
     if (btns.innerText.includes('Solution') && !btns.innerText.includes('LeetHub')) {
-      btns.appendChild((() => {
-        const btn = document.createElement('button'); 
-        btn.innerText = 'Sync w/ LeetHub'; 
-        btn.setAttribute('style', 'background-color:darkorange')
-        btn.setAttribute('class', 'group whitespace-nowrap focus:outline-none text-label-r bg-green-s dark:bg-dark-blue-s hover:bg-green-3 dark:hover:bg-dark-blue-3 flex items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium')
-  
-        btn.prepend(createGitIcon())
-        btn.appendChild(createToolTip())
-        btn.addEventListener('click', debounce(() => {
-          // Manual submission event doesn't need to wait for submission url. It already has it.
-          const leetCode = new LeetCodeV2()
-          const submissionId = window.location.href.match(/leetcode\.com\/.*\/submissions\/(\d+)/)[1];
-          leetCode.submissionId = submissionId
-          loader(leetCode)
-          return
-        }, 5000, true))
-        return btn
-      })())  
+      btns.appendChild(
+        (() => {
+          const btn = document.createElement('button');
+          btn.innerText = 'Sync w/ LeetHub';
+          btn.setAttribute('style', 'background-color:darkorange');
+          btn.setAttribute(
+            'class',
+            'group whitespace-nowrap focus:outline-none text-label-r bg-green-s dark:bg-dark-blue-s hover:bg-green-3 dark:hover:bg-dark-blue-3 flex items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium'
+          );
+
+          btn.prepend(createGitIcon());
+          btn.appendChild(createToolTip());
+          btn.addEventListener(
+            'click',
+            debounce(
+              () => {
+                // Manual submission event doesn't need to wait for submission url. It already has it.
+                const leetCode = new LeetCodeV2();
+                const submissionId = window.location.href.match(
+                  /leetcode\.com\/.*\/submissions\/(\d+)/
+                )[1];
+                leetCode.submissionId = submissionId;
+                loader(leetCode);
+                return;
+              },
+              5000,
+              true
+            )
+          );
+          return btn;
+        })()
+      );
     }
-  }
+  };
 
   const submissionPageBtnsObserver = new MutationObserver((_, observer) => {
-    const url = window.location.href
-    const btns = getSubmissionPageBtns()
-    
+    const url = window.location.href;
+    const btns = getSubmissionPageBtns();
+
     if (btns && btns.children.length < 3 && url.match(/\/submissions\//)) {
-      observer.disconnect()
-      addManualSubmitBtn()
+      observer.disconnect();
+      addManualSubmitBtn();
     }
-  })
-  
+  });
+
   window.navigation.addEventListener('navigate', () => {
     const isSubmissionUrl = window.location.href.match(/leetcode\.com\/(.*)\/submissions\/(\d+)/);
     if (isSubmissionUrl) {
       submissionPageBtnsObserver.observe(document.body, {
         childList: true,
         subtree: true,
-      })
+      });
     }
-  })
+  });
 
   // Returns a function that can be immediately invoked but will start a timeout of 'wait' milliseconds before it can be called again.
-  function debounce(func, wait, invokeBeforeTimeout) {
+  function debounce(func, wait, immediate) {
     let timeout;
-    return function() {
+    return function () {
       const context = this, args = arguments;
-      const later = function() {
+      const later = function () {
         timeout = null;
-        if (!invokeBeforeTimeout) func.apply(context, args);
+        if (!immediate) func.apply(context, args);
       };
-      const callNow = invokeBeforeTimeout && !timeout;
+      const callNow = immediate && !timeout;
       clearTimeout(timeout);
       timeout = setTimeout(later, wait);
       if (callNow) func.apply(context, args);
     };
-  };
-})()
+  }
+})();
