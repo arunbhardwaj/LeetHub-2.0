@@ -49,14 +49,14 @@ const getPath = (problem, filename) => {
 }
 
 /* Main function for uploading code to GitHub repo, and callback cb is called if success */
-const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undefined) => {
+const upload = (token, hook, content, problem, filename, sha, message, cb = Function.prototype()) => {
   const path = getPath(problem, filename);
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
   /* Define Payload */
   let data = {
-    message: commitMsg,
-    content: code,
+    message,
+    content,
     sha,
   };
 
@@ -70,7 +70,7 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
     },
     body: data,
   };
-  let updatedSha;
+  let newSha;
 
   return fetch(URL, options)
     .then(res => {
@@ -81,9 +81,9 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
       }
     })
     .then(async body => {
-      updatedSha = body.content.sha; // get updated SHA.
+      newSha = body.content.sha;
       stats = await getAndInitializeStats(problem);
-      stats.shas[problem][filename] = updatedSha;
+      stats.shas[problem][filename] = newSha;
       return chrome.storage.local.set({ stats });
     })
     .then(() => {
@@ -187,14 +187,7 @@ function uploadGit(
   commitMsg,
   action,
   shouldPrependDiscussionPosts = false,
-  cb = undefined,
-  _diff = undefined,
 ) {
-  // Assign difficulty
-  if (_diff && _diff !== undefined) {
-    difficulty = _diff.trim();
-  }
-
   let token;
   let hook;
 
@@ -387,7 +380,6 @@ LeetCodeV1.prototype.findAndUploadCode = function (
   fileName,
   commitMsg,
   action,
-  cb = undefined,
 ) {
   /* Get the submission details url from the submission page. */
   let submissionURL;
@@ -461,7 +453,6 @@ LeetCodeV1.prototype.findAndUploadCode = function (
               commitMsg,
               action,
               false,
-              cb,
             );
           }
         }
@@ -739,7 +730,6 @@ LeetCodeV2.prototype.findAndUploadCode = function (
     commitMsg,
     action,
     false,
-    cb,
   );
 };
 LeetCodeV2.prototype.getCode = function () {
