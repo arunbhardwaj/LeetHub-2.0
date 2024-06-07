@@ -8,7 +8,6 @@ const repositoryName = () => {
 
 /* Sync's local storage with persistent stats and returns the pulled stats */
 const syncStats = () => {
-  console.log('Attemping to sync local stats to GitHub stats...');
   return chrome.storage.local
     .get(['leethub_token', 'leethub_hook', 'sync_stats'])
     .then(({ leethub_hook, leethub_token, sync_stats }) => {
@@ -16,6 +15,7 @@ const syncStats = () => {
         throw new Error('Abort');
       }
 
+      console.log('Attemping to sync local stats to GitHub stats...');
       const URL = `https://api.github.com/repos/${leethub_hook}/contents/stats.json`;
 
       let options = {
@@ -44,11 +44,18 @@ const syncStats = () => {
       );
       return stats;
     })
-    .catch(e =>
-      e.message === 'StatsNotFound' || e.message === 'Abort'
-        ? console.log('No stats found; starting fresh')
-        : console.error(e)
-    );
+    .catch(e => {
+      switch (e.message) {
+        case 'StatsNotFound':
+          console.log('No stats found; starting fresh');
+          break;
+        case 'Abort':
+          console.log('Persistent stats already synced!');
+          break;
+        default:
+          console.error(e);
+      }
+    });
 };
 
 /* Status codes for creating of repo */
