@@ -840,18 +840,11 @@ LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
     // return;
   }
   // TODO: target within the Run and Submit div regardless of UI position of submit button
-  const resultObserver = new MutationObserver((_, observer) => {
-    const target = document.querySelector('[data-e2e-locator="submission-result"]').parentElement;
-    if (target) {
-      observer.disconnect()
-      elem.className = 'runcode-wrapper__8rXm';
-      target.appendChild(elem);
-    }
-  })
-  resultObserver.observe(document.body, {
-    childList: true,
-    subtree: true,
-  })
+  const target = document.querySelector('[data-e2e-locator="submission-result"]').parentElement;
+  if (target) {
+    elem.className = 'runcode-wrapper__8rXm';
+    target.appendChild(elem);
+  }
 };
 LeetCodeV2.prototype.markUploaded = function () {
   let elem = document.getElementById(this.progressSpinnerElementId);
@@ -965,7 +958,6 @@ function loader(leetCode) {
   let iterations = 0;
   const intervalId = setInterval(async () => {
     try {
-      leetCode.startSpinner();
       const isSuccessfulSubmission = leetCode.getSuccessStateAndUpdate();
       if (!isSuccessfulSubmission) {
         iterations++;
@@ -974,24 +966,25 @@ function loader(leetCode) {
         }
         return;
       }
+      leetCode.startSpinner();
 
       // If successful, stop polling
       clearInterval(intervalId);
 
       // For v2, query LeetCode API for submission results
       await leetCode.init();
-
+      
       const probStats = leetCode.parseStats();
       if (!probStats) {
         throw new LeetHubError('SubmissionStatsNotFound');
       }
-
+      
       const probStatement = leetCode.parseQuestion();
       if (!probStatement) {
         throw new LeetHubError('ProblemStatementNotFound');
       }
-
-      const problemName = leetCode.getProblemNameSlug();
+      
+      const problemName = leetCode.etProblemNameSlug();
       const alreadyCompleted = await checkAlreadyCompleted(problemName);
       const language = leetCode.getLanguageExtension();
       if (!language) {
@@ -1090,6 +1083,11 @@ async function listenForSubmissionId() {
 async function v2SubmissionHandler(event, leetCode) {
   if (event.type !== 'click' && !wasSubmittedByKeyboard(event)) {
     return;
+  }
+
+  const authenticated = !isEmpty(await chrome.storage.local.get(['leethub_token'])) && !isEmpty(await chrome.storage.local.get(['leethub_hook']))
+  if (!authenticated) {
+    throw new LeetHubError('UserNotAuthenticated')
   }
 
   // is click or is ctrl enter
@@ -1230,8 +1228,13 @@ class LeetHubNetworkError extends LeetHubError {
           btn.addEventListener(
             'click',
             debounce(
-              () => {
-                // Manual submission event doesn't need to wait for submission url. It already has it.
+              async () => {
+                // No waiting for url change. Manual submissions have submission url.
+                const authenticated = !isEmpty(await chrome.storage.local.get(['leethub_token'])) && !isEmpty(await chrome.storage.local.get(['leethub_hook']))
+                if (!authenticated) {
+                  throw new LeetHubError('UserNotAuthenticated')
+                }
+                
                 const leetCode = new LeetCodeV2();
                 const submissionId = window.location.href.match(
                   /leetcode\.com\/.*\/submissions\/(\d+)/
