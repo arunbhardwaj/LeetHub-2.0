@@ -235,7 +235,6 @@ function uploadGit(
 /* Returns GitHub data for the file specified by `${directory}/${filename}` path */
 async function getGitHubFile(token, hook, directory, filename) {
   const path = getPath(directory, filename);
-  console.log(`getGitHubFile::path`, { path });
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
   let options = {
@@ -259,9 +258,7 @@ async function uploadPersistentStats(stats) {
 
 // Delays `func` invocation with `...args` until after `wait` milliseconds
 function delay(func, wait, ...args) {
-  return new Promise(resolve => {
-    setTimeout(() => {console.log('after timeout'); resolve(func(...args))}, wait)
-  })
+  return setTimeout(() => func(...args), wait)
 }
 
 /* Checks if an elem/array exists and has length */
@@ -820,7 +817,7 @@ LeetCodeV2.prototype.startSpinner = function () {
     elem.id = 'leethub_progress_anchor_element';
     elem.style = 'margin-right: 20px;padding-top: 2px;';
   }
-  elem.innerHTML = `<div id="leethub_progress_elem" class="leethub_progress"></div>`;
+  elem.innerHTML = `<div id="${this.progressSpinnerElementId}" class="${this.progressSpinnerElementClass}"></div>`;
   this.insertToAnchorElement(elem);
   uploadState.uploading = true;
 };
@@ -844,7 +841,7 @@ LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
     // return;
   }
   // TODO: target within the Run and Submit div regardless of UI position of submit button
-  const resultObserver = new MutationObserver((_, observer ) => {
+  const resultObserver = new MutationObserver((_, observer) => {
     const target = document.querySelector('[data-e2e-locator="submission-result"]').parentElement;
     if (target) {
       observer.disconnect()
@@ -890,7 +887,8 @@ LeetCodeV2.prototype.updateReadmeTopicTagsWithProblem = async function (problemN
   }
   readme = sortTopicTablesInMarkdown(readme);
   readme = btoa(unescape(encodeURIComponent(readme)));
-  return delay(uploadGit, WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS, readme, 'README.md', '', updateReadmeMsg, 'upload');
+  // For some reason, this API call needs a longer delay.
+  return delay(uploadGit, WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS + 100, readme, 'README.md', '', updateReadmeMsg, 'upload');
 };
 
 // Appends a problem title to each Topic section in the README.md
@@ -972,8 +970,8 @@ function loader(leetCode) {
       const isSuccessfulSubmission = leetCode.getSuccessStateAndUpdate();
       if (!isSuccessfulSubmission) {
         iterations++;
-        if (iterations > 9) {
-          clearInterval(intervalId); // poll for max 10 attempts (10 seconds)
+        if (iterations > 9) { // poll for max 10 attempts (10 seconds)
+          throw new LeetHubError('Could not find successful submission after 10 seconds.')
         }
         return;
       }
