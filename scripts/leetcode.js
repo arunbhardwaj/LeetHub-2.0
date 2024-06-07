@@ -249,9 +249,8 @@ async function getGitHubFile(token, hook, directory, filename) {
 }
 
 // Updates or creates the persistent stats from local stats
-// TODO: test to make sure this is consistent
-async function uploadPersistentStats(stats) {
-  const pStats = {leetcode: stats}
+async function uploadPersistentStats(localStats) {
+  const pStats = {leetcode: localStats}
   const pStatsEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(pStats))));
   return delay(uploadGit, WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS, pStatsEncoded, 'stats.json', '', `Updated stats`, 'upload')
 }
