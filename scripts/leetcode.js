@@ -832,6 +832,16 @@ LeetCodeV2.prototype.injectSpinnerStyle = function () {
 LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
   if (document.URL.startsWith('https://leetcode.com/explore/')) {
     // TODO: support spinner when answering problems on Explore pages
+    // const submitWait = document.getElementById('submit_wait')
+    // if (submitWait) {
+    //   const parent = submitWait.parentElement
+    //   elem.className = 'runcode-wrapper__8rXm';
+    //   parent.insertBefore(elem, submitWait)
+    // }
+    // Must initiate script from a different submit button
+    // document.querySelector('.btn.btn-primary.btn-round')
+    
+    // return;
   }
   // TODO: target within the Run and Submit div regardless of UI position of submit button
   const resultObserver = new MutationObserver((_, observer ) => {
