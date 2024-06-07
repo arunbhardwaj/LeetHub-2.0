@@ -119,7 +119,7 @@ const incrementStats = () => {
       chrome.storage.local.set({ stats });
       return stats
     })
-    .then(setPersistentStats)
+    .then(uploadPersistentStats)
     .catch(console.error)
 };
 
@@ -251,17 +251,17 @@ async function getGitHubFile(token, hook, directory, filename) {
 
 // Updates or creates the persistent stats from local stats
 // TODO: test to make sure this is consistent
-async function setPersistentStats(stats) {
-  console.log(`updatePersistentStats::stats`, { stats });
+async function uploadPersistentStats(stats) {
   const pStats = {leetcode: stats}
   const pStatsEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(pStats))));
+  return delay(uploadGit, WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS, pStatsEncoded, 'stats.json', '', `Updated stats`, 'upload')
+}
+
+// Delays `func` invocation with `...args` until after `wait` milliseconds
+function delay(func, wait, ...args) {
   return new Promise(resolve => {
-    //update after a delay
-    setTimeout(
-      () => resolve(uploadGit(pStatsEncoded, 'stats.json', '', `Updated stats`, 'upload')),
-      WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
-    );
-  });
+    setTimeout(() => {console.log('after timeout'); resolve(func(...args))}, wait)
+  })
 }
 
 /* Checks if an elem/array exists and has length */
@@ -820,7 +820,7 @@ LeetCodeV2.prototype.startSpinner = function () {
     elem.id = 'leethub_progress_anchor_element';
     elem.style = 'margin-right: 20px;padding-top: 2px;';
   }
-  elem.innerHTML = `<div id="${this.progressSpinnerElementId}" class="${this.progressSpinnerElementClass}"></div>`;
+  elem.innerHTML = `<div id="leethub_progress_elem" class="leethub_progress"></div>`;
   this.insertToAnchorElement(elem);
   uploadState.uploading = true;
 };
@@ -832,25 +832,20 @@ LeetCodeV2.prototype.injectSpinnerStyle = function () {
 LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
   if (document.URL.startsWith('https://leetcode.com/explore/')) {
     // TODO: support spinner when answering problems on Explore pages
-    //   action = document.getElementsByClassName('action');
-    //   if (
-    //     checkElem(action) &&
-    //     checkElem(action[0].getElementsByClassName('row')) &&
-    //     checkElem(action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6')) &&
-    //     action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6').length > 1
-    //   ) {
-    //     target = action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6')[1];
-    //     elem.className = 'pull-left';
-    //     if (target.childNodes.length > 0) target.childNodes[0].prepend(elem);
-    //   }
-    return;
   }
   // TODO: target within the Run and Submit div regardless of UI position of submit button
-  let target = document.querySelector('[data-e2e-locator="submission-result"]').parentElement;
-  if (target) {
-    elem.className = 'runcode-wrapper__8rXm';
-    target.appendChild(elem);
-  }
+  const resultObserver = new MutationObserver((_, observer ) => {
+    const target = document.querySelector('[data-e2e-locator="submission-result"]').parentElement;
+    if (target) {
+      observer.disconnect()
+      elem.className = 'runcode-wrapper__8rXm';
+      target.appendChild(elem);
+    }
+  })
+  resultObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+  })
 };
 LeetCodeV2.prototype.markUploaded = function () {
   let elem = document.getElementById(this.progressSpinnerElementId);
@@ -885,9 +880,7 @@ LeetCodeV2.prototype.updateReadmeTopicTagsWithProblem = async function (problemN
   }
   readme = sortTopicTablesInMarkdown(readme);
   readme = btoa(unescape(encodeURIComponent(readme)));
-  return new Promise((resolve, reject) =>
-    setTimeout(() => resolve(), WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS)
-  ).then(() => uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload'));
+  return delay(uploadGit, WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS, readme, 'README.md', '', updateReadmeMsg, 'upload');
 };
 
 // Appends a problem title to each Topic section in the README.md
@@ -999,7 +992,7 @@ function loader(leetCode) {
       }
 
       /* Upload README */
-      const updateReadMe = await chrome.storage.local.get('stats').then(({ stats }) => {
+      const uploadReadMe = await chrome.storage.local.get('stats').then(({ stats }) => {
         const shaExists = stats?.shas?.[problemName]?.['README.md'] !== undefined;
 
         if (!shaExists) {
@@ -1016,9 +1009,9 @@ function loader(leetCode) {
 
       /* Upload Notes if any*/
       notes = leetCode.getNotesIfAny();
-      let updateNotes;
+      let uploadNotes;
       if (notes != undefined && notes.length > 0) {
-        updateNotes = uploadGit(
+        uploadNotes = uploadGit(
           btoa(unescape(encodeURIComponent(notes))),
           problemName,
           'NOTES.md',
@@ -1029,7 +1022,7 @@ function loader(leetCode) {
       }
 
       /* Upload code to Git */
-      const updateCode = leetCode.findAndUploadCode(
+      const uploadCode = leetCode.findAndUploadCode(
         problemName,
         problemName + language,
         probStats,
@@ -1037,9 +1030,9 @@ function loader(leetCode) {
       );
 
       /* Group problem into its relevant topics */
-      const updateReadMeWithTopicTag = leetCode.updateReadmeTopicTagsWithProblem(problemName);
+      const updateRepoReadMeWithTopicTag = leetCode.updateReadmeTopicTagsWithProblem(problemName);
 
-      await Promise.all([updateReadMe, updateNotes, updateCode, updateReadMeWithTopicTag]);
+      await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMeWithTopicTag]);
 
       uploadState.uploading = false;
       leetCode.markUploaded();
@@ -1056,6 +1049,25 @@ function loader(leetCode) {
   }, 1000);
 }
 
+function isEmpty(obj) {
+  for (const prop in obj) {
+    if (Object.hasOwn(obj, prop)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// Submit by Keyboard Shortcuts only support on LeetCode v2
+function wasSubmittedByKeyboard(event) {
+  const isEnterKey = event.key === 'Enter';
+  const isMacOS = window.navigator.userAgent.includes('Mac');
+
+  // Adapt to MacOS operating system
+  return isEnterKey && ((isMacOS && event.metaKey) || (!isMacOS && event.ctrlKey));
+}
+
 // Get SubmissionID by listening for URL changes to `/submissions/(d+)` format
 async function listenForSubmissionId() {
   const { submissionId } = await chrome.runtime.sendMessage({
@@ -1068,27 +1080,20 @@ async function listenForSubmissionId() {
   return submissionId;
 }
 
-// Submit by Keyboard Shortcuts only support on LeetCode v2
-function wasSubmittedByKeyboard(event) {
-  const isEnterKey = event.key === 'Enter';
-  const isMacOS = window.navigator.userAgent.includes('Mac');
-
-  // Adapt to MacOS operating system
-  return isEnterKey && ((isMacOS && event.metaKey) || (!isMacOS && event.ctrlKey));
-}
-
-function isEmpty(obj) {
-  for (const prop in obj) {
-    if (Object.hasOwn(obj, prop)) {
-      return false;
-    }
+async function v2SubmissionHandler(event, leetCode) {
+  if (event.type !== 'click' && !wasSubmittedByKeyboard(event)) {
+    return;
   }
 
+  // is click or is ctrl enter
+  const submissionId = await listenForSubmissionId();
+  leetCode.submissionId = submissionId;
+  loader(leetCode);
   return true;
 }
 
 // Use MutationObserver to determine when the submit button elements are loaded
-const observer = new MutationObserver(function (_mutations, observer) {
+const submitBtnObserver = new MutationObserver(function (_mutations, observer) {
   const v1SubmitBtn = document.querySelector('[data-cy="submit-code-btn"]');
   const v2SubmitBtn = document.querySelector('[data-e2e-locator="console-submit-button"]');
   const textareaList = document.getElementsByTagName('textarea');
@@ -1112,23 +1117,16 @@ const observer = new MutationObserver(function (_mutations, observer) {
 
     const leetCode = new LeetCodeV2();
     if (!!!v2SubmitBtn.onclick) {
-      textarea.addEventListener('keydown', e => v2SubmissionHandler(leetCode, e));
-      v2SubmitBtn.onclick = e => v2SubmissionHandler(leetCode, e);
+      textarea.addEventListener('keydown', e => v2SubmissionHandler(e, leetCode));
+      v2SubmitBtn.onclick = e => v2SubmissionHandler(e, leetCode);
     }
   }
 });
 
-async function v2SubmissionHandler(leetCode, event) {
-  if (event.type !== 'click' && !wasSubmittedByKeyboard(event)) {
-    return;
-  }
-
-  // is click or is ctrl enter
-  const submissionId = await listenForSubmissionId();
-  leetCode.submissionId = submissionId;
-  loader(leetCode);
-  return true;
-}
+submitBtnObserver.observe(document.body, {
+  childList: true,
+  subtree: true,
+});
 
 /* Sync to local storage */
 chrome.storage.local.get('isSync', data => {
@@ -1152,11 +1150,6 @@ chrome.storage.local.get('isSync', data => {
   } else {
     console.log('LeetHub Local storage already synced!');
   }
-});
-
-observer.observe(document.body, {
-  childList: true,
-  subtree: true,
 });
 
 class LeetHubError extends Error {
