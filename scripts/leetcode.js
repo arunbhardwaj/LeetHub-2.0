@@ -984,7 +984,7 @@ function loader(leetCode) {
         throw new LeetHubError('ProblemStatementNotFound');
       }
       
-      const problemName = leetCode.etProblemNameSlug();
+      const problemName = leetCode.getProblemNameSlug();
       const alreadyCompleted = await checkAlreadyCompleted(problemName);
       const language = leetCode.getLanguageExtension();
       if (!language) {
