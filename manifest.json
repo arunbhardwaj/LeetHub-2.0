@@ -7,7 +7,8 @@
   "author": "Arun Bhardwaj",
   "action": {
     "default_icon": "assets/thumbnail.png",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_title": "Upload your LeetCode solutions to GitHub"
   },
   "icons": {
     "16": "assets/thumbnail.png",
