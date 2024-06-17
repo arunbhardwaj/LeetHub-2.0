@@ -1,8 +1,8 @@
-function getSubmissionPageBtns() {
+const getSubmissionPageBtns = () => {
   return document.querySelector('.flex.flex-none.gap-2:not(.justify-center):not(.justify-between)');
-}
+};
 
-function createToolTip() {
+const createToolTip = () => {
   const toolTip = document.createElement('div');
   toolTip.id = 'leethub-upload-tooltip';
   toolTip.textContent =
@@ -10,9 +10,9 @@ function createToolTip() {
   toolTip.className =
     'fixed bg-sd-popover text-sd-popover-foreground rounded-sd-md z-modal text-xs text-left font-normal whitespace-pre-line shadow p-3 border-sd-border border cursor-default translate-y-20 transition-opacity opacity-0 transition-delay-1000 duration-300 group-hover:opacity-100';
   return toolTip;
-}
+};
 
-function createGitIcon() {
+const createGitIcon = () => {
   const uploadIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   uploadIcon.setAttribute('id', 'leethub-upload-icon');
   uploadIcon.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -32,9 +32,9 @@ function createGitIcon() {
 
   uploadIcon.appendChild(path);
   return uploadIcon;
-}
+};
 
-function addManualSubmitBtn() {
+function addManualSubmitBtn(eventHandler) {
   const btns = getSubmissionPageBtns();
   if (btns.innerText.includes('Solution') && !btns.innerText.includes('LeetHub')) {
     btns.appendChild(
@@ -49,54 +49,21 @@ function addManualSubmitBtn() {
 
         btn.prepend(createGitIcon());
         btn.appendChild(createToolTip());
-        btn.addEventListener(
-          'click',
-          debounce(
-            () => {
-              // Manual submission event doesn't need to wait for submission url. It already has it.
-              const leetCode = new LeetCodeV2();
-              const submissionId = window.location.href.match(
-                /leetcode\.com\/.*\/submissions\/(\d+)/,
-              )[1];
-              leetCode.submissionId = submissionId;
-              loader(leetCode);
-              return;
-            },
-            5000,
-            true,
-          ),
-        );
+        btn.addEventListener('click', eventHandler);
         return btn;
       })(),
     );
   }
 }
 
-// Returns a function that can be immediately invoked but will start a timeout of 'wait' milliseconds before it can be called again.
-function debounce(func, wait, invokeBeforeTimeout) {
-  let timeout;
-  return function () {
-    const context = this,
-      args = arguments;
-    const later = function () {
-      timeout = null;
-      if (!invokeBeforeTimeout) func.apply(context, args);
-    };
-    const callNow = invokeBeforeTimeout && !timeout;
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-    if (callNow) func.apply(context, args);
-  };
-}
-
-function showManualSubmitBtn() {
+function setupManualSubmitBtn(submitBtnHandler) {
   const submissionPageBtnsObserver = new MutationObserver((_, observer) => {
     const url = window.location.href;
     const btns = getSubmissionPageBtns();
 
     if (btns && btns.children.length < 3 && url.match(/\/submissions\//)) {
       observer.disconnect();
-      addManualSubmitBtn();
+      addManualSubmitBtn(submitBtnHandler);
     }
   });
 
@@ -112,6 +79,4 @@ function showManualSubmitBtn() {
   });
 }
 
-module.exports = {
-  showManualSubmitBtn,
-};
+export default setupManualSubmitBtn;

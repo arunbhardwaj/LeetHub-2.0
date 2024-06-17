@@ -14,6 +14,7 @@ const ignore = [
   '**/webpack*',
   '**/scripts/leetcode/**',
   '**/README.md',
+  '**/assets/extension', // web store assets
   // ...entries.map((entry) => `**/${entry}.js`),
 ];
 
