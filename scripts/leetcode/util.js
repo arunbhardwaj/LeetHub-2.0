@@ -27,26 +27,32 @@ const languages = {
 };
 
 const DIFFICULTY = Object.freeze({
-    EASY: 'Easy',
-    MEDIUM: 'Medium',
-    HARD: 'Hard',
-    UNKNOWN: 'Unknown'
-})
+  EASY: 'Easy',
+  MEDIUM: 'Medium',
+  HARD: 'Hard',
+  UNKNOWN: 'Unknown',
+});
 
-function getBrowser() {
-    if (typeof chrome !== "undefined" && typeof chrome.runtime !== "undefined") {
-      return chrome;
-    } else if (typeof browser !== "undefined" && typeof browser.runtime !== "undefined") {
-      return browser;
-    } else {
-      console.log("browser is not supported");
-      return false;
+class LeetHubError extends Error {
+    constructor(message) {
+      super(message);
+      this.name = 'LeetHubErr';
     }
   }
 
+function getBrowser() {
+  if (typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined') {
+    return chrome;
+  } else if (typeof browser !== 'undefined' && typeof browser.runtime !== 'undefined') {
+    return browser;
+  } else {
+    throw new LeetHubError('BrowserNotSupported')
+  }
+}
+
 function getDifficulty(difficulty) {
-    difficulty = difficulty.toUpperCase().trim()
-    return DIFFICULTY[difficulty] ?? DIFFICULTY.UNKNOWN
+  difficulty = difficulty.toUpperCase().trim();
+  return DIFFICULTY[difficulty] ?? DIFFICULTY.UNKNOWN;
 }
 
 /* Checks if an elem/array exists and has length */
@@ -91,5 +97,7 @@ export {
   addLeadingZeros,
   formatStats,
   getDifficulty,
-  DIFFICULTY
+  DIFFICULTY,
+  LeetHubError,
+  getBrowser
 };

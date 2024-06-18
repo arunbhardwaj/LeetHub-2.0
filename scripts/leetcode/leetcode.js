@@ -1,6 +1,6 @@
 import { LeetCodeV1, LeetCodeV2 } from './versions';
 import setupManualSubmitBtn from './submitBtn';
-import { DIFFICULTY } from './util';
+import { DIFFICULTY, LeetHubError, getBrowser } from './util';
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
@@ -13,6 +13,8 @@ const NORMAL_PROBLEM = 0;
 const EXPLORE_SECTION_PROBLEM = 1;
 
 const WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS = 100;
+
+const api = getBrowser()
 
 const getPath = (problem, filename) => {
   return filename ? `${problem}/${filename}` : problem;
@@ -54,7 +56,7 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
       updatedSha = body.content.sha; // get updated SHA.
       const stats = await getAndInitializeStats(problem);
       stats.shas[problem][filename] = updatedSha;
-      return chrome.storage.local.set({ stats });
+      return api.storage.local.set({ stats });
     })
     .then(() => {
       console.log(`Successfully committed ${getPath(problem, filename)} to github`);
@@ -65,7 +67,7 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
 };
 
 const getAndInitializeStats = problem => {
-  return chrome.storage.local.get('stats').then(({ stats }) => {
+  return api.storage.local.get('stats').then(({ stats }) => {
     if (stats == null || isEmpty(stats)) {
       // create stats object
       stats = {};
@@ -85,17 +87,17 @@ const getAndInitializeStats = problem => {
 };
 
 const incrementStats = difficulty => {
-  return chrome.storage.local.get('stats').then(({ stats }) => {
+  return api.storage.local.get('stats').then(({ stats }) => {
     stats.solved += 1;
     stats.easy += difficulty === DIFFICULTY.EASY ? 1 : 0;
     stats.medium += difficulty === DIFFICULTY.MEDIUM ? 1 : 0;
     stats.hard += difficulty === DIFFICULTY.HARD ? 1 : 0;
-    return chrome.storage.local.set({ stats });
+    return api.storage.local.set({ stats });
   });
 };
 
 const checkAlreadyCompleted = problemName => {
-  return chrome.storage.local.get('stats').then(({ stats }) => {
+  return api.storage.local.get('stats').then(({ stats }) => {
     if (stats?.shas?.[problemName] == null) {
       return false;
     }
@@ -161,27 +163,27 @@ function uploadGit(
   let token;
   let hook;
 
-  return chrome.storage.local
+  return api.storage.local
     .get('leethub_token')
     .then(({ leethub_token }) => {
       token = leethub_token;
       if (leethub_token == undefined) {
         throw new LeetHubError('LeethubTokenUndefined');
       }
-      return chrome.storage.local.get('mode_type');
+      return api.storage.local.get('mode_type');
     })
     .then(({ mode_type }) => {
       if (mode_type !== 'commit') {
         throw new LeetHubError('LeetHubNotAuthorizedByGit');
       }
-      return chrome.storage.local.get('leethub_hook');
+      return api.storage.local.get('leethub_hook');
     })
     .then(({ leethub_hook }) => {
       hook = leethub_hook;
       if (!hook) {
         throw new LeetHubError('NoRepoDefined');
       }
-      return chrome.storage.local.get('stats');
+      return api.storage.local.get('stats');
     })
     .then(({ stats }) => {
       if (action === 'upload') {
@@ -273,7 +275,7 @@ document.addEventListener('click', event => {
 });
 
 async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
-  const { leethub_token, leethub_hook, stats } = await chrome.storage.local.get([
+  const { leethub_token, leethub_hook, stats } = await api.storage.local.get([
     'leethub_token',
     'leethub_hook',
     'stats',
@@ -363,7 +365,7 @@ function sortTopicTablesInMarkdown(markdownFile) {
 }
 
 /* Sync to local storage */
-chrome.storage.local.get('isSync', data => {
+api.storage.local.get('isSync', data => {
   keys = [
     'leethub_token',
     'leethub_username',
@@ -374,11 +376,11 @@ chrome.storage.local.get('isSync', data => {
   ];
   if (!data || !data.isSync) {
     keys.forEach(key => {
-      chrome.storage.sync.get(key, data => {
-        chrome.storage.local.set({ [key]: data[key] });
+      api.storage.sync.get(key, data => {
+        api.storage.local.set({ [key]: data[key] });
       });
     });
-    chrome.storage.local.set({ isSync: true }, () => {
+    api.storage.local.set({ isSync: true }, () => {
       console.log('LeetHub Synced to local values');
     });
   } else {
@@ -425,7 +427,7 @@ const loader = leetCode => {
       const filename = problemName + language;
 
       /* Upload README */
-      const updateReadMe = await chrome.storage.local.get('stats').then(({ stats }) => {
+      const updateReadMe = await api.storage.local.get('stats').then(({ stats }) => {
         const shaExists = stats?.shas?.[problemName]?.['README.md'] !== undefined;
 
         if (!shaExists) {
@@ -493,7 +495,7 @@ const isMacOS = window.navigator.userAgent.includes('Mac');
 
 // Get SubmissionID by listening for URL changes to `/submissions/(d+)` format
 async function listenForSubmissionId() {
-  const { submissionId } = await chrome.runtime.sendMessage({ type: 'LEETCODE_SUBMISSION' });
+  const { submissionId } = await api.runtime.sendMessage({ type: 'LEETCODE_SUBMISSION' });
   if (submissionId == null) {
     console.log(new LeetHubError('SubmissionIdNotFound'));
     return;
@@ -566,13 +568,6 @@ observer.observe(document.body, {
   childList: true,
   subtree: true,
 });
-
-class LeetHubError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'LeetHubErr';
-  }
-}
 
 // Returns a function that can be immediately invoked but will start a timeout of 'wait' milliseconds before it can be called again.
 function debounce(func, wait, invokeBeforeTimeout) {
