@@ -45,7 +45,6 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
     body: data,
   };
   let updatedSha;
-  console.log('upload', {problem, filename, sha})
 
   return fetch(URL, options)
     .then(res => {
@@ -55,7 +54,6 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
       return res.json();
     })
     .then(async body => {
-      console.log('upload::postFetch', {body})
       updatedSha = body.content.sha; // get updated SHA.
       const stats = await getAndInitializeStats(problem);
       stats.shas[problem][filename] = updatedSha;
@@ -211,7 +209,6 @@ function uploadGit(
       }
     })
     .catch(err => {
-      console.log('uploadGit::catch', { err, problemName, fileName });
       if (err.message === '409') {
         return getUpdatedData(token, hook, problemName, fileName);
       } else {
@@ -298,7 +295,6 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
     const { content } = await getUpdatedData(leethub_token, leethub_hook, 'README.md');
     readme = content;
   } catch (err) {
-    console.log({ err });
     if (err.message === '404') {
       throw new RepoReadmeNotFoundErr('RepoReadmeNotFound', topicTags, problemName);
     }
@@ -306,13 +302,10 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
     throw err;
   }
   readme = decodeURIComponent(escape(atob(readme)));
-  console.log('updateReadmeTopicTagsWithProblem::postFetch', { readme });
   for (let topic of topicTags) {
     readme = appendProblemToReadme(topic.name, readme, leethub_hook, problemName);
   }
-  console.log(`updateReadmeTopicTagsWithProblem::postAppendProblemToRead`, {readme})
   readme = sortTopicTablesInMarkdown(readme);
-  console.log(`updateReadmeTopicTagsWithProblem::postSortTopicTablesInMarkdown`, {readme})
   readme = btoa(unescape(encodeURIComponent(readme)));
   return new Promise((resolve, reject) =>
     setTimeout(() => resolve(uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload')), WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS),
@@ -453,7 +446,6 @@ const loader = leetCode => {
   let iterations = 0;
   const intervalId = setInterval(async () => {
     try {
-      console.log('loader::start', {iterations})
       leetCode.startSpinner();
       const isSuccessfulSubmission = leetCode.getSuccessStateAndUpdate();
       if (!isSuccessfulSubmission) {
@@ -530,14 +522,12 @@ const loader = leetCode => {
       );
 
       /* Group problem into its relevant topics */
-      console.log('loader::beforeUpdateRepoReadme')
       let updateRepoReadme = updateReadmeTopicTagsWithProblem(
         leetCode.submissionData?.question?.topicTags,
         problemName,
       );
       
       await Promise.all([updateReadMe, updateNotes, updateCode, updateRepoReadme]);
-      console.log('loader::afterPromises')
 
       leetCode.markUploaded();
 
@@ -545,7 +535,6 @@ const loader = leetCode => {
         incrementStats(leetCode.difficulty);
       }
     } catch (err) {
-      console.log('loader::catch', {err, problem: err?.problemName})
       leetCode.markUploadFailed();
       clearInterval(intervalId);
 
