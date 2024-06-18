@@ -1,20 +1,22 @@
 import { LeetCodeV1, LeetCodeV2 } from './versions';
 import setupManualSubmitBtn from './submitBtn';
-import { DIFFICULTY, LeetHubError, getBrowser } from './util';
+import { DIFFICULTY, LeetHubError, RepoReadmeNotFoundErr, getBrowser } from './util';
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
 const updateReadmeMsg = 'Update README - Topic Tags';
 const discussionMsg = 'Prepend discussion post - LeetHub';
 const createNotesMsg = 'Attach NOTES - LeetHub';
+const defaultRepoReadme =
+  'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)';
 
 // problem types
 const NORMAL_PROBLEM = 0;
 const EXPLORE_SECTION_PROBLEM = 1;
 
-const WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS = 100;
+const WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS = 500;
 
-const api = getBrowser()
+const api = getBrowser();
 
 const getPath = (problem, filename) => {
   return filename ? `${problem}/${filename}` : problem;
@@ -43,16 +45,17 @@ const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undef
     body: data,
   };
   let updatedSha;
+  console.log('upload', {problem, filename, sha})
 
   return fetch(URL, options)
     .then(res => {
-      if (res.status === 200 || res.status === 201) {
-        return res.json();
-      } else if (res.status === 409) {
-        throw new Error('409');
+      if (!res.ok) {
+        throw new LeetHubError(res.status, res);
       }
+      return res.json();
     })
     .then(async body => {
+      console.log('upload::postFetch', {body})
       updatedSha = body.content.sha; // get updated SHA.
       const stats = await getAndInitializeStats(problem);
       stats.shas[problem][filename] = updatedSha;
@@ -208,6 +211,7 @@ function uploadGit(
       }
     })
     .catch(err => {
+      console.log('uploadGit::catch', { err, problemName, fileName });
       if (err.message === '409') {
         return getUpdatedData(token, hook, problemName, fileName);
       } else {
@@ -235,11 +239,10 @@ async function getUpdatedData(token, hook, directory, filename) {
   };
 
   return fetch(URL, options).then(res => {
-    if (res.status === 200 || res.status === 201) {
-      return res.json();
-    } else {
-      throw new Error('' + res.status);
+    if (!res.ok) {
+      throw new Error(res.status);
     }
+    return res.json();
   });
 }
 
@@ -274,41 +277,76 @@ document.addEventListener('click', event => {
   }
 });
 
+function createRepoReadme() {
+  const content = btoa(unescape(encodeURIComponent(defaultRepoReadme)));
+  return uploadGit(content, 'README.md', '', readmeMsg, 'upload');
+}
+
 async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
+  if (topicTags == null) {
+    console.log(new LeetHubError('TopicTagsNotFound'));
+    return;
+  }
+
   const { leethub_token, leethub_hook, stats } = await api.storage.local.get([
     'leethub_token',
     'leethub_hook',
     'stats',
   ]);
-  const { content } = await getUpdatedData(leethub_token, leethub_hook, 'README.md');
+  let readme;
+  try {
+    const { content } = await getUpdatedData(leethub_token, leethub_hook, 'README.md');
+    readme = content;
+  } catch (err) {
+    console.log({ err });
+    if (err.message === '404') {
+      throw new RepoReadmeNotFoundErr('RepoReadmeNotFound', topicTags, problemName);
+    }
 
-  let readme = decodeURIComponent(escape(atob(content)));
-  for (let topic of topicTags) {
-    readme = appendProblemToTopic(topic.name, readme, leethub_hook, problemName);
+    throw err;
   }
+  readme = decodeURIComponent(escape(atob(readme)));
+  console.log('updateReadmeTopicTagsWithProblem::postFetch', { readme });
+  for (let topic of topicTags) {
+    readme = appendProblemToReadme(topic.name, readme, leethub_hook, problemName);
+  }
+  console.log(`updateReadmeTopicTagsWithProblem::postAppendProblemToRead`, {readme})
   readme = sortTopicTablesInMarkdown(readme);
+  console.log(`updateReadmeTopicTagsWithProblem::postSortTopicTablesInMarkdown`, {readme})
   readme = btoa(unescape(encodeURIComponent(readme)));
   return new Promise((resolve, reject) =>
-    setTimeout(() => resolve(), WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS),
-  ).then(() => uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload'));
+    setTimeout(() => resolve(uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload')), WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS),
+  )
 }
 
 // Appends a problem title to each Topic section in the README.md
-function appendProblemToTopic(topic, markdownFile, hook, problem) {
+function appendProblemToReadme(topic, markdownFile, hook, problem) {
   const url = `https://github.com/${hook}/tree/master/${problem}`;
+  const topicSection = `# LeetCode Topics`
+  const topicTag = `## ${topic}`;
+  const topicHeader = `\n${topicTag}\n|  |\n| ------- |\n`;
+  const newRow = `| [${problem}](${url}) |`;
+
+  let leetCodeSectionIndex = markdownFile.indexOf(topicSection)
+  if (leetCodeSectionIndex === -1) {
+    markdownFile += topicSection;
+  }
+
+  const lastIndexOfLeetCodeSection = getLastIndexOfLeetCodeSection(markdownFile)
+  const afterLeetCodeSection = (lastIndexOfLeetCodeSection === -1) ? '' : markdownFile.slice(lastIndexOfLeetCodeSection)
 
   // Check if a table already belongs to topic, or add it
-  let topicTableIndex = markdownFile.indexOf(`# ${topic}`);
+  let topicTableIndex = markdownFile.indexOf(topicTag, leetCodeSectionIndex);
   if (topicTableIndex === -1) {
-    markdownFile += `\n# ${topic}\n|  |\n| ------- |\n`;
+    markdownFile += topicHeader;
   }
 
   // Find the Topic table
-  topicTableIndex = markdownFile.lastIndexOf(`# ${topic}`);
-  const nextTableIndex = markdownFile.indexOf('# ', topicTableIndex + 1);
+  topicTableIndex = markdownFile.lastIndexOf(topicTag);
+  const nextTableIndex = markdownFile.indexOf('## ', topicTableIndex + 1);
   let topicTable =
     nextTableIndex === -1
-      ? markdownFile.slice(topicTableIndex)
+      ? markdownFile.slice(topicTableIndex, lastIndexOfLeetCodeSection)
       : markdownFile.slice(topicTableIndex, nextTableIndex);
   topicTable = topicTable.trim();
 
@@ -319,27 +357,50 @@ function appendProblemToTopic(topic, markdownFile, hook, problem) {
   }
 
   // Append problem to the Topic
-  const newRow = `| [${problem}](${url}) |`;
   topicTable = [topicTable, newRow, '\n'].join('\n');
 
   // Replace the old Topic table with the updated one in the markdown file
   markdownFile =
     markdownFile.slice(0, topicTableIndex) +
     topicTable +
-    (nextTableIndex === -1 ? '' : markdownFile.slice(nextTableIndex));
+    (nextTableIndex === -1 ? afterLeetCodeSection : markdownFile.slice(nextTableIndex));
 
   return markdownFile;
 }
 
+function getLastIndexOfLeetCodeSection(markdownFile) {
+  const leetCodeSectionHeader = `# LeetCode Topics`
+  const leetCodeSectionIndex = markdownFile.indexOf(leetCodeSectionHeader)
+  let nextSectionIndex = leetCodeSectionIndex;
+  while (true) {
+    nextSectionIndex = markdownFile.indexOf('\n#', nextSectionIndex + 1)
+    if (nextSectionIndex === -1) {
+      break;
+    }
+
+    if (markdownFile[nextSectionIndex + 2] !== '#') {
+      break
+    }
+  }
+  return nextSectionIndex
+}
 // Sorts each Topic table by the problem number
 function sortTopicTablesInMarkdown(markdownFile) {
-  let topics = markdownFile.split('# ');
+  const lastIndexOfLeetCodeSection = getLastIndexOfLeetCodeSection(markdownFile)
+  const afterLeetCodeSection = (lastIndexOfLeetCodeSection === -1) ? '' : markdownFile.slice(lastIndexOfLeetCodeSection)
 
-  // Remove the first element (empty) and next element (repo title + description)
-  topics.shift();
-  let description = topics.shift();
+  let sections = markdownFile.split('# LeetCode Topics');
 
+  // Remove the empty sections and store everything before LeetCode section
+  while (sections[0] === '') sections.shift();
+  const beforeSection = sections.shift();
+  
   // Loop over each problem topic
+  const leetCodeSection = markdownFile.match(/# LeetCode Topics\n([\s\S]*?)\n#[^#]/)[1];
+  
+  let topics = leetCodeSection.trim().split('## ')
+  while (topics[0] === '') topics.shift();
+
   topics = topics.map(section => {
     let lines = section.trim().split('\n');
 
@@ -356,17 +417,17 @@ function sortTopicTablesInMarkdown(markdownFile) {
     });
 
     // Reconstruct the section
-    return ['# ' + topic].concat('|  |', '| ------- |', lines).join('\n');
+    return ['## ' + topic].concat('|  |', '| ------- |', lines).join('\n');
   });
 
   // Reconstruct the file
-  markdownFile = ['# ' + description.trim(), '\n'].concat(topics).join('\n');
+  markdownFile = beforeSection.trim() + '\n' + ['# LeetCode Topics', ...topics].join('\n') + afterLeetCodeSection;
   return markdownFile;
 }
 
 /* Sync to local storage */
 api.storage.local.get('isSync', data => {
-  keys = [
+  const keys = [
     'leethub_token',
     'leethub_username',
     'pipe_leethub',
@@ -392,6 +453,7 @@ const loader = leetCode => {
   let iterations = 0;
   const intervalId = setInterval(async () => {
     try {
+      console.log('loader::start', {iterations})
       leetCode.startSpinner();
       const isSuccessfulSubmission = leetCode.getSuccessStateAndUpdate();
       if (!isSuccessfulSubmission) {
@@ -468,15 +530,14 @@ const loader = leetCode => {
       );
 
       /* Group problem into its relevant topics */
-      let updateReadMeWithTopicTag;
-      if (leetCode instanceof LeetCodeV2) {
-        updateReadMeWithTopicTag = updateReadmeTopicTagsWithProblem(
-          leetCode.submissionData.question.topicTags,
-          problemName,
-        );
-      }
-
-      await Promise.all([updateReadMe, updateNotes, updateCode, updateReadMeWithTopicTag]);
+      console.log('loader::beforeUpdateRepoReadme')
+      let updateRepoReadme = updateReadmeTopicTagsWithProblem(
+        leetCode.submissionData?.question?.topicTags,
+        problemName,
+      );
+      
+      await Promise.all([updateReadMe, updateNotes, updateCode, updateRepoReadme]);
+      console.log('loader::afterPromises')
 
       leetCode.markUploaded();
 
@@ -484,9 +545,24 @@ const loader = leetCode => {
         incrementStats(leetCode.difficulty);
       }
     } catch (err) {
+      console.log('loader::catch', {err, problem: err?.problemName})
       leetCode.markUploadFailed();
       clearInterval(intervalId);
-      console.error(err);
+
+      if (!(err instanceof LeetHubError)) {
+        console.error(err);
+        return;
+      }
+
+      if (err instanceof RepoReadmeNotFoundErr) {
+        await createRepoReadme();
+        await new Promise(resolve => {
+          setTimeout(
+            () => resolve(updateReadmeTopicTagsWithProblem(err.topicTags, err.problemName)),
+            WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS,
+          );
+        });
+      }
     }
   }, 1000);
 };

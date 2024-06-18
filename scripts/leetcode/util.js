@@ -34,11 +34,19 @@ const DIFFICULTY = Object.freeze({
 });
 
 class LeetHubError extends Error {
-    constructor(message) {
-      super(message);
-      this.name = 'LeetHubErr';
-    }
+  constructor(message) {
+    super(message);
+    this.name = 'LeetHubErr';
   }
+}
+
+class RepoReadmeNotFoundErr extends LeetHubError {
+  constructor(message, topicTags, problemName) {
+    super(message);
+    this.topicTags = topicTags;
+    this.problemName = problemName;
+  }
+}
 
 function getBrowser() {
   if (typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined') {
@@ -46,7 +54,7 @@ function getBrowser() {
   } else if (typeof browser !== 'undefined' && typeof browser.runtime !== 'undefined') {
     return browser;
   } else {
-    throw new LeetHubError('BrowserNotSupported')
+    throw new LeetHubError('BrowserNotSupported');
   }
 }
 
@@ -91,13 +99,14 @@ function formatStats(time, timePercentile, space, spacePercentile) {
 }
 
 export {
+  addLeadingZeros,
   checkElem,
   convertToSlug,
-  languages,
-  addLeadingZeros,
-  formatStats,
-  getDifficulty,
   DIFFICULTY,
+  formatStats,
+  getBrowser,
+  getDifficulty,
+  languages,
   LeetHubError,
-  getBrowser
+  RepoReadmeNotFoundErr,
 };
