@@ -48,6 +48,33 @@ class RepoReadmeNotFoundErr extends LeetHubError {
   }
 }
 
+function isEmpty(obj) {
+  for (const prop in obj) {
+    if (Object.hasOwn(obj, prop)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// Returns a function that can be immediately invoked but will start a timeout of 'wait' milliseconds before it can be called again.
+function debounce(func, wait, invokeBeforeTimeout) {
+  let timeout;
+  return function () {
+    const context = this,
+      args = arguments;
+    const later = function () {
+      timeout = null;
+      if (!invokeBeforeTimeout) func.apply(context, args);
+    };
+    const callNow = invokeBeforeTimeout && !timeout;
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+    if (callNow) func.apply(context, args);
+  };
+}
+
 function getBrowser() {
   if (typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined') {
     return chrome;
@@ -102,10 +129,12 @@ export {
   addLeadingZeros,
   checkElem,
   convertToSlug,
+  debounce,
   DIFFICULTY,
   formatStats,
   getBrowser,
   getDifficulty,
+  isEmpty,
   languages,
   LeetHubError,
   RepoReadmeNotFoundErr,

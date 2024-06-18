@@ -1,6 +1,6 @@
 import { LeetCodeV1, LeetCodeV2 } from './versions';
 import setupManualSubmitBtn from './submitBtn';
-import { DIFFICULTY, LeetHubError, RepoReadmeNotFoundErr, getBrowser } from './util';
+import { debounce, DIFFICULTY, getBrowser, isEmpty, LeetHubError, RepoReadmeNotFoundErr } from './util';
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
@@ -120,16 +120,6 @@ const update = (
   shouldPreprendDiscussionPosts,
   cb = undefined,
 ) => {
-  const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
-
-  let options = {
-    method: 'GET',
-    headers: {
-      Authorization: `token ${token}`,
-      Accept: 'application/vnd.github.v3+json',
-    },
-  };
-
   let responseSHA;
   return getUpdatedData(token, hook, directory, filename)
     .then(data => {
@@ -377,6 +367,7 @@ function getLastIndexOfLeetCodeSection(markdownFile) {
   }
   return nextSectionIndex
 }
+
 // Sorts each Topic table by the problem number
 function sortTopicTablesInMarkdown(markdownFile) {
   const lastIndexOfLeetCodeSection = getLastIndexOfLeetCodeSection(markdownFile)
@@ -576,16 +567,6 @@ function wasSubmittedByKeyboard(event) {
   return isEnterKey && ((isMacOS && event.metaKey) || (!isMacOS && event.ctrlKey));
 }
 
-function isEmpty(obj) {
-  for (const prop in obj) {
-    if (Object.hasOwn(obj, prop)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 // Use MutationObserver to determine when the submit button elements are loaded
 const observer = new MutationObserver(function (_mutations, observer) {
   const v1SubmitBtn = document.querySelector('[data-cy="submit-code-btn"]');
@@ -633,23 +614,6 @@ observer.observe(document.body, {
   childList: true,
   subtree: true,
 });
-
-// Returns a function that can be immediately invoked but will start a timeout of 'wait' milliseconds before it can be called again.
-function debounce(func, wait, invokeBeforeTimeout) {
-  let timeout;
-  return function () {
-    const context = this,
-      args = arguments;
-    const later = function () {
-      timeout = null;
-      if (!invokeBeforeTimeout) func.apply(context, args);
-    };
-    const callNow = invokeBeforeTimeout && !timeout;
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-    if (callNow) func.apply(context, args);
-  };
-}
 
 setupManualSubmitBtn(
   debounce(
