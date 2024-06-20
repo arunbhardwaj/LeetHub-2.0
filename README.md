@@ -36,10 +36,7 @@
 [![LeetHub](https://user-images.githubusercontent.com/43754306/165053510-a757c95e-c3bc-49d5-995c-7a52368abd37.png)](https://www.youtube.com/watch?v=o33PIjqlOgw "LeetHub saves lives!") -->
 
 ## What is LeetHub 2.0?
-<p>A chrome extension that automatically pushes your code to GitHub when you pass all tests on a <a href="http://leetcode.com/">Leetcode</a> problem. It's forked from the original <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi?hl=en">LeetHub</a> and improves on it to be faster, cleaner and now works with the new LeetCode UI.</p>
-
-### Why not merge with the original LeetHub?
-<p>Recently, both LeetCode and GitHub made changes that broke the functionality of LeetHub. In order to fix these issues and get the extension working, I've had to make some extensive changes that fundamentally change the logic of the underlying code. Due to depth of the changes and the inactivity of the original repo, I've decided to fork, refactor and expand upon the original.</p>
+<p>A chrome extension that automatically pushes your code to GitHub when you pass all tests on a <a href="http://leetcode.com/">Leetcode</a> problem. It's forked from the original <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi?hl=en">LeetHub</a> and improves on it to be faster, cleaner and compatible with the new dynamic LeetCode UI.</p>
 
 ## Why LeetHub?
 <p> <strong>1.</strong> Recruiters <em>want</em> to see your contributions to the Open Source community, be it through side projects, solving algorithms/data-structures, or contributing to existing OS projects.<br>
@@ -76,11 +73,13 @@ After the recent SVB bank closure and growing layoffs, it became clear to me tha
 
 <ol>
   <li>Fork this repo and clone to your local machine</li>
+  <li>Run "npm run setup" to install the developer dependencies</li>
+  <li>Run `npm run build` to build the final extension files into the `./dist/` directory</li>
   <li>Go to <a href="chrome://extensions">chrome://extensions</a> </li>
   <li>Enable <a href="https://www.mstoic.com/enable-developer-mode-in-chrome/">Developer mode</a> by toggling the switch on top right corner</li>
   <li>Click 'Load unpacked'</li>
-  <li>Select the entire LeetHub folder</li>
-  <li>Run "npm run setup" to install the developer dependencies</li>
+  <li>Select the `./dist/` LeetHub folder</li>
+  <li>That's it! Be sure to `npm run build` and reload the extension after making changes</li>
 </ol>
 
 Other npm commands available:
