@@ -1,6 +1,7 @@
 import { LeetCodeV1, LeetCodeV2 } from './versions';
 import setupManualSubmitBtn from './submitBtn';
 import { debounce, DIFFICULTY, getBrowser, isEmpty, LeetHubError, RepoReadmeNotFoundErr } from './util';
+import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics';
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
@@ -295,118 +296,14 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   for (let topic of topicTags) {
     readme = appendProblemToReadme(topic.name, readme, leethub_hook, problemName);
   }
-  readme = sortTopicTablesInMarkdown(readme);
+  readme = sortTopicsInReadme(readme);
   readme = btoa(unescape(encodeURIComponent(readme)));
   return new Promise((resolve, reject) =>
-    setTimeout(() => resolve(uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload')), WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS),
-  )
-}
-
-// Appends a problem title to each Topic section in the README.md
-function appendProblemToReadme(topic, markdownFile, hook, problem) {
-  const url = `https://github.com/${hook}/tree/master/${problem}`;
-  const topicSection = `# LeetCode Topics`
-  const topicTag = `## ${topic}`;
-  const topicHeader = `\n${topicTag}\n|  |\n| ------- |\n`;
-  const newRow = `| [${problem}](${url}) |`;
-
-  let leetCodeSectionIndex = markdownFile.indexOf(topicSection)
-  if (leetCodeSectionIndex === -1) {
-    markdownFile += topicSection;
-  }
-
-  const lastIndexOfLeetCodeSection = getLastIndexOfLeetCodeSection(markdownFile)
-  const afterLeetCodeSection = (lastIndexOfLeetCodeSection === -1) ? '' : markdownFile.slice(lastIndexOfLeetCodeSection)
-
-  // Check if a table already belongs to topic, or add it
-  let topicTableIndex = markdownFile.indexOf(topicTag, leetCodeSectionIndex);
-  if (topicTableIndex === -1) {
-    markdownFile += topicHeader;
-  }
-
-  // Find the Topic table
-  topicTableIndex = markdownFile.lastIndexOf(topicTag);
-  const nextTableIndex = markdownFile.indexOf('## ', topicTableIndex + 1);
-  let topicTable =
-    nextTableIndex === -1
-      ? markdownFile.slice(topicTableIndex, lastIndexOfLeetCodeSection)
-      : markdownFile.slice(topicTableIndex, nextTableIndex);
-  topicTable = topicTable.trim();
-
-  // Check if the problem exists in table, prevent duplicate add
-  const problemIndex = topicTable.indexOf(problem);
-  if (problemIndex !== -1) {
-    return markdownFile;
-  }
-
-  // Append problem to the Topic
-  topicTable = [topicTable, newRow, '\n'].join('\n');
-
-  // Replace the old Topic table with the updated one in the markdown file
-  markdownFile =
-    markdownFile.slice(0, topicTableIndex) +
-    topicTable +
-    (nextTableIndex === -1 ? afterLeetCodeSection : markdownFile.slice(nextTableIndex));
-
-  return markdownFile;
-}
-
-function getLastIndexOfLeetCodeSection(markdownFile) {
-  const leetCodeSectionHeader = `# LeetCode Topics`
-  const leetCodeSectionIndex = markdownFile.indexOf(leetCodeSectionHeader)
-  let nextSectionIndex = leetCodeSectionIndex;
-  while (true) {
-    nextSectionIndex = markdownFile.indexOf('\n#', nextSectionIndex + 1)
-    if (nextSectionIndex === -1) {
-      break;
-    }
-
-    if (markdownFile[nextSectionIndex + 2] !== '#') {
-      break
-    }
-  }
-  return nextSectionIndex
-}
-
-// Sorts each Topic table by the problem number
-function sortTopicTablesInMarkdown(markdownFile) {
-  const lastIndexOfLeetCodeSection = getLastIndexOfLeetCodeSection(markdownFile)
-  const afterLeetCodeSection = (lastIndexOfLeetCodeSection === -1) ? '' : markdownFile.slice(lastIndexOfLeetCodeSection)
-
-  let sections = markdownFile.split('# LeetCode Topics');
-
-  // Remove the empty sections and store everything before LeetCode section
-  while (sections[0] === '') sections.shift();
-  const beforeSection = sections.shift();
-  
-  // Loop over each problem topic
-  const leetCodeSection = markdownFile.match(/# LeetCode Topics\n([\s\S]*?)\n#[^#]/)[1];
-  
-  let topics = leetCodeSection.trim().split('## ')
-  while (topics[0] === '') topics.shift();
-
-  topics = topics.map(section => {
-    let lines = section.trim().split('\n');
-
-    // Get the problem topic
-    let topic = lines.shift();
-
-    // Remove the header and header separator
-    lines = lines.slice(2);
-
-    lines.sort((a, b) => {
-      let numA = parseInt(a.match(/\/(\d+)-/)[1]);
-      let numB = parseInt(b.match(/\/(\d+)-/)[1]);
-      return numA - numB;
-    });
-
-    // Reconstruct the section
-    return ['## ' + topic].concat('|  |', '| ------- |', lines).join('\n');
-  });
-
-  // Reconstruct the file
-  markdownFile = beforeSection.trim() + '\n' + ['# LeetCode Topics', ...topics].join('\n') + afterLeetCodeSection;
-  return markdownFile;
+    setTimeout(
+      () => resolve(uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload')),
+      WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS,
+    ),
+  );
 }
 
 /* Sync to local storage */
@@ -517,7 +414,7 @@ const loader = leetCode => {
         leetCode.submissionData?.question?.topicTags,
         problemName,
       );
-      
+
       await Promise.all([updateReadMe, updateNotes, updateCode, updateRepoReadme]);
 
       leetCode.markUploaded();
