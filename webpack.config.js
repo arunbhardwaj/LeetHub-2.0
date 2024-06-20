@@ -3,6 +3,7 @@ const CopyPlugin = require('copy-webpack-plugin');
 const FileManagerPlugin = require('filemanager-webpack-plugin');
 
 const entries = ['leetcode', 'welcome'];
+const extensionVersion = process.env.npm_package_version;
 
 // Ignore when copying
 const ignore = [
@@ -17,6 +18,18 @@ const ignore = [
   '**/assets/extension', // web store assets
   // ...entries.map((entry) => `**/${entry}.js`),
 ];
+
+const manifestTransform = content => {
+  const filteredContent = content
+    .toString()
+    .split('\n')
+    .filter(str => !str.trimStart().startsWith('//'))
+    .join('\n');
+
+  const manifestData = JSON.parse(filteredContent);
+  manifestData.version = extensionVersion;
+  return JSON.stringify(manifestData, null, 2);
+};
 
 module.exports = {
   entry: {
@@ -34,6 +47,14 @@ module.exports = {
     filename: '[name].js',
     clean: true,
   },
+  module: {
+    rules: [
+      {
+        test: /\.(test)|(spec)\.js$/,
+        use: 'ignore-loader',
+      },
+    ],
+  },
   plugins: [
     new CopyPlugin({
       patterns: [
@@ -50,6 +71,10 @@ module.exports = {
             gitignore: true,
             ignore,
           },
+        },
+        {
+          from: './manifest.json',
+          transform: manifestTransform,
         },
         {
           from: 'assets',
