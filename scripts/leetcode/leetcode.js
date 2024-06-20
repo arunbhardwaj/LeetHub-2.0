@@ -15,7 +15,7 @@ const defaultRepoReadme =
 const NORMAL_PROBLEM = 0;
 const EXPLORE_SECTION_PROBLEM = 1;
 
-const WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS = 100;
+const WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS = 500;
 
 const api = getBrowser();
 
@@ -50,13 +50,13 @@ const upload = (token, hook, content, problem, filename, sha, message) => {
     .then(res => {
       if (!res.ok) {
         throw new LeetHubError(res.status, res);
-        throw new LeetHubError('File already exists with GitHub. Updating instead.');
+        // throw new LeetHubError('File already exists with GitHub. Updating instead.');
       }
       return res.json();
     })
     .then(async body => {
       newSha = body.content.sha;
-      stats = await getAndInitializeStats(problem);
+      const stats = await getAndInitializeStats(problem);
       stats.shas[problem][filename] = newSha;
       return api.storage.local.set({ stats });
     })
@@ -84,9 +84,7 @@ const getAndInitializeStats = problem => {
 };
 
 const incrementStats = () => {
-  return api.storage.local
-    .get('stats')
-    .then(({ stats }) => {
+  return api.storage.local.get('stats').then(({ stats }) => {
       stats.solved += 1;
       stats.easy += difficulty === DIFFICULTY.EASY ? 1 : 0;
       stats.medium += difficulty === DIFFICULTY.MEDIUM ? 1 : 0;
@@ -95,7 +93,7 @@ const incrementStats = () => {
       return stats
     })
     .then(uploadPersistentStats)
-    .catch(console.error)
+    // .catch(console.error)
 };
 
 const checkAlreadyCompleted = problemName => {
@@ -171,7 +169,6 @@ function uploadGit(
       if (!hook) {
         throw new LeetHubError('NoRepoDefined');
       }
-
       if (action === 'upload') {
         /* Get SHA, if it exists */
         const sha =
@@ -205,7 +202,7 @@ function uploadGit(
         ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg)
         : undefined
     )
-    .catch(e => console.error(new LeetHubError(e.message)));
+    // .catch(e => console.error(new LeetHubError(e.message)));
 }
 
 /* Returns GitHub data for the file specified by `${directory}/${filename}` path */
@@ -221,7 +218,12 @@ async function getGitHubFile(token, hook, directory, filename) {
     },
   };
 
-  return fetch(URL, options)
+  return fetch(URL, options).then(res => {
+    if (!res.ok) {
+      throw new Error(res.status);
+    }
+    return res;
+  });
 }
 
 // Updates or creates the persistent stats from local stats
@@ -267,7 +269,6 @@ document.addEventListener('click', event => {
     }, 1000);
   }
 });
-
 
 function createRepoReadme() {
   const content = btoa(unescape(encodeURIComponent(defaultRepoReadme)));
