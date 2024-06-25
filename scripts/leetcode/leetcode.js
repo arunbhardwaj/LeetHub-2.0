@@ -1,6 +1,13 @@
 import { LeetCodeV1, LeetCodeV2 } from './versions';
 import setupManualSubmitBtn from './submitBtn';
-import { debounce, DIFFICULTY, getBrowser, isEmpty, LeetHubError, RepoReadmeNotFoundErr } from './util';
+import {
+  debounce,
+  DIFFICULTY,
+  getBrowser,
+  isEmpty,
+  LeetHubError,
+  RepoReadmeNotFoundErr,
+} from './util';
 import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics';
 
 /* Commit messages */
@@ -10,6 +17,7 @@ const discussionMsg = 'Prepend discussion post - LeetHub';
 const createNotesMsg = 'Attach NOTES - LeetHub';
 const defaultRepoReadme =
   'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)';
+const readmeFilename = 'README.md';
 
 // problem types
 const NORMAL_PROBLEM = 0;
@@ -83,17 +91,19 @@ const getAndInitializeStats = problem => {
   });
 };
 
-const incrementStats = () => {
-  return api.storage.local.get('stats').then(({ stats }) => {
+const incrementStats = (difficulty) => {
+  return api.storage.local
+    .get('stats')
+    .then(({ stats }) => {
       stats.solved += 1;
       stats.easy += difficulty === DIFFICULTY.EASY ? 1 : 0;
       stats.medium += difficulty === DIFFICULTY.MEDIUM ? 1 : 0;
       stats.hard += difficulty === DIFFICULTY.HARD ? 1 : 0;
       api.storage.local.set({ stats });
-      return stats
+      return stats;
     })
-    .then(uploadPersistentStats)
-    // .catch(console.error)
+    .then(uploadPersistentStats);
+  // .catch(console.error)
 };
 
 const checkAlreadyCompleted = problemName => {
@@ -201,8 +211,8 @@ function uploadGit(
       data != null // if it isn't null, then we didn't upload successfully the first time, and must have retrieved new data and reuploaded
         ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg)
         : undefined
-    )
-    // .catch(e => console.error(new LeetHubError(e.message)));
+    );
+  // .catch(e => console.error(new LeetHubError(e.message)));
 }
 
 /* Returns GitHub data for the file specified by `${directory}/${filename}` path */
@@ -228,15 +238,23 @@ async function getGitHubFile(token, hook, directory, filename) {
 
 // Updates or creates the persistent stats from local stats
 async function uploadPersistentStats(localStats) {
-  const pStats = {leetcode: localStats}
+  const pStats = { leetcode: localStats };
   const pStatsEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(pStats))));
-  return delay(uploadGit, WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS, pStatsEncoded, 'stats.json', '', `Updated stats`, 'upload')
+  return delay(
+    uploadGit,
+    WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS,
+    pStatsEncoded,
+    'stats.json',
+    '',
+    `Updated stats`,
+    'upload'
+  );
 }
 
 //TODO: move to utils
 // Delays `func` invocation with `...args` until after `wait` milliseconds
 function delay(func, wait, ...args) {
-  return setTimeout(() => func(...args), wait)
+  return setTimeout(() => func(...args), wait);
 }
 
 /* Discussion Link - When a user makes a new post, the link is prepended to the README for that problem.*/
@@ -264,7 +282,7 @@ document.addEventListener('click', event => {
         const addition = `[Discussion Post (created on ${currentDate})](${window.location})  \n`;
         const problemName = window.location.pathname.split('/')[2]; // must be true.
 
-        uploadGit(addition, problemName, 'README.md', discussionMsg, 'update', true);
+        uploadGit(addition, problemName, readmeFilename, discussionMsg, 'update', true);
       }
     }, 1000);
   }
@@ -272,7 +290,7 @@ document.addEventListener('click', event => {
 
 function createRepoReadme() {
   const content = btoa(unescape(encodeURIComponent(defaultRepoReadme)));
-  return uploadGit(content, 'README.md', '', readmeMsg, 'upload');
+  return uploadGit(content, readmeFilename, '', readmeMsg, 'upload');
 }
 
 async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
@@ -288,8 +306,10 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   ]);
   let readme;
   try {
-    const { content } = await getUpdatedData(leethub_token, leethub_hook, 'README.md');
-    readme = content;
+      const { content, sha } = await getGitHubFile(leethub_token, leethub_hook, readmeFilename).then(resp => resp.json());
+      readme = content;
+      stats.shas[readmeFilename] = {'': sha}
+      await chrome.storage.local.set({stats})
   } catch (err) {
     if (err.message === '404') {
       throw new RepoReadmeNotFoundErr('RepoReadmeNotFound', topicTags, problemName);
@@ -305,9 +325,9 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   readme = btoa(unescape(encodeURIComponent(readme)));
   return new Promise((resolve, reject) =>
     setTimeout(
-      () => resolve(uploadGit(readme, 'README.md', '', updateReadmeMsg, 'upload')),
-      WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS,
-    ),
+      () => resolve(uploadGit(readme, readmeFilename, '', updateReadmeMsg, 'upload')),
+      WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
+    )
   );
 }
 
@@ -318,8 +338,9 @@ function loader(leetCode) {
       const isSuccessfulSubmission = leetCode.getSuccessStateAndUpdate();
       if (!isSuccessfulSubmission) {
         iterations++;
-        if (iterations > 9) { // poll for max 10 attempts (10 seconds)
-          throw new LeetHubError('Could not find successful submission after 10 seconds.')
+        if (iterations > 9) {
+          // poll for max 10 attempts (10 seconds)
+          throw new LeetHubError('Could not find successful submission after 10 seconds.');
         }
         return;
       }
@@ -330,17 +351,17 @@ function loader(leetCode) {
 
       // For v2, query LeetCode API for submission results
       await leetCode.init();
-      
+
       const probStats = leetCode.parseStats();
       if (!probStats) {
         throw new LeetHubError('SubmissionStatsNotFound');
       }
-      
+
       const probStatement = leetCode.parseQuestion();
       if (!probStatement) {
         throw new LeetHubError('ProblemStatementNotFound');
       }
-      
+
       const problemName = leetCode.getProblemNameSlug();
       const alreadyCompleted = await checkAlreadyCompleted(problemName);
       const language = leetCode.getLanguageExtension();
@@ -351,13 +372,13 @@ function loader(leetCode) {
 
       /* Upload README */
       const uploadReadMe = await api.storage.local.get('stats').then(({ stats }) => {
-        const shaExists = stats?.shas?.[problemName]?.['README.md'] !== undefined;
+        const shaExists = stats?.shas?.[problemName]?.[readmeFilename] !== undefined;
 
         if (!shaExists) {
           return uploadGit(
             btoa(unescape(encodeURIComponent(probStatement))),
             problemName,
-            'README.md',
+            readmeFilename,
             readmeMsg,
             'upload',
             false
@@ -381,27 +402,27 @@ function loader(leetCode) {
 
       /* Upload code to Git */
       const code = leetCode.findCode(probStats);
-      const updateCode = uploadGit(
+      const uploadCode = uploadGit(
         btoa(unescape(encodeURIComponent(code))),
         problemName,
         filename,
         probStats,
         'upload',
-        false,
+        false
       );
 
       /* Group problem into its relevant topics */
-      const updateRepoReadMeWithTopicTag = leetCode.updateReadmeTopicTagsWithProblem(
+      const updateRepoReadMe = updateReadmeTopicTagsWithProblem(
         leetCode.submissionData?.question?.topicTags,
-        problemName,
+        problemName
       );
 
-      await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMeWithTopicTag]);
+      await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMe]);
 
       leetCode.markUploaded();
 
       if (!alreadyCompleted) {
-        incrementStats(); // Increments local and persistent stats
+        incrementStats(leetCode.difficulty); // Increments local and persistent stats
       }
     } catch (err) {
       leetCode.markUploadFailed();
@@ -417,7 +438,7 @@ function loader(leetCode) {
         await new Promise(resolve => {
           setTimeout(
             () => resolve(updateReadmeTopicTagsWithProblem(err.topicTags, err.problemName)),
-            WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS,
+            WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
           );
         });
       }
@@ -451,9 +472,11 @@ async function v2SubmissionHandler(event, leetCode) {
     return;
   }
 
-  const authenticated = !isEmpty(await api.storage.local.get(['leethub_token'])) && !isEmpty(await api.storage.local.get(['leethub_hook']))
+  const authenticated =
+    !isEmpty(await api.storage.local.get(['leethub_token'])) &&
+    !isEmpty(await api.storage.local.get(['leethub_hook']));
   if (!authenticated) {
-    throw new LeetHubError('UserNotAuthenticated')
+    throw new LeetHubError('UserNotAuthenticated');
   }
 
   // is click or is ctrl enter
@@ -472,8 +495,8 @@ const submitBtnObserver = new MutationObserver(function (_mutations, observer) {
     textareaList.length === 4
       ? textareaList[2]
       : textareaList.length === 2
-        ? textareaList[0]
-        : textareaList[1];
+      ? textareaList[0]
+      : textareaList[1];
 
   if (v1SubmitBtn) {
     observer.disconnect();
@@ -534,13 +557,13 @@ setupManualSubmitBtn(
       return;
     },
     5000,
-    true,
-  ),
+    true
+  )
 );
 
 class LeetHubNetworkError extends LeetHubError {
   constructor(response) {
-    super(response.statusText)
-    this.status = response.status
+    super(response.statusText);
+    this.status = response.status;
   }
 }
