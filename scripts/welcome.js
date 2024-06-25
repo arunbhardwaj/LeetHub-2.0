@@ -9,17 +9,6 @@ const repositoryName = () => {
 const createRepoDescription =
   'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)';
 
-const getCreateErrorString = (statusCode, name) => {
-  const errorStrings = {
-    304: `Error creating ${name} - Unable to modify repository. Try again later!`,
-    400: `Error creating ${name} - Bad POST request, make sure you're not overriding any existing scripts`,
-    401: `Error creating ${name} - Unauthorized access to repo. Try again later!`,
-    403: `Error creating ${name} - Forbidden access to repository. Try again later!`,
-    422: `Error creating ${name} - Unprocessable Entity. Repository may have already been created. Try Linking instead (select 2nd option).`,
-  };
-  return errorStrings[statusCode];
-};
-
 /* Sync's local storage with persistent stats and returns the pulled stats */
 const syncStats = async () => {
   let { leethub_hook, leethub_token, sync_stats } = await chrome.storage.local.get([
@@ -61,7 +50,18 @@ const syncStats = async () => {
   return stats;
 };
 
-/* Status codes for creating of repo */
+const getCreateErrorString = (statusCode, name) => {
+  /* Status codes for creating of repo */
+  const errorStrings = {
+    304: `Error creating ${name} - Unable to modify repository. Try again later!`,
+    400: `Error creating ${name} - Bad POST request, make sure you're not overriding any existing scripts`,
+    401: `Error creating ${name} - Unauthorized access to repo. Try again later!`,
+    403: `Error creating ${name} - Forbidden access to repository. Try again later!`,
+    422: `Error creating ${name} - Unprocessable Entity. Repository may have already been created. Try Linking instead (select 2nd option).`,
+  };
+  return errorStrings[statusCode];
+};
+
 const handleRepoCreateError = (statusCode, name) => {
   $('#success').hide();
   $('#error').text(getCreateErrorString(statusCode, name));
@@ -107,40 +107,21 @@ const createRepo = async (token, name) => {
   console.log('Successfully set new repo hook');
 };
 
+const getLinkErrorString = (statusCode, name) => {
+  /* Status codes for linking repo */
+  const errorStrings = {
+    301: `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> This repository has been moved permenantly. Try creating a new one.`,
+    403: `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> Forbidden action. Please make sure you have the right access to this repository.`,
+    404: `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> Resource not found. Make sure you enter the right repository name.`,
+  };
+  return errorStrings[statusCode];
+};
 /* Status codes for linking of repo */
-const linkStatusCode = (status, name) => {
-  let bool = false;
-  switch (status) {
-    case 301:
-      $('#success').hide();
-      $('#error').html(
-        `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> This repository has been moved permenantly. Try creating a new one.`
-      );
-      $('#error').show();
-      break;
-
-    case 403:
-      $('#success').hide();
-      $('#error').html(
-        `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> Forbidden action. Please make sure you have the right access to this repository.`
-      );
-      $('#error').show();
-      break;
-
-    case 404:
-      $('#success').hide();
-      $('#error').html(
-        `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> Resource not found. Make sure you enter the right repository name.`
-      );
-      $('#error').show();
-      break;
-
-    default:
-      bool = true;
-      break;
-  }
+const handleLinkRepoError = (statusCode, name) => {
+  $('#success').hide();
+  $('#error').html(getLinkErrorString(statusCode, name));
+  $('#error').show();
   $('#unlink').show();
-  return bool;
 };
 
 /* 
@@ -157,25 +138,23 @@ const linkRepo = (token, name) => {
     if (xhr.readyState !== 4) {
       return;
     }
-    const res = JSON.parse(xhr.responseText);
-    const bool = linkStatusCode(xhr.status, name);
     if (xhr.status !== 200) {
       // BUG FIX
-      if (!bool) {
-        // unable to gain access to repo in commit mode. Must switch to hook mode.
-        /* Set mode type to hook and Repo Hook to NONE */
-        chrome.storage.local.set({ mode_type: 'hook', leethub_hook: null }, () => {
-          console.log(`Error linking ${name} to LeetHub`);
-          console.log('Defaulted repo hook to NONE');
-        });
-  
-        /* Hide accordingly */
-        document.getElementById('hook_mode').style.display = 'inherit';
-        document.getElementById('commit_mode').style.display = 'none';
-        return;
-      }
-    }
+      // unable to gain access to repo in commit mode. Must switch to hook mode.
+      /* Set mode type to hook and Repo Hook to NONE */
+      handleLinkRepoError(xhr.status, name);
+      chrome.storage.local.set({ mode_type: 'hook', leethub_hook: null }, () => {
+        console.log(`Error linking ${name} to LeetHub`);
+        console.log('Defaulted repo hook to NONE');
+      });
 
+      /* Hide accordingly */
+      document.getElementById('hook_mode').style.display = 'inherit';
+      document.getElementById('commit_mode').style.display = 'none';
+      return;
+    }
+    
+    const res = JSON.parse(xhr.responseText);
     chrome.storage.local.set(
       { mode_type: 'commit', repo: res.html_url, leethub_hook: res.full_name },
       () => {
