@@ -9,7 +9,7 @@ const repositoryName = () => {
 const createRepoDescription =
   'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)';
 
-function getCreateErrorString(statusCode, name) {
+const getCreateErrorString = (statusCode, name) => {
   const errorStrings = {
     304: `Error creating ${name} - Unable to modify repository. Try again later!`,
     400: `Error creating ${name} - Bad POST request, make sure you're not overriding any existing scripts`,
@@ -18,7 +18,7 @@ function getCreateErrorString(statusCode, name) {
     422: `Error creating ${name} - Unprocessable Entity. Repository may have already been created. Try Linking instead (select 2nd option).`,
   };
   return errorStrings[statusCode];
-}
+};
 
 /* Sync's local storage with persistent stats and returns the pulled stats */
 const syncStats = async () => {
@@ -48,7 +48,7 @@ const syncStats = async () => {
   if (!resp.ok && resp.status == 404) {
     await chrome.storage.local.set({ sync_stats: false });
     console.log('No stats found; starting fresh');
-    return;
+    return {};
   }
   let data = await resp.json();
   let pStatsJson = decodeURIComponent(escape(atob(data.content)));
@@ -58,6 +58,7 @@ const syncStats = async () => {
   chrome.storage.local.set({ stats, sync_stats: false }, () =>
     console.log(`Successfully synced local stats with GitHub stats`)
   );
+  return stats;
 };
 
 /* Status codes for creating of repo */
@@ -153,61 +154,56 @@ const linkRepo = (token, name) => {
 
   const xhr = new XMLHttpRequest();
   xhr.addEventListener('readystatechange', function () {
-    if (xhr.readyState === 4) {
-      const res = JSON.parse(xhr.responseText);
-      const bool = linkStatusCode(xhr.status, name);
-      if (xhr.status === 200) {
-        // BUG FIX
-        if (!bool) {
-          // unable to gain access to repo in commit mode. Must switch to hook mode.
-          /* Set mode type to hook */
-          chrome.storage.local.set({ mode_type: 'hook' }, () => {
-            console.log(`Error linking ${name} to LeetHub`);
-          });
-          /* Set Repo Hook to NONE */
-          chrome.storage.local.set({ leethub_hook: null }, () => {
-            console.log('Defaulted repo hook to NONE');
-          });
-
-          /* Hide accordingly */
-          document.getElementById('hook_mode').style.display = 'inherit';
-          document.getElementById('commit_mode').style.display = 'none';
-        } else {
-          /* Change mode type to commit */
-          /* Save repo url to chrome storage */
-          chrome.storage.local.set({ mode_type: 'commit', repo: res.html_url }, () => {
-            $('#error').hide();
-            $('#success').html(
-              `Successfully linked <a target="blank" href="${res.html_url}">${name}</a> to LeetHub. Start <a href="http://leetcode.com">LeetCoding</a> now!`
-            );
-            $('#success').show();
-            $('#unlink').show();
-          });
-          /* Set Repo Hook */
-          chrome.storage.local
-            .set({ leethub_hook: res.full_name })
-            .then(() => {
-              console.log('Successfully set new repo hook');
-              return chrome.storage.local.get('stats');
-            })
-            .then(psolved => (isEmpty(psolved) ? syncStats() : psolved))
-            .then(psolved => {
-              /* Get problems solved count */
-              const stats = psolved?.stats;
-              if (stats && stats.solved) {
-                $('#p_solved').text(stats.solved);
-                $('#p_solved_easy').text(stats.easy);
-                $('#p_solved_medium').text(stats.medium);
-                $('#p_solved_hard').text(stats.hard);
-              }
-            });
-
-          /* Hide accordingly */
-          document.getElementById('hook_mode').style.display = 'none';
-          document.getElementById('commit_mode').style.display = 'inherit';
-        }
+    if (xhr.readyState !== 4) {
+      return;
+    }
+    const res = JSON.parse(xhr.responseText);
+    const bool = linkStatusCode(xhr.status, name);
+    if (xhr.status !== 200) {
+      // BUG FIX
+      if (!bool) {
+        // unable to gain access to repo in commit mode. Must switch to hook mode.
+        /* Set mode type to hook and Repo Hook to NONE */
+        chrome.storage.local.set({ mode_type: 'hook', leethub_hook: null }, () => {
+          console.log(`Error linking ${name} to LeetHub`);
+          console.log('Defaulted repo hook to NONE');
+        });
+  
+        /* Hide accordingly */
+        document.getElementById('hook_mode').style.display = 'inherit';
+        document.getElementById('commit_mode').style.display = 'none';
+        return;
       }
     }
+
+    chrome.storage.local.set(
+      { mode_type: 'commit', repo: res.html_url, leethub_hook: res.full_name },
+      () => {
+        $('#error').hide();
+        $('#success').html(
+          `Successfully linked <a target="blank" href="${res.html_url}">${name}</a> to LeetHub. Start <a href="http://leetcode.com">LeetCoding</a> now!`
+        );
+        $('#success').show();
+        $('#unlink').show();
+        console.log('Successfully set new repo hook');
+      }
+    );
+    /* Get Persistent Stats or Create new stats */
+    chrome.storage.local
+      .get('sync_stats')
+      .then(data => (data?.sync_stats ? syncStats() : chrome.storage.local.get('stats')))
+      .then(data => {
+        /* Get problems solved count */
+        const stats = data?.stats;
+        $('#p_solved').text(stats?.solved ?? 0);
+        $('#p_solved_easy').text(stats?.easy ?? 0);
+        $('#p_solved_medium').text(stats?.medium ?? 0);
+        $('#p_solved_hard').text(stats?.hard ?? 0);
+      });
+
+    /* Hide accordingly */
+    document.getElementById('hook_mode').style.display = 'none';
+    document.getElementById('commit_mode').style.display = 'inherit';
   });
 
   xhr.open('GET', AUTHENTICATION_URL, true);
@@ -222,8 +218,9 @@ const unlinkRepo = () => {
     console.log(`Unlinking repo`);
   });
   /* Set Repo Hook to NONE */
-  chrome.storage.local.set({ leethub_hook: null }, () => {
+  chrome.storage.local.set({ leethub_hook: null, sync_stats: true, stats: null }, () => {
     console.log('Setting repo hook to NONE');
+    console.log('Cleared local stats');
   });
 
   /* Hide accordingly */
