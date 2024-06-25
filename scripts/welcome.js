@@ -43,11 +43,11 @@ const syncStats = async () => {
   let pStatsJson = decodeURIComponent(escape(atob(data.content)));
   let pStats = await JSON.parse(pStatsJson);
 
-  const stats = { stats: pStats.leetcode };
-  chrome.storage.local.set({ stats, sync_stats: false }, () =>
+  chrome.storage.local.set({ stats: pStats.leetcode, sync_stats: false }, () =>
     console.log(`Successfully synced local stats with GitHub stats`)
   );
-  return stats;
+  // emulate return value of chrome.storage.local.get('stats') which is { stats: {easy, hard, medium, solved, shas}}
+  return { stats: pStats.leetcode };
 };
 
 const getCreateErrorString = (statusCode, name) => {
@@ -153,7 +153,7 @@ const linkRepo = (token, name) => {
       document.getElementById('commit_mode').style.display = 'none';
       return;
     }
-    
+
     const res = JSON.parse(xhr.responseText);
     chrome.storage.local.set(
       { mode_type: 'commit', repo: res.html_url, leethub_hook: res.full_name },
