@@ -1,3 +1,5 @@
+import { LeetHubError } from "./util";
+
 const leetCodeSectionStart = `<!---LeetCode Topics Start-->`;
 const leetCodeSectionHeader = `# LeetCode Topics`;
 const leetCodeSectionEnd = `<!---LeetCode Topics End-->`;
@@ -16,7 +18,7 @@ function appendProblemToReadme(topic, markdownFile, hook, problem) {
     leetCodeSectionStartIndex = markdownFile.indexOf(leetCodeSectionStart);
   }
 
-  // Get Before and After Section text
+  // Get LeetCode section and the Before & After sections
   const beforeSection = markdownFile.slice(0, markdownFile.indexOf(leetCodeSectionStart));
   const afterSection = markdownFile.slice(
     markdownFile.indexOf(leetCodeSectionEnd) + leetCodeSectionEnd.length,
@@ -34,9 +36,9 @@ function appendProblemToReadme(topic, markdownFile, hook, problem) {
     topicTableIndex = leetCodeSection.indexOf(topicHeader);
   }
 
-  // Get the Topic table
-  const endTopicString = markdownFile.slice(topicTableIndex).match(/\|\n[^|]/)[0];
-  const endTopicIndex = leetCodeSection.indexOf(endTopicString, topicTableIndex + 1);
+  // Get the Topic table. If topic table was just added, then its end === LeetCode Section end
+  const endTopicString = leetCodeSection.slice(topicTableIndex).match(/\|\n[^|]/)?.[0];
+  const endTopicIndex = (endTopicString != null) ? leetCodeSection.indexOf(endTopicString, topicTableIndex + 1) : -1;
   let topicTable =
     endTopicIndex === -1
       ? leetCodeSection.slice(topicTableIndex)
@@ -76,10 +78,12 @@ function sortTopicsInReadme(markdownFile) {
     markdownFile.indexOf(leetCodeSectionEnd) + leetCodeSectionEnd.length,
   );
 
-  // Matches any text between the start and end tags
+  // Matches any text between the start and end tags. Should never fail to match.
   const leetCodeSection = markdownFile.match(
     new RegExp(`${leetCodeSectionStart}([\\s\\S]*)${leetCodeSectionEnd}`),
-  )[1];
+  )?.[1];
+  if (leetCodeSection == null) throw new LeetHubError('LeetCodeTopicSectionNotFound');
+  
 
   // Remove the header
   let topics = leetCodeSection.trim().split('## ');
@@ -96,8 +100,9 @@ function sortTopicsInReadme(markdownFile) {
     let topicHeaderIndex = markdownFile.indexOf(`## ${topic}`);
     let leetCodeSectionStartIndex = markdownFile.indexOf(leetCodeSectionStart);
     if (topicHeaderIndex < leetCodeSectionStartIndex) {
-      // matches the next '|\n' that doesn't precede a '|'. Typically this is '|\n#
-      const endTopicString = markdownFile.slice(topicHeaderIndex).match(/\|\n[^|]/)[0];
+      // matches the next '|\n' that doesn't precede a '|'. Typically this is '|\n#. Should always match if topic existed elsewhere.
+      const endTopicString = markdownFile.slice(topicHeaderIndex).match(/\|\n[^|]/)?.[0];
+      if (endTopicString == null) throw new LeetHubError('EndOfTopicNotFound');
 
       // Get the old problems for merge
       const endTopicIndex = markdownFile.indexOf(endTopicString, topicHeaderIndex + 1);
