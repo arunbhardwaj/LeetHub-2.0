@@ -14,6 +14,7 @@ const ignore = [
   '**/package*',
   '**/webpack*',
   '**/scripts/leetcode/**',
+  '**/scripts/welcome.js',
   '**/README.md',
   '**/assets/extension', // web store assets
   // ...entries.map((entry) => `**/${entry}.js`),
@@ -34,6 +35,7 @@ const manifestTransform = content => {
 module.exports = {
   entry: {
     leetcode: path.resolve(__dirname, 'scripts', 'leetcode', 'leetcode.js'),
+    welcome: './scripts/welcome.js',
   },
   watchOptions: {
     ignored: '**/dist/**',
@@ -99,6 +101,10 @@ module.exports = {
             {
               source: './dist/leetcode.js',
               destination: './dist/scripts/leetcode.js',
+            },
+            {
+              source: './dist/welcome.js',
+              destination: './dist/scripts/welcome.js',
             },
           ],
         },

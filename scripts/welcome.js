@@ -1,3 +1,7 @@
+import { getBrowser } from "./leetcode/util";
+
+const api = getBrowser()
+
 const option = () => {
   return $('#type').val();
 };
@@ -11,7 +15,7 @@ const createRepoDescription =
 
 /* Sync's local storage with persistent stats and returns the pulled stats */
 const syncStats = async () => {
-  let { leethub_hook, leethub_token, sync_stats } = await chrome.storage.local.get([
+  let { leethub_hook, leethub_token, sync_stats } = await api.storage.local.get([
     'leethub_token',
     'leethub_hook',
     'sync_stats',
@@ -22,7 +26,6 @@ const syncStats = async () => {
     return;
   }
 
-  console.log('Attemping to sync local stats to GitHub stats...');
   const URL = `https://api.github.com/repos/${leethub_hook}/contents/stats.json`;
 
   let options = {
@@ -35,7 +38,7 @@ const syncStats = async () => {
 
   let resp = await fetch(URL, options);
   if (!resp.ok && resp.status == 404) {
-    await chrome.storage.local.set({ sync_stats: false });
+    await api.storage.local.set({ sync_stats: false });
     console.log('No stats found; starting fresh');
     return {};
   }
@@ -43,10 +46,10 @@ const syncStats = async () => {
   let pStatsJson = decodeURIComponent(escape(atob(data.content)));
   let pStats = await JSON.parse(pStatsJson);
 
-  chrome.storage.local.set({ stats: pStats.leetcode, sync_stats: false }, () =>
+  api.storage.local.set({ stats: pStats.leetcode, sync_stats: false }, () =>
     console.log(`Successfully synced local stats with GitHub stats`)
   );
-  // emulate return value of chrome.storage.local.get('stats') which is { stats: {easy, hard, medium, solved, shas}}
+  // emulate return value of api.storage.local.get('stats') which is { stats: {easy, hard, medium, solved, shas}}
   return { stats: pStats.leetcode };
 };
 
@@ -93,8 +96,8 @@ const createRepo = async (token, name) => {
   res = await res.json();
 
   /* Set Repo Hook, and set mode type to commit */
-  chrome.storage.local.set({ mode_type: 'commit', leethub_hook: res.full_name, sync_stats: true });
-  await chrome.storage.local.remove('stats');
+  api.storage.local.set({ mode_type: 'commit', leethub_hook: res.full_name });
+  await api.storage.local.remove('stats');
   $('#error').hide();
   $('#success').html(
     `Successfully created <a target="blank" href="${res.html_url}">${name}</a>. Start <a href="http://leetcode.com">LeetCoding</a>!`
@@ -104,7 +107,6 @@ const createRepo = async (token, name) => {
   /* Show new layout */
   document.getElementById('hook_mode').style.display = 'none';
   document.getElementById('commit_mode').style.display = 'inherit';
-  console.log('Successfully set new repo hook');
 };
 
 const getLinkErrorString = (statusCode, name) => {
@@ -143,7 +145,7 @@ const linkRepo = (token, name) => {
       // unable to gain access to repo in commit mode. Must switch to hook mode.
       /* Set mode type to hook and Repo Hook to NONE */
       handleLinkRepoError(xhr.status, name);
-      chrome.storage.local.set({ mode_type: 'hook', leethub_hook: null }, () => {
+      api.storage.local.set({ mode_type: 'hook', leethub_hook: null }, () => {
         console.log(`Error linking ${name} to LeetHub`);
         console.log('Defaulted repo hook to NONE');
       });
@@ -155,7 +157,7 @@ const linkRepo = (token, name) => {
     }
 
     const res = JSON.parse(xhr.responseText);
-    chrome.storage.local.set(
+    api.storage.local.set(
       { mode_type: 'commit', repo: res.html_url, leethub_hook: res.full_name },
       () => {
         $('#error').hide();
@@ -168,9 +170,9 @@ const linkRepo = (token, name) => {
       }
     );
     /* Get Persistent Stats or Create new stats */
-    chrome.storage.local
+    api.storage.local
       .get('sync_stats')
-      .then(data => (data?.sync_stats ? syncStats() : chrome.storage.local.get('stats')))
+      .then(data => (data?.sync_stats ? syncStats() : api.storage.local.get('stats')))
       .then(data => {
         /* Get problems solved count */
         const stats = data?.stats;
@@ -193,11 +195,11 @@ const linkRepo = (token, name) => {
 
 const unlinkRepo = () => {
   /* Set mode type to hook */
-  chrome.storage.local.set({ mode_type: 'hook' }, () => {
+  api.storage.local.set({ mode_type: 'hook' }, () => {
     console.log(`Unlinking repo`);
   });
   /* Set Repo Hook to NONE */
-  chrome.storage.local.set({ leethub_hook: null, sync_stats: true, stats: null }, () => {
+  api.storage.local.set({ leethub_hook: null, sync_stats: true, stats: null }, () => {
     console.log('Setting repo hook to NONE');
     console.log('Cleared local stats');
   });
@@ -241,7 +243,7 @@ $('#hook_button').on('click', () => {
       - step 3: if (1), POST request to repoName (iff option = create new repo) ; else display error message.
       - step 4: if proceed from 3, hide hook_mode and display commit_mode (show stats e.g: files pushed/questions-solved/leaderboard)
     */
-    chrome.storage.local.get('leethub_token', data => {
+    api.storage.local.get('leethub_token', data => {
       const token = data.leethub_token;
       if (token === null || token === undefined) {
         /* Not authorized yet. */
@@ -253,7 +255,7 @@ $('#hook_button').on('click', () => {
       } else if (option() === 'new') {
         createRepo(token, repositoryName());
       } else {
-        chrome.storage.local.get('leethub_username', data2 => {
+        api.storage.local.get('leethub_username', data2 => {
           const username = data2.leethub_username;
           if (!username) {
             /* Improper authorization. */
@@ -278,12 +280,12 @@ $('#unlink a').on('click', () => {
 });
 
 /* Detect mode type */
-chrome.storage.local.get('mode_type', data => {
+api.storage.local.get('mode_type', data => {
   const mode = data.mode_type;
 
   if (mode && mode === 'commit') {
     /* Check if still access to repo */
-    chrome.storage.local.get('leethub_token', data2 => {
+    api.storage.local.get('leethub_token', data2 => {
       const token = data2.leethub_token;
       if (token === null || token === undefined) {
         /* Not authorized yet. */
@@ -297,7 +299,7 @@ chrome.storage.local.get('mode_type', data => {
         document.getElementById('commit_mode').style.display = 'none';
       } else {
         /* Get access to repo */
-        chrome.storage.local.get('leethub_hook', repoName => {
+        api.storage.local.get('leethub_hook', repoName => {
           const hook = repoName.leethub_hook;
           if (!hook) {
             /* Not authorized yet. */
