@@ -75,6 +75,11 @@ function debounce(func, wait, invokeBeforeTimeout) {
   };
 }
 
+// Delays `func` invocation with `...args` until after `wait` milliseconds
+function delay(func, wait, ...args) {
+  return setTimeout(() => func(...args), wait);
+}
+
 function getBrowser() {
   if (typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined') {
     return chrome;
@@ -130,6 +135,7 @@ export {
   checkElem,
   convertToSlug,
   debounce,
+  delay,
   DIFFICULTY,
   formatStats,
   getBrowser,

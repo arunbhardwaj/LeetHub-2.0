@@ -2,6 +2,7 @@ import { LeetCodeV1, LeetCodeV2 } from './versions';
 import setupManualSubmitBtn from './submitBtn';
 import {
   debounce,
+  delay,
   DIFFICULTY,
   getBrowser,
   isEmpty,
@@ -249,12 +250,6 @@ async function uploadPersistentStats(localStats) {
     `Updated stats`,
     'upload'
   );
-}
-
-//TODO: move to utils
-// Delays `func` invocation with `...args` until after `wait` milliseconds
-function delay(func, wait, ...args) {
-  return setTimeout(() => func(...args), wait);
 }
 
 /* Discussion Link - When a user makes a new post, the link is prepended to the README for that problem.*/
