@@ -59,7 +59,6 @@ const upload = (token, hook, content, problem, filename, sha, message) => {
     .then(res => {
       if (!res.ok) {
         throw new LeetHubError(res.status, res);
-        // throw new LeetHubError('File already exists with GitHub. Updating instead.');
       }
       return res.json();
     })
@@ -92,7 +91,7 @@ const getAndInitializeStats = problem => {
   });
 };
 
-const incrementStats = (difficulty) => {
+const incrementStats = difficulty => {
   return api.storage.local
     .get('stats')
     .then(({ stats }) => {
@@ -116,13 +115,9 @@ const checkAlreadyCompleted = problemName => {
   });
 };
 
-/* Main function for updating code on GitHub Repo */
-/* Read from existing file on GitHub */
 /* Discussion posts prepended at top of README */
 /* Future implementations may require appending to bottom of file */
-const update = (
-  token,
-  hook,
+const updateReadmeWithDiscussionPost = async (
   addition,
   directory,
   filename,
@@ -130,8 +125,12 @@ const update = (
   shouldPreprendDiscussionPosts
 ) => {
   let responseSHA;
+  const { leethub_token, leethub_hook } = await api.storage.local.get([
+    'leethub_token',
+    'leethub_hook',
+  ]);
 
-  return getGitHubFile(token, hook, directory, filename)
+  return getGitHubFile(leethub_token, leethub_hook, directory, filename)
     .then(resp => resp.json())
     .then(data => {
       responseSHA = data.sha;
@@ -149,18 +148,11 @@ const update = (
         : btoa(unescape(encodeURIComponent(existingContent)))
     )
     .then(newContent =>
-      upload(token, hook, newContent, directory, filename, responseSHA, commitMsg)
+      upload(leethub_token, leethub_hook, newContent, directory, filename, responseSHA, commitMsg)
     );
 };
 
-function uploadGit(
-  code,
-  problemName,
-  fileName,
-  commitMsg,
-  action,
-  shouldPrependDiscussionPosts = false
-) {
+function uploadGit(code, problemName, filename, commitMsg) {
   let token;
   let hook;
 
@@ -180,37 +172,26 @@ function uploadGit(
       if (!hook) {
         throw new LeetHubError('NoRepoDefined');
       }
-      if (action === 'upload') {
-        /* Get SHA, if it exists */
-        const sha =
-          stats?.shas?.[problemName]?.[fileName] !== undefined
-            ? stats.shas[problemName][fileName]
-            : '';
 
-        return upload(token, hook, code, problemName, fileName, sha, commitMsg);
-      } else if (action === 'update') {
-        return update(
-          token,
-          hook,
-          code,
-          problemName,
-          fileName,
-          commitMsg,
-          shouldPrependDiscussionPosts
-        );
-      }
+      /* Get SHA, if it exists */
+      const sha =
+        stats?.shas?.[problemName]?.[filename] !== undefined
+          ? stats.shas[problemName][filename]
+          : '';
+
+      return upload(token, hook, code, problemName, filename, sha, commitMsg);
     })
     .catch(err => {
       // if (err instanceof LeetHubError) {
       if (err.message === '409') {
-        return getGitHubFile(token, hook, problemName, fileName).then(resp => resp.json());
+        return getGitHubFile(token, hook, problemName, filename).then(resp => resp.json());
       } else {
         throw err;
       }
     })
     .then(data =>
       data != null // if it isn't null, then we didn't upload successfully the first time, and must have retrieved new data and reuploaded
-        ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg)
+        ? upload(token, hook, code, problemName, filename, data.sha, commitMsg)
         : undefined
     );
   // .catch(e => console.error(new LeetHubError(e.message)));
@@ -247,8 +228,7 @@ async function uploadPersistentStats(localStats) {
     pStatsEncoded,
     'stats.json',
     '',
-    `Updated stats`,
-    'upload'
+    `Updated stats`
   );
 }
 
@@ -276,8 +256,7 @@ document.addEventListener('click', event => {
         const currentDate = `${date.getDate()}/${date.getMonth()}/${date.getFullYear()} at ${date.getHours()}:${date.getMinutes()}`;
         const addition = `[Discussion Post (created on ${currentDate})](${window.location})  \n`;
         const problemName = window.location.pathname.split('/')[2]; // must be true.
-
-        uploadGit(addition, problemName, readmeFilename, discussionMsg, 'update', true);
+        updateReadmeWithDiscussionPost(addition, problemName, readmeFilename, discussionMsg, true);
       }
     }, 1000);
   }
@@ -285,7 +264,7 @@ document.addEventListener('click', event => {
 
 function createRepoReadme() {
   const content = btoa(unescape(encodeURIComponent(defaultRepoReadme)));
-  return uploadGit(content, readmeFilename, '', readmeMsg, 'upload');
+  return uploadGit(content, readmeFilename, '', readmeMsg);
 }
 
 async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
@@ -301,10 +280,10 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   ]);
   let readme;
   try {
-      const { content, sha } = await getGitHubFile(leethub_token, leethub_hook, readmeFilename).then(resp => resp.json());
-      readme = content;
-      stats.shas[readmeFilename] = {'': sha}
-      await chrome.storage.local.set({stats})
+    const {content, sha} = await getGitHubFile(leethub_token, leethub_hook, readmeFilename).then(resp => resp.json());
+    readme = content;
+    stats.shas[readmeFilename] = { '': sha };
+    await chrome.storage.local.set({ stats });
   } catch (err) {
     if (err.message === '404') {
       throw new RepoReadmeNotFoundErr('RepoReadmeNotFound', topicTags, problemName);
@@ -320,7 +299,7 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   readme = btoa(unescape(encodeURIComponent(readme)));
   return new Promise((resolve, reject) =>
     setTimeout(
-      () => resolve(uploadGit(readme, readmeFilename, '', updateReadmeMsg, 'upload')),
+      () => resolve(uploadGit(readme, readmeFilename, '', updateReadmeMsg)),
       WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
     )
   );
@@ -374,9 +353,7 @@ function loader(leetCode) {
             btoa(unescape(encodeURIComponent(probStatement))),
             problemName,
             readmeFilename,
-            readmeMsg,
-            'upload',
-            false
+            readmeMsg
           );
         }
       });
@@ -389,9 +366,7 @@ function loader(leetCode) {
           btoa(unescape(encodeURIComponent(notes))),
           problemName,
           'NOTES.md',
-          createNotesMsg,
-          'upload',
-          false
+          createNotesMsg
         );
       }
 
@@ -401,9 +376,7 @@ function loader(leetCode) {
         btoa(unescape(encodeURIComponent(code))),
         problemName,
         filename,
-        probStats,
-        'upload',
-        false
+        probStats
       );
 
       /* Group problem into its relevant topics */
