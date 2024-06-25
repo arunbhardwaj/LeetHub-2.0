@@ -6,6 +6,9 @@ const repositoryName = () => {
   return $('#name').val().trim();
 };
 
+const createRepoDescription =
+  'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)';
+
 function getCreateErrorString(statusCode, name) {
   const errorStrings = {
     304: `Error creating ${name} - Unable to modify repository. Try again later!`,
@@ -14,7 +17,7 @@ function getCreateErrorString(statusCode, name) {
     403: `Error creating ${name} - Forbidden access to repository. Try again later!`,
     422: `Error creating ${name} - Unprocessable Entity. Repository may have already been created. Try Linking instead (select 2nd option).`,
   };
-  return errorStrings[statusCode]
+  return errorStrings[statusCode];
 }
 
 /* Sync's local storage with persistent stats and returns the pulled stats */
@@ -70,10 +73,8 @@ const createRepo = async (token, name) => {
     name,
     private: true,
     auto_init: true,
-    description:
-      'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)',
+    description: createRepoDescription,
   };
-  data = JSON.stringify(data);
 
   const options = {
     method: 'POST',
@@ -81,16 +82,14 @@ const createRepo = async (token, name) => {
       Authorization: `token ${token}`,
       Accept: 'application/vnd.github.v3+json',
     },
-    body: data,
+    body: JSON.stringify(data),
   };
 
-  const resp = await fetch(AUTHENTICATION_URL, options);
-  if (!resp.ok) {
-    handleRepoCreateError(resp.status, name);
-    return;
+  let res = await fetch(AUTHENTICATION_URL, options);
+  if (!res.ok) {
+    return handleRepoCreateError(res.status, name);
   }
-
-  const res = await resp.json();
+  res = await res.json();
 
   /* Set Repo Hook, and set mode type to commit */
   chrome.storage.local.set({ mode_type: 'commit', leethub_hook: res.full_name, sync_stats: true });
