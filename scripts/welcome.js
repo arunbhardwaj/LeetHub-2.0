@@ -194,13 +194,9 @@ const linkRepo = (token, name) => {
 };
 
 const unlinkRepo = () => {
-  /* Set mode type to hook */
-  api.storage.local.set({ mode_type: 'hook' }, () => {
-    console.log(`Unlinking repo`);
-  });
-  /* Set Repo Hook to NONE */
-  api.storage.local.set({ leethub_hook: null, sync_stats: true, stats: null }, () => {
-    console.log('Setting repo hook to NONE');
+  /* Reset mode type to hook, stats to null */
+  api.storage.local.set({ mode_type: 'hook', leethub_hook: null, sync_stats: true, stats: null }, () => {
+    console.log(`Unlinked repo`);
     console.log('Cleared local stats');
   });
 
