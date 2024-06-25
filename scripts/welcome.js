@@ -6,118 +6,65 @@ const repositoryName = () => {
   return $('#name').val().trim();
 };
 
+function getCreateErrorString(statusCode, name) {
+  const errorStrings = {
+    304: `Error creating ${name} - Unable to modify repository. Try again later!`,
+    400: `Error creating ${name} - Bad POST request, make sure you're not overriding any existing scripts`,
+    401: `Error creating ${name} - Unauthorized access to repo. Try again later!`,
+    403: `Error creating ${name} - Forbidden access to repository. Try again later!`,
+    422: `Error creating ${name} - Unprocessable Entity. Repository may have already been created. Try Linking instead (select 2nd option).`,
+  };
+  return errorStrings[statusCode]
+}
+
 /* Sync's local storage with persistent stats and returns the pulled stats */
-const syncStats = () => {
-  return chrome.storage.local
-    .get(['leethub_token', 'leethub_hook', 'sync_stats'])
-    .then(({ leethub_hook, leethub_token, sync_stats }) => {
-      if (sync_stats === false) {
-        throw new Error('Abort');
-      }
+const syncStats = async () => {
+  let { leethub_hook, leethub_token, sync_stats } = await chrome.storage.local.get([
+    'leethub_token',
+    'leethub_hook',
+    'sync_stats',
+  ]);
 
-      console.log('Attemping to sync local stats to GitHub stats...');
-      const URL = `https://api.github.com/repos/${leethub_hook}/contents/stats.json`;
+  if (sync_stats === false) {
+    console.log('Persistent stats already synced!');
+    return;
+  }
 
-      let options = {
-        method: 'GET',
-        headers: {
-          Authorization: `token ${leethub_token}`,
-          Accept: 'application/vnd.github.v3+json',
-        },
-      };
+  console.log('Attemping to sync local stats to GitHub stats...');
+  const URL = `https://api.github.com/repos/${leethub_hook}/contents/stats.json`;
 
-      return fetch(URL, options);
-    })
-    .then(resp => {
-      if (!resp.ok && resp.status == 404) {
-        chrome.storage.local.set({ sync_stats: false });
-        throw new Error('StatsNotFound');
-      }
-      return resp.json();
-    })
-    .then(data => decodeURIComponent(escape(atob(data.content))))
-    .then(pStatsJson => JSON.parse(pStatsJson))
-    .then(pStats => {
-      const stats = { stats: pStats.leetcode };
-      chrome.storage.local.set({ stats, sync_stats: false }, () =>
-        console.log(`Successfully synced local stats with GitHub stats`)
-      );
-      return stats;
-    })
-    .catch(e => {
-      switch (e.message) {
-        case 'StatsNotFound':
-          console.log('No stats found; starting fresh');
-          break;
-        case 'Abort':
-          console.log('Persistent stats already synced!');
-          break;
-        default:
-          console.error(e);
-      }
-    });
+  let options = {
+    method: 'GET',
+    headers: {
+      Authorization: `token ${leethub_token}`,
+      Accept: 'application/vnd.github.v3+json',
+    },
+  };
+
+  let resp = await fetch(URL, options);
+  if (!resp.ok && resp.status == 404) {
+    await chrome.storage.local.set({ sync_stats: false });
+    console.log('No stats found; starting fresh');
+    return;
+  }
+  let data = await resp.json();
+  let pStatsJson = decodeURIComponent(escape(atob(data.content)));
+  let pStats = await JSON.parse(pStatsJson);
+
+  const stats = { stats: pStats.leetcode };
+  chrome.storage.local.set({ stats, sync_stats: false }, () =>
+    console.log(`Successfully synced local stats with GitHub stats`)
+  );
 };
 
 /* Status codes for creating of repo */
-const statusCode = (res, status, name) => {
-  switch (status) {
-    case 304:
-      $('#success').hide();
-      $('#error').text(`Error creating ${name} - Unable to modify repository. Try again later!`);
-      $('#error').show();
-      break;
-
-    case 400:
-      $('#success').hide();
-      $('#error').text(
-        `Error creating ${name} - Bad POST request, make sure you're not overriding any existing scripts`
-      );
-      $('#error').show();
-      break;
-
-    case 401:
-      $('#success').hide();
-      $('#error').text(`Error creating ${name} - Unauthorized access to repo. Try again later!`);
-      $('#error').show();
-      break;
-
-    case 403:
-      $('#success').hide();
-      $('#error').text(`Error creating ${name} - Forbidden access to repository. Try again later!`);
-      $('#error').show();
-      break;
-
-    case 422:
-      $('#success').hide();
-      $('#error').text(
-        `Error creating ${name} - Unprocessable Entity. Repository may have already been created. Try Linking instead (select 2nd option).`
-      );
-      $('#error').show();
-      break;
-
-    default:
-      /* Change mode type to commit */
-      chrome.storage.local.set({ mode_type: 'commit' }, () => {
-        $('#error').hide();
-        $('#success').html(
-          `Successfully created <a target="blank" href="${res.html_url}">${name}</a>. Start <a href="http://leetcode.com">LeetCoding</a>!`
-        );
-        $('#success').show();
-        $('#unlink').show();
-        /* Show new layout */
-        document.getElementById('hook_mode').style.display = 'none';
-        document.getElementById('commit_mode').style.display = 'inherit';
-      });
-      /* Set Repo Hook */
-      chrome.storage.local.set({ leethub_hook: res.full_name }, () => {
-        console.log('Successfully set new repo hook');
-      });
-
-      break;
-  }
+const handleRepoCreateError = (statusCode, name) => {
+  $('#success').hide();
+  $('#error').text(getCreateErrorString(statusCode, name));
+  $('#error').show();
 };
 
-const createRepo = (token, name) => {
+const createRepo = async (token, name) => {
   const AUTHENTICATION_URL = 'https://api.github.com/user/repos';
   let data = {
     name,
@@ -128,17 +75,36 @@ const createRepo = (token, name) => {
   };
   data = JSON.stringify(data);
 
-  const xhr = new XMLHttpRequest();
-  xhr.addEventListener('readystatechange', function () {
-    if (xhr.readyState === 4) {
-      statusCode(JSON.parse(xhr.responseText), xhr.status, name);
-    }
-  });
+  const options = {
+    method: 'POST',
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+    },
+    body: data,
+  };
 
-  xhr.open('POST', AUTHENTICATION_URL, true);
-  xhr.setRequestHeader('Authorization', `token ${token}`);
-  xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
-  xhr.send(data);
+  const resp = await fetch(AUTHENTICATION_URL, options);
+  if (!resp.ok) {
+    handleRepoCreateError(resp.status, name);
+    return;
+  }
+
+  const res = await resp.json();
+
+  /* Set Repo Hook, and set mode type to commit */
+  chrome.storage.local.set({ mode_type: 'commit', leethub_hook: res.full_name, sync_stats: true });
+  await chrome.storage.local.remove('stats');
+  $('#error').hide();
+  $('#success').html(
+    `Successfully created <a target="blank" href="${res.html_url}">${name}</a>. Start <a href="http://leetcode.com">LeetCoding</a>!`
+  );
+  $('#success').show();
+  $('#unlink').show();
+  /* Show new layout */
+  document.getElementById('hook_mode').style.display = 'none';
+  document.getElementById('commit_mode').style.display = 'inherit';
+  console.log('Successfully set new repo hook');
 };
 
 /* Status codes for linking of repo */
