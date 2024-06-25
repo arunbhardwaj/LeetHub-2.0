@@ -1,5 +1,3 @@
-/* global oAuth2 */
-/* eslint no-undef: "error" */
 
 let action = false;
 
