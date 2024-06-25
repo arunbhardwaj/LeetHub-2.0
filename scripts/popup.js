@@ -9,6 +9,20 @@ $('#authenticate').on('click', () => {
 /* Get URL for welcome page */
 $('#welcome_URL').attr('href', chrome.runtime.getURL('welcome.html'));
 $('#hook_URL').attr('href', chrome.runtime.getURL('welcome.html'));
+$('#reset_stats').on('click', () => {
+  $('#reset_confirmation').show();
+  $('#reset_yes').off('click').on('click', () => {
+    chrome.storage.local.set({ stats: null });
+    $('#p_solved').text(0);
+    $('#p_solved_easy').text(0);
+    $('#p_solved_medium').text(0);
+    $('#p_solved_hard').text(0);
+    $('#reset_confirmation').hide()
+  })
+  $('#reset_no').off('click').on('click', () => {
+    $('#reset_confirmation').hide()
+  })
+});
 
 chrome.storage.local.get('leethub_token', data => {
   const token = data.leethub_token;
@@ -29,14 +43,12 @@ chrome.storage.local.get('leethub_token', data => {
               $('#commit_mode').show();
               /* Get problem stats and repo link */
               chrome.storage.local.get(['stats', 'leethub_hook'], data3 => {
-                const { stats } = data3;
-                if (stats && stats.solved) {
-                  $('#p_solved').text(stats.solved);
-                  $('#p_solved_easy').text(stats.easy);
-                  $('#p_solved_medium').text(stats.medium);
-                  $('#p_solved_hard').text(stats.hard);
-                }
-                const leethubHook = data3.leethub_hook;
+                const stats = data3?.stats;
+                $('#p_solved').text(stats?.solved ?? 0);
+                $('#p_solved_easy').text(stats?.easy ?? 0);
+                $('#p_solved_medium').text(stats?.medium ?? 0);
+                $('#p_solved_hard').text(stats?.hard ?? 0);
+                const leethubHook = data3?.leethub_hook;
                 if (leethubHook) {
                   $('#repo_url').html(
                     `<a target="blank" style="color: cadetblue !important; font-size:0.8em;" href="https://github.com/${leethubHook}">${leethubHook}</a>`

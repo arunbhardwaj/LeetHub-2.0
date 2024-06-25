@@ -56,6 +56,18 @@
             <span style="color: #d9534f">&ensp; &ensp; Hard:</span>
             <span id="p_solved_hard" style="color: #000000; opacity: 0.75">0 </span>
           </p>
+          <button id="reset_stats" type="button">Reset all stats</button>
+          <div id="reset_confirmation" style="position:absolute; display:none; top:200px; left:50%; width:500px; margin-left:-250px; border:1px solid blue; padding:20px; background-color:white;">
+            <p>Are you sure you want to delete your stats?</p>
+            <p>
+                <button id="reset_yes" type="button">
+                    Yes
+                </button>
+                <button id="reset_no" type="button">
+                    No
+                </button>
+            </p>
+          </div>
 
           <div class="ui small header">
             Want more features?
@@ -71,16 +83,16 @@
 
       <!-- Generate Socials -->
       <div id="socials" class="sixteen wide column">
-        <a href="https://github.com/arunbhardwaj/LeetHub-2.0" target="_blank"
+        <a href="https://github.com/arunbhardwaj/LeetHub-2.0" target="_blank" aria-label="GitHub"
           ><i class="ui black github icon"></i
         ></a>
-        <a href="https://www.linkedin.com/in/bhardwaj-arun/" target="_blank"
+        <a href="https://www.linkedin.com/in/bhardwaj-arun/" target="_blank" aria-label="LinkedIn"
           ><i class="ui linkedin icon"></i
         ></a>
-        <a href="mailto:devkaisel@gmail.com" target="_blank"
+        <a href="mailto:devkaisel@gmail.com" target="_blank" aria-label="Email"
           ><i class="ui red envelope icon"></i
         ></a>
-        <a id="welcome_URL" href="" target="_blank"><i class="ui grey globe icon"></i></a>
+        <a id="welcome_URL" href="" target="_blank" aria-label="Homepage"><i class="ui grey globe icon"></i></a>
       </div>
     </div>
 
