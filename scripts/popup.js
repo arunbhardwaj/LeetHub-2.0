@@ -1,6 +1,3 @@
-/* global oAuth2 */
-/* eslint no-undef: "error" */
-
 let action = false;
 
 $('#authenticate').on('click', () => {
@@ -10,16 +7,24 @@ $('#authenticate').on('click', () => {
 });
 
 /* Get URL for welcome page */
-$('#welcome_URL').attr(
-  'href',
-  chrome.runtime.getURL('welcome.html')
-);
-$('#hook_URL').attr(
-  'href',
-  chrome.runtime.getURL('welcome.html')
-);
+$('#welcome_URL').attr('href', chrome.runtime.getURL('welcome.html'));
+$('#hook_URL').attr('href', chrome.runtime.getURL('welcome.html'));
+$('#reset_stats').on('click', () => {
+  $('#reset_confirmation').show();
+  $('#reset_yes').off('click').on('click', () => {
+    chrome.storage.local.set({ stats: null });
+    $('#p_solved').text(0);
+    $('#p_solved_easy').text(0);
+    $('#p_solved_medium').text(0);
+    $('#p_solved_hard').text(0);
+    $('#reset_confirmation').hide()
+  })
+  $('#reset_no').off('click').on('click', () => {
+    $('#reset_confirmation').hide()
+  })
+});
 
-chrome.storage.local.get('leethub_token', (data) => {
+chrome.storage.local.get('leethub_token', data => {
   const token = data.leethub_token;
   if (token === null || token === undefined) {
     action = true;
@@ -33,28 +38,23 @@ chrome.storage.local.get('leethub_token', (data) => {
       if (xhr.readyState === 4) {
         if (xhr.status === 200) {
           /* Show MAIN FEATURES */
-          chrome.storage.local.get('mode_type', (data2) => {
+          chrome.storage.local.get('mode_type', data2 => {
             if (data2 && data2.mode_type === 'commit') {
               $('#commit_mode').show();
               /* Get problem stats and repo link */
-              chrome.storage.local.get(
-                ['stats', 'leethub_hook'],
-                (data3) => {
-                  const { stats } = data3;
-                  if (stats && stats.solved) {
-                    $('#p_solved').text(stats.solved);
-                    $('#p_solved_easy').text(stats.easy);
-                    $('#p_solved_medium').text(stats.medium);
-                    $('#p_solved_hard').text(stats.hard);
-                  }
-                  const leethubHook = data3.leethub_hook;
-                  if (leethubHook) {
-                    $('#repo_url').html(
-                      `<a target="blank" style="color: cadetblue !important; font-size:0.8em;" href="https://github.com/${leethubHook}">${leethubHook}</a>`,
-                    );
-                  }
-                },
-              );
+              chrome.storage.local.get(['stats', 'leethub_hook'], data3 => {
+                const stats = data3?.stats;
+                $('#p_solved').text(stats?.solved ?? 0);
+                $('#p_solved_easy').text(stats?.easy ?? 0);
+                $('#p_solved_medium').text(stats?.medium ?? 0);
+                $('#p_solved_hard').text(stats?.hard ?? 0);
+                const leethubHook = data3?.leethub_hook;
+                if (leethubHook) {
+                  $('#repo_url').html(
+                    `<a target="blank" style="color: cadetblue !important; font-size:0.8em;" href="https://github.com/${leethubHook}">${leethubHook}</a>`
+                  );
+                }
+              });
             } else {
               $('#hook_mode').show();
             }
@@ -63,9 +63,7 @@ chrome.storage.local.get('leethub_token', (data) => {
           // bad oAuth
           // reset token and redirect to authorization process again!
           chrome.storage.local.set({ leethub_token: null }, () => {
-            console.log(
-              'BAD oAuth!!! Redirecting back to oAuth process',
-            );
+            console.log('BAD oAuth!!! Redirecting back to oAuth process');
             action = true;
             $('#auth_mode').show();
           });
