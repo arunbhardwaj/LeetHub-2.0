@@ -14,11 +14,13 @@ import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics';
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
 const updateReadmeMsg = 'Update README - Topic Tags';
+const updateStatsMsg = 'Updated stats';
 const discussionMsg = 'Prepend discussion post - LeetHub';
 const createNotesMsg = 'Attach NOTES - LeetHub';
 const defaultRepoReadme =
   'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)';
 const readmeFilename = 'README.md';
+const statsFilename = 'stats.json';
 
 // problem types
 const NORMAL_PROBLEM = 0;
@@ -220,16 +222,38 @@ async function getGitHubFile(token, hook, directory, filename) {
 
 // Updates or creates the persistent stats from local stats
 async function uploadPersistentStats(localStats) {
+  const { leethub_token, leethub_hook, stats } = await api.storage.local.get([
+    'leethub_token',
+    'leethub_hook',
+    'stats',
+  ]);
   const pStats = { leetcode: localStats };
   const pStatsEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(pStats))));
-  return delay(
-    uploadGit,
-    WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS,
-    pStatsEncoded,
-    'stats.json',
-    '',
-    `Updated stats`
-  );
+
+  const sha = stats?.shas?.[statsFilename] !== undefined ? stats.shas[statsFilename][''] : '';
+
+  return upload(leethub_token, leethub_hook, pStatsEncoded, statsFilename, '', sha, updateStatsMsg)
+    .catch(err => {
+      if (err.message === '409') {
+        return getGitHubFile(leethub_token, leethub_hook, statsFilename, '').then(res =>
+          res.json()
+        );
+      }
+      throw err;
+    })
+    .then(data => {
+      if (data == null) {
+        throw new LeetHubError('Unknown error updating persistent stats');
+      }
+      return decodeURIComponent(escape(atob(data.content)));
+    })
+    .then(content => JSON.parse(content))
+    .then(data => data?.leetcode)
+    .then(async pStats => {
+      if (pStats.solved > stats.solved) {
+        stats = pStats
+      }
+    })
 }
 
 /* Discussion Link - When a user makes a new post, the link is prepended to the README for that problem.*/
@@ -280,7 +304,11 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   ]);
   let readme;
   try {
-    const {content, sha} = await getGitHubFile(leethub_token, leethub_hook, readmeFilename).then(resp => resp.json());
+    const { content, sha } = await getGitHubFile(
+      leethub_token,
+      leethub_hook,
+      readmeFilename
+    ).then(resp => resp.json());
     readme = content;
     stats.shas[readmeFilename] = { '': sha };
     await chrome.storage.local.set({ stats });
