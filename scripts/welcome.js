@@ -1,4 +1,4 @@
-import { getBrowser } from "./leetcode/util.js";
+import { getBrowser, mergeStats } from "./leetcode/util.js";
 
 const api = getBrowser()
 
@@ -15,10 +15,11 @@ const createRepoDescription =
 
 /* Sync's local storage with persistent stats and returns the pulled stats */
 const syncStats = async () => {
-  let { leethub_hook, leethub_token, sync_stats } = await api.storage.local.get([
+  let { leethub_hook, leethub_token, sync_stats, stats } = await api.storage.local.get([
     'leethub_token',
     'leethub_hook',
     'sync_stats',
+    'stats'
   ]);
 
   if (sync_stats === false) {
@@ -45,6 +46,7 @@ const syncStats = async () => {
   let data = await resp.json();
   let pStatsJson = decodeURIComponent(escape(atob(data.content)));
   let pStats = await JSON.parse(pStatsJson);
+  let mergedStats = mergeStats(pStats.leetcode, stats)
 
   api.storage.local.set({ stats: pStats.leetcode, sync_stats: false }, () =>
     console.log(`Successfully synced local stats with GitHub stats`)
@@ -322,13 +324,3 @@ api.storage.local.get('mode_type', data => {
     document.getElementById('commit_mode').style.display = 'none';
   }
 });
-
-function isEmpty(obj) {
-  for (const prop in obj) {
-    if (Object.hasOwn(obj, prop)) {
-      return false;
-    }
-  }
-
-  return true;
-}
