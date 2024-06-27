@@ -1,4 +1,4 @@
-import { LeetHubError } from "./util";
+import { LeetHubError } from "./util.js";
 
 const leetCodeSectionStart = `<!---LeetCode Topics Start-->`;
 const leetCodeSectionHeader = `# LeetCode Topics`;

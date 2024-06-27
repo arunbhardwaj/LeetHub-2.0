@@ -5,7 +5,7 @@ import {
   addLeadingZeros,
   formatStats,
   getDifficulty,
-} from './util';
+} from './util.js';
 
 function LeetCodeV1() {
   this.difficulty;

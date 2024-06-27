@@ -1,14 +1,15 @@
-import { LeetCodeV1, LeetCodeV2 } from './versions';
-import setupManualSubmitBtn from './submitBtn';
+import { LeetCodeV1, LeetCodeV2 } from './versions.js';
+import setupManualSubmitBtn from './submitBtn.js';
 import {
   debounce,
   delay,
   DIFFICULTY,
   getBrowser,
+  getDifficulty,
   isEmpty,
   LeetHubError,
-} from './util';
-import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics';
+} from './util.js';
+import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics.js';
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
@@ -51,12 +52,13 @@ const getPath = (problem, filename) => {
  * @param {string} filename - The name of the file, typically the problem slug + file extension.
  * @param {string} sha - The SHA of the existing file.
  * @param {string} message - A commit message describing the change.
+ * @param {string} [difficulty] - The difficulty level of the problem.
  *
  * @returns {Promise<string>} - A promise that resolves with the new SHA of the content after successful upload.
  *
  * @throws {LeetHubError} - Throws a custom error if the HTTP response is not OK.
  */
-const upload = async (token, hook, content, problem, filename, sha, message) => {
+const upload = async (token, hook, content, problem, filename, sha, message, difficulty) => {
   const path = getPath(problem, filename);
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
@@ -79,12 +81,12 @@ const upload = async (token, hook, content, problem, filename, sha, message) => 
 
   const res = await fetch(URL, options);
   if (!res.ok) {
-    throw new LeetHubError(res.status, {cause: res});
+    throw new LeetHubError(res.status, { cause: res });
   }
   console.log(`Successfully committed ${getPath(problem, filename)} to github`);
 
   const body = await res.json();
-  //TODO: pull this out of this function
+  //TODO: Think, should we be setting stats state here?
   const stats = await getAndInitializeStats(problem);
   stats.shas[problem][filename] = body.content.sha;
   api.storage.local.set({ stats });
@@ -112,19 +114,38 @@ const getAndInitializeStats = problem => {
   });
 };
 
-const incrementStats = (difficulty, problemName) => {
-  return api.storage.local
-    .get('stats')
-    .then(({ stats }) => {
-      stats.solved += 1;
-      stats.easy += difficulty === DIFFICULTY.EASY ? 1 : 0;
-      stats.medium += difficulty === DIFFICULTY.MEDIUM ? 1 : 0;
-      stats.hard += difficulty === DIFFICULTY.HARD ? 1 : 0;
-      api.storage.local.set({ stats });
-      return stats;
-    })
-    .then(uploadPersistentStats);
-  // .catch(console.error)
+/**
+ * Increment the statistics for a given problem based on its difficulty.
+ * @param {DIFFICULTY} difficulty - The difficulty level of the problem, which can be 'easy', 'medium', or 'hard'.
+ * @param {string} problem - The name of the problem being solved in slug form, e.g. 0001-two-sum
+ * @returns {Promise<Object>} A promise that resolves to the updated statistics object.
+ */
+const incrementStats = (difficulty, problem) => {
+  const diff = getDifficulty(difficulty);
+  return api.storage.local.get('stats').then(({ stats }) => {
+    stats.solved += 1;
+    stats.easy += diff === DIFFICULTY.EASY ? 1 : 0;
+    stats.medium += diff === DIFFICULTY.MEDIUM ? 1 : 0;
+    stats.hard += diff === DIFFICULTY.HARD ? 1 : 0;
+    stats.shas[problem].difficulty = diff.toLowerCase();
+    api.storage.local.set({ stats });
+    return stats;
+  });
+};
+
+// Updates or creates the persistent stats from local stats
+const setPersistentStats = async localStats => {
+  const pStats = { leetcode: localStats };
+  const pStatsEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(pStats))));
+
+  return delay(
+    uploadGitWith409Retry,
+    WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS,
+    pStatsEncoded,
+    statsFilename,
+    '',
+    updateStatsMsg
+  );
 };
 
 const checkAlreadyCompleted = problemName => {
@@ -181,12 +202,15 @@ const updateReadmeWithDiscussionPost = async (
  * @param {string} problemName - The name of the problem or file where the code is related to.
  * @param {string} filename - The target filename in the repository where the code will be stored.
  * @param {string} commitMsg - The commit message that describes the changes being made.
+ * @param {Object} [optionals] - Optional parameters for updating stats
+ * @param {string} optionals.sha - The SHA value of the existing content to be updated (optional).
+ * @param {DIFFICULTY} optionals.difficulty - The difficulty level of the problem (optional).
  *
  * @returns {Promise<string>} A promise that resolves with the new SHA of the content after successful upload.
  *
  * @throws {LeetHubError} If there's no token defined, the mode type is not 'commit', or if no repository hook is defined.
  */
-async function uploadGitWith409Retry(code, problemName, filename, commitMsg, sha1) {
+async function uploadGitWith409Retry(code, problemName, filename, commitMsg, optionals) {
   let token;
   let hook;
 
@@ -212,17 +236,36 @@ async function uploadGitWith409Retry(code, problemName, filename, commitMsg, sha
   }
 
   /* Get SHA, if it exists */
-  const sha = (sha1) ? sha1 :
-    storageData.stats?.shas?.[problemName]?.[filename] !== undefined
-      ? storageData.stats.shas[problemName][filename]
-      : '';
+  const sha = optionals?.sha
+    ? optionals.sha
+    : storageData.stats?.shas?.[problemName]?.[filename] !== undefined
+    ? storageData.stats.shas[problemName][filename]
+    : '';
 
   try {
-    return await upload(token, hook, code, problemName, filename, sha, commitMsg);
+    return await upload(
+      token,
+      hook,
+      code,
+      problemName,
+      filename,
+      sha,
+      commitMsg,
+      optionals?.difficulty
+    );
   } catch (err) {
     if (err.message === '409') {
       const data = await getGitHubFile(token, hook, problemName, filename).then(res => res.json());
-      return await upload(token, hook, code, problemName, filename, data.sha, commitMsg);
+      return upload(
+        token,
+        hook,
+        code,
+        problemName,
+        filename,
+        data.sha,
+        commitMsg,
+        optionals?.difficulty
+      );
     }
     throw err;
   }
@@ -256,49 +299,6 @@ async function getGitHubFile(token, hook, directory, filename) {
   }
 
   return res;
-}
-
-// Updates or creates the persistent stats from local stats
-async function uploadPersistentStats(localStats) {
-  // const { leethub_token, leethub_hook, stats } = await api.storage.local.get([
-  //   'leethub_token',
-  //   'leethub_hook',
-  //   'stats',
-  // ]);
-  const pStats = { leetcode: localStats };
-  const pStatsEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(pStats))));
-
-  // const sha = stats?.shas?.[statsFilename] !== undefined ? stats.shas[statsFilename][''] : '';
-  return delay(
-    uploadGitWith409Retry,
-    WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS,
-    pStatsEncoded,
-    statsFilename,
-    '',
-    updateStatsMsg
-  );
-  // return upload(leethub_token, leethub_hook, pStatsEncoded, statsFilename, '', sha, updateStatsMsg)
-  // .catch(err => {
-  //   if (err.message === '409') {
-  //     return getGitHubFile(leethub_token, leethub_hook, statsFilename, '').then(res =>
-  //       res.json()
-  //     );
-  //   }
-  //   throw err;
-  // })
-  // .then(data => {
-  //   if (data == null) {
-  //     throw new LeetHubError('Unknown error updating persistent stats');
-  //   }
-  //   return decodeURIComponent(escape(atob(data.content)));
-  // })
-  // .then(content => JSON.parse(content))
-  // .then(data => data?.leetcode)
-  // .then(async pStats => {
-  //   if (pStats.solved > stats.solved) {
-  //     stats = pStats;
-  //   }
-  // });
 }
 
 /* Discussion Link - When a user makes a new post, the link is prepended to the README for that problem.*/
@@ -348,8 +348,10 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
     'leethub_hook',
     'stats',
   ]);
+
   let readme;
   let newSha;
+
   try {
     const { content, sha } = await getGitHubFile(
       leethub_token,
@@ -372,11 +374,9 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   readme = sortTopicsInReadme(readme);
   readme = btoa(unescape(encodeURIComponent(readme)));
 
-  return await new Promise((resolve, reject) =>
-    setTimeout(
-      () => resolve(uploadGitWith409Retry(readme, readmeFilename, '', updateReadmeMsg, newSha)),
-      WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
-    )
+  return delay(
+    () => uploadGitWith409Retry(readme, readmeFilename, '', updateReadmeMsg, { sha: newSha }),
+    WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
   );
 }
 
@@ -465,7 +465,8 @@ function loader(leetCode) {
       leetCode.markUploaded();
 
       if (!alreadyCompleted) {
-        incrementStats(leetCode.difficulty); // Increments local and persistent stats
+        // Increments local and persistent stats
+        incrementStats(leetCode.difficulty, problemName).then(setPersistentStats);
       }
     } catch (err) {
       leetCode.markUploadFailed();

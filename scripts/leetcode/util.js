@@ -70,14 +70,14 @@ function debounce(func, wait, invokeBeforeTimeout) {
 /**
  * Delays the execution of a function by the specified time (in milliseconds)
  * and then executes the function with the provided arguments.
- * 
+ *
  * @param {Function} func - The function to be executed after the delay.
  * @param {number} wait - The number of milliseconds to wait before executing the function.
  * @param {...*} [args] - Additional arguments to pass to the function when it is called.
  * @returns {Promise<*>} A promise that resolves with the result of the function execution.
  */
 function delay(func, wait, ...args) {
-  return new Promise((resolve) => setTimeout(() => resolve(func(...args)), wait));
+  return new Promise(resolve => setTimeout(() => resolve(func(...args)), wait));
 }
 
 function getBrowser() {
@@ -135,118 +135,53 @@ function formatStats(time, timePercentile, space, spacePercentile) {
   return `Time: ${time} (${timePercentile}%), Space: ${space} (${spacePercentile}%) - LeetHub`;
 }
 
-function testMergeStats() {
-  let pStats = JSON.parse(
-    '{"easy":1,"hard":0,"medium":2,"shas":{"0001-two-sum":{"0001-two-sum.js":"45331d85767fc68c5d37c719388fa9ded3e89f02","README.md":"295832280eacc9b202138f15adc074a9cb24c66f"},"0002-add-two-numbers":{"0002-add-two-numbers.js":"ad3576c45091bf1a09de17b41401633817d2bbc3","README.md":"466f5e31bfeb151e70b5b325c379cf04183ebb57"},"0003-longest-substring-without-repeating-characters":{"0003-longest-substring-without-repeating-characters.js":"24d32e02558331fc007af68b538cbfaf93757621","README.md":"23fe8b26580352e70c75f4236710f6846864a455"},"README.md":{"":"6840b8562891be5b56e00b1894d0895cd29e763b"},"stats.json":{"":"6869fe483423c5a5fc54f84334cd15d5481851fb"}},"solved":3}'
-  );
-  let stats = JSON.parse(
-    '{"easy":4,"hard":0,"medium":2,"shas":{"0009-palindrome-number":{"0009-palindrome-number.go":"3ebabc3212541ea192c0c608585bcdc949f3c452","README.md":"6fa224a15eebd1946fc517342810124a3207cc25"},"README.md":{"":"6840b8562891be5b56e00b1894d0895cd29e763b"}},"solved":6}'
-  );
-  let output = mergeStats(pStats, stats);
-  JSON.stringify(output) ===
-    '{"easy":4,"hard":0,"medium":2,"shas":{"0009-palindrome-number":{"0009-palindrome-number.go":"3ebabc3212541ea192c0c608585bcdc949f3c452","README.md":"6fa224a15eebd1946fc517342810124a3207cc25"},"README.md":{"":"6840b8562891be5b56e00b1894d0895cd29e763b"},"0001-two-sum":{"0001-two-sum.js":"45331d85767fc68c5d37c719388fa9ded3e89f02","README.md":"295832280eacc9b202138f15adc074a9cb24c66f"},"0002-add-two-numbers":{"0002-add-two-numbers.js":"ad3576c45091bf1a09de17b41401633817d2bbc3","README.md":"466f5e31bfeb151e70b5b325c379cf04183ebb57"},"0003-longest-substring-without-repeating-characters":{"0003-longest-substring-without-repeating-characters.js":"24d32e02558331fc007af68b538cbfaf93757621","README.md":"23fe8b26580352e70c75f4236710f6846864a455"},"stats.json":{"":"6869fe483423c5a5fc54f84334cd15d5481851fb"}},"solved":6}';
+function isObject(obj) {
+  return obj && typeof obj === 'object' && !Array.isArray(obj);
 }
 
-function mergeStats(pStats, stats) {
-  function mergeStats(pStats, stats) {
-
-    function recursiveMerge(o1, o2, res) {
-      for (let key in o1) {
-        if (o2.hasOwnProperty(key)) {
-          if (typeof o1[key] === 'object' && typeof o2[key] === 'object') {
-            // If both values are objects, recursively merge them
-            res[key] = recursiveMerge(o1[key], o2[key], {});
-          } else if (typeof o1[key] === 'number' && typeof o2[key] === 'number') {
-            // If both values are numbers, take the maximum
-            res[key] = Math.max(o1[key], o2[key]);
-          } else {
-            // Otherwise, choose the value from pStats (or either if they are strings)
-            res[key] = o1[key];
-          }
-        } else {
-          // If key is present in pStats but not in stats, copy it directly
-          res[key] = o1[key];
-        }
+function mergeDeep(target, source) {
+  for (const key in source) {
+    if (isObject(source[key])) {
+      if (!target[key]) {
+        Object.assign(target, { [key]: {} });
       }
-
-      for (let key in o2) {
-        if (!o1.hasOwnProperty(key)) {
-          // If key is present in stats but not in pStats, add it to the result
-          res[key] = o2[key];
-        }
-      }
-      return res;
+      mergeDeep(target[key], source[key]);
+    } else {
+      Object.assign(target, { [key]: source[key] });
     }
-
-    
-
-    result = recursiveMerge(pStats, stats, {});
-    result.shas['stats.json'] = pStats.shas['stats.json'];
-    return result;
   }
+}
 
-  function mergeObjects(obj1, obj2) {
-    // Function to recursively merge objects
-    const merge = (o1, o2) => {
-        let result = {...o1}; // Start with properties from the first object
-        for (let key in o2) {
-            if (key in o1) {
-                if (typeof o1[key] === 'object' && typeof o2[key] === 'object') {
-                    // If both values are objects, recursively merge them
-                    result[key] = merge(o1[key], o2[key]);
-                } else {
-                    // Otherwise, take the value from obj2 if it's a number (and keep existing if already a number)
-                    result[key] = typeof o2[key] === 'number' ? o2[key] : o1[key];
-                }
-            } else {
-                // If key is only in obj2, include it in the result
-                result[key] = o2[key];
-            }
+function mergeStats(obj1, obj2) {
+  function countDifficulties(shas) {
+    const difficulties = { easy: 0, medium: 0, hard: 0, solved: 0 };
+    for (const problem in shas) {
+      if ('difficulty' in shas[problem]) {
+        const difficulty = shas[problem].difficulty;
+        if (difficulty in difficulties) {
+          difficulties[difficulty]++;
         }
-        return result;
-    };
-
-    return merge(obj1, obj2);
+      }
+    }
+    for (let value of Object.values(difficulties)) {
+      difficulties.solved += value;
+    }
+    return difficulties;
   }
 
-  // Example usage:
-  const obj1 = {
-    easy: 1,
-    hard: 0,
-    medium: 2,
-    solved: 3,
-    shas: {
-      '0001-two-sum': {
-        '0001-two-sum.js': '45331d85767fc68c5d37c719388fa9ded3e89f02',
-        'README.md': '295832280eacc9b202138f15adc074a9cb24c66f',
-      },
-      '0002-add-two-numbers': {
-        '0002-add-two-numbers.js': 'ad3576c45091bf1a09de17b41401633817d2bbc3',
-        'README.md': '466f5e31bfeb151e70b5b325c379cf04183ebb57',
-      },
-      '0003-longest-substring-without-repeating-characters': {
-        '0003-longest-substring-without-repeating-characters.js':
-          '24d32e02558331fc007af68b538cbfaf93757621',
-        'README.md': '23fe8b26580352e70c75f4236710f6846864a455',
-      },
-      'README.md': { '': '6840b8562891be5b56e00b1894d0895cd29e763b' },
-      'stats.json': { '': '6869fe483423c5a5fc54f84334cd15d5481851fb' },
-    },
-  };
-  const obj2 = {
-    easy: 1,
-    medium: 3,
-    shas: {
-      '0001-two-sum': {
-        '0001-two-sum.js': 'ad3576c45091bf1a09de17b41401633817d2bbc3',
-        'README.md': '466f5e31bfeb151e70b5b325c379cf04183ebb57',
-      },
-    },
-    solved: 4,
-  };
+  const merged = {};
+  mergeDeep(merged, obj1);
+  mergeDeep(merged, obj2);
 
-  const merged = mergeStats(obj1, obj2);
-  console.log(merged);
+  const shas = merged.shas || {};
+  const difficulties = countDifficulties(shas);
+
+  merged.easy = difficulties.easy;
+  merged.medium = difficulties.medium;
+  merged.hard = difficulties.hard;
+  merged.solved = difficulties.solved;
+
+  return merged;
 }
 
 export {
@@ -262,4 +197,5 @@ export {
   isEmpty,
   languages,
   LeetHubError,
+  mergeStats
 };
