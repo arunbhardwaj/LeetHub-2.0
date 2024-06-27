@@ -40,7 +40,7 @@ class LeetHubError extends Error {
   }
 }
 
-function isEmpty(obj) {
+function isEmptyObject(obj) {
   for (const prop in obj) {
     if (Object.hasOwn(obj, prop)) {
       return false;
@@ -194,7 +194,7 @@ export {
   formatStats,
   getBrowser,
   getDifficulty,
-  isEmpty,
+  isEmptyObject,
   languages,
   LeetHubError,
   mergeStats

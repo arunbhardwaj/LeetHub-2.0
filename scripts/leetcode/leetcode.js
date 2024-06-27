@@ -6,7 +6,7 @@ import {
   DIFFICULTY,
   getBrowser,
   getDifficulty,
-  isEmpty,
+  isEmptyObject,
   LeetHubError,
 } from './util.js';
 import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics.js';
@@ -97,7 +97,7 @@ const upload = async (token, hook, content, problem, filename, sha, message, dif
 // Returns stats object. If it didn't exist, initializes stats with default difficulty values and initializes the sha object for problem
 const getAndInitializeStats = problem => {
   return api.storage.local.get('stats').then(({ stats }) => {
-    if (stats == null || isEmpty(stats)) {
+    if (stats == null || isEmptyObject(stats)) {
       stats = {};
       stats.shas = {};
       stats.solved = 0;
@@ -148,12 +148,15 @@ const setPersistentStats = async localStats => {
   );
 };
 
-const checkAlreadyCompleted = problemName => {
-  return api.storage.local.get('stats').then(({ stats }) => {
-    if (stats?.shas?.[problemName] == null) {
-      return false;
+const isCompleted = problemName => {
+  return api.storage.local.get('stats').then((data) => {
+    if (data?.stats?.shas?.[problemName] == null) return false;
+
+    for (let file of Object.keys(data?.stats?.shas?.[problemName])) {
+      if (file.includes(problemName)) return true;
     }
-    return true;
+
+    return false;
   });
 };
 
@@ -412,7 +415,7 @@ function loader(leetCode) {
       }
 
       const problemName = leetCode.getProblemNameSlug();
-      const alreadyCompleted = await checkAlreadyCompleted(problemName);
+      const alreadyCompleted = await isCompleted(problemName);
       const language = leetCode.getLanguageExtension();
       if (!language) {
         throw new LeetHubError('LanguageNotFound');
@@ -461,6 +464,7 @@ function loader(leetCode) {
       );
 
       const newSHAs = await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMe]);
+      console.log({newSHAs, problem: problemName});
 
       leetCode.markUploaded();
 
@@ -507,8 +511,8 @@ async function v2SubmissionHandler(event, leetCode) {
   }
 
   const authenticated =
-    !isEmpty(await api.storage.local.get(['leethub_token'])) &&
-    !isEmpty(await api.storage.local.get(['leethub_hook']));
+    !isEmptyObject(await api.storage.local.get(['leethub_token'])) &&
+    !isEmptyObject(await api.storage.local.get(['leethub_hook']));
   if (!authenticated) {
     throw new LeetHubError('UserNotAuthenticated');
   }
