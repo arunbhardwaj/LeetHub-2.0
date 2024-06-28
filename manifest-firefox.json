@@ -1,0 +1,44 @@
+{
+  "manifest_version": 2,
+  "name": "LeetHub v2",
+  "description": "Automatically integrate your Leetcode & GeeksforGeeks submissions to GitHub",
+  "homepage_url": "https://github.com/arunbhardwaj/LeetHub-2.0",
+  "version": "__LH_VERSION__",
+  "author": "Arun Bhardwaj",
+  "browser_action": {
+    "default_icon": "assets/thumbnail.png",
+    "default_popup": "popup.html",
+    "default_title": "Upload your LeetCode solutions to GitHub"
+  },
+  "icons": {
+    "16": "assets/thumbnail.png",
+    "48": "assets/thumbnail.png",
+    "128": "assets/thumbnail.png"
+  },
+  "background": {
+    "scripts": ["scripts/background.js"]
+  },
+  "permissions": [
+    "unlimitedStorage",
+    "storage",
+    "webNavigation"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/*"],
+      "js": ["scripts/leetcode.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://github.com/*"],
+      "js": ["scripts/authorize.js"]
+    },
+    {
+      "matches": ["https://practice.geeksforgeeks.org/*"],
+      "js": ["scripts/gfg.js"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

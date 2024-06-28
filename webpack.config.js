@@ -21,9 +21,17 @@ const ignore = [
   '**/scripts/leetcode/**',
   '**/scripts/welcome.js',
   '**/README.md',
+  '**/manifest-chrome.json',
+  '**/manifest-firefox.json',
   '**/assets/extension', // web store assets
   // ...entries.map((entry) => `**/${entry}.js`),
 ];
+
+const folderIgnore = [
+  '**/chrome/**',
+  '**/firefox/**',
+  '**/manifest.json',
+]
 
 const manifestTransform = content => {
   const filteredContent = content
@@ -80,7 +88,13 @@ export default {
           },
         },
         {
-          from: './manifest.json',
+          from: './manifest-chrome.json',
+          to: './chrome/manifest.json',
+          transform: manifestTransform,
+        },
+        {
+          from: './manifest-firefox.json',
+          to: './firefox/manifest.json',
           transform: manifestTransform,
         },
         {
@@ -110,6 +124,22 @@ export default {
             {
               source: './dist/welcome.js',
               destination: './dist/scripts/welcome.js',
+            },
+          ],
+          copy: [ // Copy everything to chrome and firefox
+            {
+              source: './dist/**',
+              destination: './dist/chrome',
+              globOptions: {
+                ignore: folderIgnore,
+              },
+            },
+            {
+              source: './dist/**',
+              destination: './dist/firefox',
+              globOptions: {
+                ignore: folderIgnore,
+              },
             },
           ],
         },
