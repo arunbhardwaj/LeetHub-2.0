@@ -1,6 +1,6 @@
-import { getBrowser } from "./leetcode/util";
+import { getBrowser } from './leetcode/util.js';
 
-const api = getBrowser()
+const api = getBrowser();
 
 const option = () => {
   return $('#type').val();
@@ -13,12 +13,13 @@ const repositoryName = () => {
 const createRepoDescription =
   'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)';
 
-/* Sync's local storage with persistent stats and returns the pulled stats */
+/* Sync's local storage with persistent stats and returns the pulled stats. Currently only syncs when we install, or unlink then relink */
 const syncStats = async () => {
-  let { leethub_hook, leethub_token, sync_stats } = await api.storage.local.get([
+  let { leethub_hook, leethub_token, sync_stats, stats } = await api.storage.local.get([
     'leethub_token',
     'leethub_hook',
     'sync_stats',
+    'stats',
   ]);
 
   if (sync_stats === false) {
@@ -49,7 +50,8 @@ const syncStats = async () => {
   api.storage.local.set({ stats: pStats.leetcode, sync_stats: false }, () =>
     console.log(`Successfully synced local stats with GitHub stats`)
   );
-  // emulate return value of api.storage.local.get('stats') which is { stats: {easy, hard, medium, solved, shas}}
+
+  // emulate the nested return obj of api.storage.local.get('stats')
   return { stats: pStats.leetcode };
 };
 
@@ -195,10 +197,13 @@ const linkRepo = (token, name) => {
 
 const unlinkRepo = () => {
   /* Reset mode type to hook, stats to null */
-  api.storage.local.set({ mode_type: 'hook', leethub_hook: null, sync_stats: true, stats: null }, () => {
-    console.log(`Unlinked repo`);
-    console.log('Cleared local stats');
-  });
+  api.storage.local.set(
+    { mode_type: 'hook', leethub_hook: null, sync_stats: true, stats: null },
+    () => {
+      console.log(`Unlinked repo`);
+      console.log('Cleared local stats');
+    }
+  );
 
   /* Hide accordingly */
   document.getElementById('hook_mode').style.display = 'inherit';
@@ -322,13 +327,3 @@ api.storage.local.get('mode_type', data => {
     document.getElementById('commit_mode').style.display = 'none';
   }
 });
-
-function isEmpty(obj) {
-  for (const prop in obj) {
-    if (Object.hasOwn(obj, prop)) {
-      return false;
-    }
-  }
-
-  return true;
-}

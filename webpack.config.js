@@ -1,6 +1,11 @@
-const path = require('path');
-const CopyPlugin = require('copy-webpack-plugin');
-const FileManagerPlugin = require('filemanager-webpack-plugin');
+import path from 'path';
+import CopyPlugin from 'copy-webpack-plugin';
+import FileManagerPlugin from 'filemanager-webpack-plugin';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const entries = ['leetcode', 'welcome'];
 const extensionVersion = process.env.npm_package_version;
@@ -32,7 +37,7 @@ const manifestTransform = content => {
   return JSON.stringify(manifestData, null, 2);
 };
 
-module.exports = {
+export default {
   entry: {
     leetcode: path.resolve(__dirname, 'scripts', 'leetcode', 'leetcode.js'),
     welcome: './scripts/welcome.js',

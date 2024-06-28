@@ -40,15 +40,7 @@ class LeetHubError extends Error {
   }
 }
 
-class RepoReadmeNotFoundErr extends LeetHubError {
-  constructor(message, topicTags, problemName) {
-    super(message);
-    this.topicTags = topicTags;
-    this.problemName = problemName;
-  }
-}
-
-function isEmpty(obj) {
+function isEmptyObject(obj) {
   for (const prop in obj) {
     if (Object.hasOwn(obj, prop)) {
       return false;
@@ -75,9 +67,17 @@ function debounce(func, wait, invokeBeforeTimeout) {
   };
 }
 
-// Delays `func` invocation with `...args` until after `wait` milliseconds
+/**
+ * Delays the execution of a function by the specified time (in milliseconds)
+ * and then executes the function with the provided arguments.
+ *
+ * @param {Function} func - The function to be executed after the delay.
+ * @param {number} wait - The number of milliseconds to wait before executing the function.
+ * @param {...*} [args] - Additional arguments to pass to the function when it is called.
+ * @returns {Promise<*>} A promise that resolves with the result of the function execution.
+ */
 function delay(func, wait, ...args) {
-  return setTimeout(() => func(...args), wait);
+  return new Promise(resolve => setTimeout(() => resolve(func(...args)), wait));
 }
 
 function getBrowser() {
@@ -90,8 +90,13 @@ function getBrowser() {
   }
 }
 
+/**
+ * Returns the difficulty in PascalCase for a given difficulty
+ * @param {string} difficulty - The difficulty level as a string: "easy", "medium", "hard", etc.
+ * @returns {string} - The difficulty level in PascalCase: "Easy", "Medium", or "Hard" or "Unknown" for unrecognized values.
+ */
 function getDifficulty(difficulty) {
-  difficulty = difficulty.toUpperCase().trim();
+  difficulty &&= difficulty.toUpperCase().trim();
   return DIFFICULTY[difficulty] ?? DIFFICULTY.UNKNOWN;
 }
 
@@ -130,6 +135,55 @@ function formatStats(time, timePercentile, space, spacePercentile) {
   return `Time: ${time} (${timePercentile}%), Space: ${space} (${spacePercentile}%) - LeetHub`;
 }
 
+function isObject(obj) {
+  return obj && typeof obj === 'object' && !Array.isArray(obj);
+}
+
+function mergeDeep(target, source) {
+  for (const key in source) {
+    if (isObject(source[key])) {
+      if (!target[key]) {
+        Object.assign(target, { [key]: {} });
+      }
+      mergeDeep(target[key], source[key]);
+    } else {
+      Object.assign(target, { [key]: source[key] });
+    }
+  }
+}
+
+function mergeStats(obj1, obj2) {
+  function countDifficulties(shas) {
+    const difficulties = { easy: 0, medium: 0, hard: 0, solved: 0 };
+    for (const problem in shas) {
+      if ('difficulty' in shas[problem]) {
+        const difficulty = shas[problem].difficulty;
+        if (difficulty in difficulties) {
+          difficulties[difficulty]++;
+        }
+      }
+    }
+    for (let value of Object.values(difficulties)) {
+      difficulties.solved += value;
+    }
+    return difficulties;
+  }
+
+  const merged = {};
+  mergeDeep(merged, obj1);
+  mergeDeep(merged, obj2);
+
+  const shas = merged.shas || {};
+  const difficulties = countDifficulties(shas);
+
+  merged.easy = difficulties.easy;
+  merged.medium = difficulties.medium;
+  merged.hard = difficulties.hard;
+  merged.solved = difficulties.solved;
+
+  return merged;
+}
+
 export {
   addLeadingZeros,
   checkElem,
@@ -140,8 +194,8 @@ export {
   formatStats,
   getBrowser,
   getDifficulty,
-  isEmpty,
+  isEmptyObject,
   languages,
   LeetHubError,
-  RepoReadmeNotFoundErr,
+  mergeStats
 };

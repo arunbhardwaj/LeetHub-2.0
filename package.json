@@ -1,8 +1,9 @@
 {
   "name": "LeetHub v2",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "private": true,
   "description": "Automatically integrate your code with LeetCode and GitHub",
+  "type": "module",
   "scripts": {
     "dev": "webpack --mode=production --watch",
     "setup": "npm i",
@@ -10,14 +11,15 @@
     "format-test": "prettier --check **/*.{js,jsx,ts,tsx,css,html}",
     "lint": "eslint **/*.{js,ts} --fix",
     "lint-test": "eslint **/*.{js,ts} --color",
-    "build": "webpack --mode=production"
+    "build": "webpack --mode=production",
+    "test": "jasmine"
   },
   "devDependencies": {
     "chrome-types": "^0.1.282",
     "copy-webpack-plugin": "^12.0.2",
     "filemanager-webpack-plugin": "^8.0.0",
     "ignore-loader": "^0.1.2",
-    "jest": "^29.7.0",
+    "jasmine": "^5.1.0",
     "prettier": "^2.2.1",
     "puppeteer": "^22.11.2",
     "webpack": "^5.92.0",

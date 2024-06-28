@@ -1,24 +1,27 @@
-import { LeetCodeV1, LeetCodeV2 } from './versions';
-import setupManualSubmitBtn from './submitBtn';
+import { LeetCodeV1, LeetCodeV2 } from './versions.js';
+import setupManualSubmitBtn from './submitBtn.js';
 import {
   debounce,
   delay,
   DIFFICULTY,
   getBrowser,
-  isEmpty,
+  getDifficulty,
+  isEmptyObject,
   LeetHubError,
-  RepoReadmeNotFoundErr,
-} from './util';
-import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics';
+  mergeStats,
+} from './util.js';
+import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics.js';
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
 const updateReadmeMsg = 'Update README - Topic Tags';
+const updateStatsMsg = 'Updated stats';
 const discussionMsg = 'Prepend discussion post - LeetHub';
 const createNotesMsg = 'Attach NOTES - LeetHub';
 const defaultRepoReadme =
   'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)';
 const readmeFilename = 'README.md';
+const statsFilename = 'stats.json';
 
 // problem types
 const NORMAL_PROBLEM = 0;
@@ -28,12 +31,46 @@ const WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS = 500;
 
 const api = getBrowser();
 
+/**
+ * Constructs a file path by appending the given filename to the problem directory.
+ * If no filename is provided, it returns the problem name as the path.
+ *
+ * @param {string} problem - The base problem directory or the entire file path if no filename is provided.
+ * @param {string} [filename] - Optional parameter for the filename to be appended to the problem directory.
+ * @returns {string} - Returns a string representing the complete file path, either with or without the appended filename.
+ */
 const getPath = (problem, filename) => {
   return filename ? `${problem}/${filename}` : problem;
 };
 
-/* Main function for uploading code to GitHub repo, and callback cb is called if success */
-const upload = (token, hook, content, problem, filename, sha, message) => {
+// https://web.archive.org/web/20190623091645/https://monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
+// In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
+// But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
+// EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
+// Unescape converts percent-encoded hex values into regular ASCII (optional; it shrinks string size).
+// btoa converts ASCII to base64.
+/** Decodes a base64 encoded string into UTF-8 format using URI encoding.*/
+const decode = data => decodeURIComponent(escape(atob(data)));
+/** Encodes a given string into base64 format.*/
+const encode = data => btoa(unescape(encodeURIComponent(data)));
+
+/**
+ * Uploads content to a specified GitHub repository and updates local stats with the sha of the updated file.
+ * @async
+ * @param {string} token - The authentication token used to authorize the request.
+ * @param {string} hook - The owner and repository name in the format 'owner/repo'.
+ * @param {string} content - The content to be uploaded, typically a string encoded in base64.
+ * @param {string} problem - The problem slug, which is a combination of problem ID and name, and acts as a folder.
+ * @param {string} filename - The name of the file, typically the problem slug + file extension.
+ * @param {string} sha - The SHA of the existing file.
+ * @param {string} message - A commit message describing the change.
+ * @param {string} [difficulty] - The difficulty level of the problem.
+ *
+ * @returns {Promise<string>} - A promise that resolves with the new SHA of the content after successful upload.
+ *
+ * @throws {LeetHubError} - Throws an error if the response is not OK (e.g., HTTP status code is not `200-299`).
+ */
+const upload = async (token, hook, content, problem, filename, sha, message) => {
   const path = getPath(problem, filename);
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
@@ -43,39 +80,34 @@ const upload = (token, hook, content, problem, filename, sha, message) => {
     sha,
   };
 
-  data = JSON.stringify(data);
-
   let options = {
     method: 'PUT',
     headers: {
       Authorization: `token ${token}`,
       Accept: 'application/vnd.github.v3+json',
     },
-    body: data,
+    body: JSON.stringify(data),
   };
-  let newSha;
 
-  return fetch(URL, options)
-    .then(res => {
-      if (!res.ok) {
-        throw new LeetHubError(res.status, res);
-        // throw new LeetHubError('File already exists with GitHub. Updating instead.');
-      }
-      return res.json();
-    })
-    .then(async body => {
-      newSha = body.content.sha;
-      const stats = await getAndInitializeStats(problem);
-      stats.shas[problem][filename] = newSha;
-      return api.storage.local.set({ stats });
-    })
-    .then(() => console.log(`Successfully committed ${getPath(problem, filename)} to github`));
+  const res = await fetch(URL, options);
+  if (!res.ok) {
+    throw new LeetHubError(res.status, { cause: res });
+  }
+  console.log(`Successfully committed ${getPath(problem, filename)} to github`);
+
+  const body = await res.json();
+  //TODO: Think, should we be setting stats state here?
+  const stats = await getAndInitializeStats(problem);
+  stats.shas[problem][filename] = body.content.sha;
+  api.storage.local.set({ stats });
+
+  return body.content.sha;
 };
 
 // Returns stats object. If it didn't exist, initializes stats with default difficulty values and initializes the sha object for problem
 const getAndInitializeStats = problem => {
   return api.storage.local.get('stats').then(({ stats }) => {
-    if (stats == null || isEmpty(stats)) {
+    if (stats == null || isEmptyObject(stats)) {
       stats = {};
       stats.shas = {};
       stats.solved = 0;
@@ -92,37 +124,82 @@ const getAndInitializeStats = problem => {
   });
 };
 
-const incrementStats = (difficulty) => {
-  return api.storage.local
-    .get('stats')
-    .then(({ stats }) => {
-      stats.solved += 1;
-      stats.easy += difficulty === DIFFICULTY.EASY ? 1 : 0;
-      stats.medium += difficulty === DIFFICULTY.MEDIUM ? 1 : 0;
-      stats.hard += difficulty === DIFFICULTY.HARD ? 1 : 0;
-      api.storage.local.set({ stats });
-      return stats;
-    })
-    .then(uploadPersistentStats);
-  // .catch(console.error)
-};
-
-const checkAlreadyCompleted = problemName => {
+/**
+ * Increment the statistics for a given problem based on its difficulty.
+ * @param {DIFFICULTY} difficulty - The difficulty level of the problem, which can be `easy`, `medium`, or `hard`.
+ * @param {string} problem - The name of the problem being solved in slug form, e.g. `0001-two-sum`
+ * @returns {Promise<Object>} A promise that resolves to the updated statistics object.
+ */
+const incrementStats = (difficulty, problem) => {
+  const diff = getDifficulty(difficulty);
   return api.storage.local.get('stats').then(({ stats }) => {
-    if (stats?.shas?.[problemName] == null) {
-      return false;
-    }
-    return true;
+    stats.solved += 1;
+    stats.easy += diff === DIFFICULTY.EASY ? 1 : 0;
+    stats.medium += diff === DIFFICULTY.MEDIUM ? 1 : 0;
+    stats.hard += diff === DIFFICULTY.HARD ? 1 : 0;
+    stats.shas[problem].difficulty = diff.toLowerCase();
+    api.storage.local.set({ stats });
+    return stats;
   });
 };
 
-/* Main function for updating code on GitHub Repo */
-/* Read from existing file on GitHub */
+/**
+ * Sets persistent stats and merges any cloud updates into local stats
+ * @async
+ * @param {Object} localStats - Local statistics about LeetCode problems.
+ * @returns {Promise<void>} A promise that resolves to the sha of the newly updated `stats.json` file.
+ *
+ * @throws {Error} - If the upload operation fails for any reason other than 409 Conflict
+ */
+const setPersistentStats = async localStats => {
+  let pStats = { leetcode: localStats };
+  const pStatsEncoded = encode(JSON.stringify(pStats));
+  const sha = localStats?.shas?.[readmeFilename]?.[''] || '';
+
+  const { leethub_token: token, leethub_hook: hook } = await api.storage.local.get([
+    'leethub_token',
+    'leethub_hook',
+  ]);
+
+  try {
+    return await upload(token, hook, pStatsEncoded, statsFilename, '', sha, updateStatsMsg);
+  } catch (e) {
+    if (e.message === '409') {
+      // Stats were updated on GitHub since last submission
+      const { content, sha } = await getGitHubFile(token, hook, statsFilename).then(res =>
+        res.json()
+      );
+      pStats = JSON.parse(decode(content));
+      const mergedStats = mergeStats(pStats.leetcode, localStats);
+      const mergedStatsEncoded = encode(JSON.stringify({ leetcode: mergedStats }));
+
+      // Update local stats with the changes from GitHub
+      await api.storage.local.set({ stats: mergedStats });
+
+      return await delay(
+        () => upload(token, hook, mergedStatsEncoded, statsFilename, '', sha, updateStatsMsg),
+        WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
+      );
+    }
+    throw e;
+  }
+};
+
+const isCompleted = problemName => {
+  return api.storage.local.get('stats').then(data => {
+    if (data?.stats?.shas?.[problemName] == null) return false;
+
+    for (let file of Object.keys(data?.stats?.shas?.[problemName])) {
+      if (file.includes(problemName)) return true;
+    }
+
+    return false;
+  });
+};
+
 /* Discussion posts prepended at top of README */
 /* Future implementations may require appending to bottom of file */
-const update = (
-  token,
-  hook,
+const updateReadmeWithDiscussionPost = async (
   addition,
   directory,
   filename,
@@ -130,93 +207,112 @@ const update = (
   shouldPreprendDiscussionPosts
 ) => {
   let responseSHA;
+  const { leethub_token, leethub_hook } = await api.storage.local.get([
+    'leethub_token',
+    'leethub_hook',
+  ]);
 
-  return getGitHubFile(token, hook, directory, filename)
+  return getGitHubFile(leethub_token, leethub_hook, directory, filename)
     .then(resp => resp.json())
     .then(data => {
       responseSHA = data.sha;
-      return decodeURIComponent(escape(atob(data.content)));
+      return decode(data.content);
     })
     .then(existingContent =>
-      // https://web.archive.org/web/20190623091645/https://monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
-      // In order to preserve mutation of the data, we have to encode it, which is usually done in base64.
-      // But btoa only accepts ASCII 7 bit chars (0-127) while Javascript uses 16-bit minimum chars (0-65535).
-      // EncodeURIComponent converts the Unicode Points UTF-8 bits to hex UTF-8.
-      // Unescape converts percent-encoded hex values into regular ASCII (optional; it shrinks string size).
-      // btoa converts ASCII to base64.
-      shouldPreprendDiscussionPosts
-        ? btoa(unescape(encodeURIComponent(addition + existingContent)))
-        : btoa(unescape(encodeURIComponent(existingContent)))
+      shouldPreprendDiscussionPosts ? encode(addition + existingContent) : encode(existingContent)
     )
     .then(newContent =>
-      upload(token, hook, newContent, directory, filename, responseSHA, commitMsg)
+      upload(leethub_token, leethub_hook, newContent, directory, filename, responseSHA, commitMsg)
     );
 };
 
-function uploadGit(
-  code,
-  problemName,
-  fileName,
-  commitMsg,
-  action,
-  shouldPrependDiscussionPosts = false
-) {
+/**
+ * Wrapper func to upload code to a specific GitHub repository and handle 409 errors (conflict)
+ * @async
+ * @function uploadGitWith409Retry
+ * @param {string} code - The code content that needs to be uploaded.
+ * @param {string} problemName - The name of the problem or file where the code is related to.
+ * @param {string} filename - The target filename in the repository where the code will be stored.
+ * @param {string} commitMsg - The commit message that describes the changes being made.
+ * @param {Object} [optionals] - Optional parameters for updating stats
+ * @param {string} optionals.sha - The SHA value of the existing content to be updated (optional).
+ * @param {DIFFICULTY} optionals.difficulty - The difficulty level of the problem (optional).
+ *
+ * @returns {Promise<string>} A promise that resolves with the new SHA of the content after successful upload.
+ *
+ * @throws {LeetHubError} If there's no token defined, the mode type is not `commit`, or if no repository hook is defined.
+ */
+async function uploadGitWith409Retry(code, problemName, filename, commitMsg, optionals) {
   let token;
   let hook;
 
-  return api.storage.local
-    .get(['leethub_token', 'mode_type', 'leethub_hook', 'stats'])
-    .then(({ leethub_token, leethub_hook, mode_type, stats }) => {
-      token = leethub_token;
-      if (leethub_token == undefined) {
-        throw new LeetHubError('LeethubTokenUndefined');
-      }
+  const storageData = await api.storage.local.get([
+    'leethub_token',
+    'mode_type',
+    'leethub_hook',
+    'stats',
+  ]);
 
-      if (mode_type !== 'commit') {
-        throw new LeetHubError('LeetHubNotAuthorizedByGit');
-      }
+  token = storageData.leethub_token;
+  if (!token) {
+    throw new LeetHubError('LeethubTokenUndefined');
+  }
 
-      hook = leethub_hook;
-      if (!hook) {
-        throw new LeetHubError('NoRepoDefined');
-      }
-      if (action === 'upload') {
-        /* Get SHA, if it exists */
-        const sha =
-          stats?.shas?.[problemName]?.[fileName] !== undefined
-            ? stats.shas[problemName][fileName]
-            : '';
+  if (storageData.mode_type !== 'commit') {
+    throw new LeetHubError('LeetHubNotAuthorizedByGit');
+  }
 
-        return upload(token, hook, code, problemName, fileName, sha, commitMsg);
-      } else if (action === 'update') {
-        return update(
-          token,
-          hook,
-          code,
-          problemName,
-          fileName,
-          commitMsg,
-          shouldPrependDiscussionPosts
-        );
-      }
-    })
-    .catch(err => {
-      // if (err instanceof LeetHubError) {
-      if (err.message === '409') {
-        return getGitHubFile(token, hook, problemName, fileName).then(resp => resp.json());
-      } else {
-        throw err;
-      }
-    })
-    .then(data =>
-      data != null // if it isn't null, then we didn't upload successfully the first time, and must have retrieved new data and reuploaded
-        ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg)
-        : undefined
+  hook = storageData.leethub_hook;
+  if (!hook) {
+    throw new LeetHubError('NoRepoDefined');
+  }
+
+  /* Get SHA, if it exists */
+  const sha = optionals?.sha
+    ? optionals.sha
+    : storageData.stats?.shas?.[problemName]?.[filename] !== undefined
+    ? storageData.stats.shas[problemName][filename]
+    : '';
+
+  try {
+    return await upload(
+      token,
+      hook,
+      code,
+      problemName,
+      filename,
+      sha,
+      commitMsg,
+      optionals?.difficulty
     );
-  // .catch(e => console.error(new LeetHubError(e.message)));
+  } catch (err) {
+    if (err.message === '409') {
+      const data = await getGitHubFile(token, hook, problemName, filename).then(res => res.json());
+      return upload(
+        token,
+        hook,
+        code,
+        problemName,
+        filename,
+        data.sha,
+        commitMsg,
+        optionals?.difficulty
+      );
+    }
+    throw err;
+  }
 }
 
-/* Returns GitHub data for the file specified by `${directory}/${filename}` path */
+/** Returns GitHub data for the file specified by `${directory}/${filename}` path
+ * @async
+ * @function getGitHubFile
+ * @param {string} token - The personal access token for authentication with GitHub.
+ * @param {string} hook - The owner and repository name in the format "owner/repository".
+ * @param {string} directory - The directory within the repository where the file is located.
+ * @param {string} filename - The name of the file to be fetched.
+ * @returns {Promise<Response>} A promise that resolves with the response from the GitHub API request.
+ * @throws {Error} Throws an error if the response is not OK (e.g., HTTP status code is not 200-299).
+ */
 async function getGitHubFile(token, hook, directory, filename) {
   const path = getPath(directory, filename);
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
@@ -229,27 +325,12 @@ async function getGitHubFile(token, hook, directory, filename) {
     },
   };
 
-  return fetch(URL, options).then(res => {
-    if (!res.ok) {
-      throw new Error(res.status);
-    }
-    return res;
-  });
-}
+  const res = await fetch(URL, options);
+  if (!res.ok) {
+    throw new Error(res.status);
+  }
 
-// Updates or creates the persistent stats from local stats
-async function uploadPersistentStats(localStats) {
-  const pStats = { leetcode: localStats };
-  const pStatsEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(pStats))));
-  return delay(
-    uploadGit,
-    WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS,
-    pStatsEncoded,
-    'stats.json',
-    '',
-    `Updated stats`,
-    'upload'
-  );
+  return res;
 }
 
 /* Discussion Link - When a user makes a new post, the link is prepended to the README for that problem.*/
@@ -260,10 +341,11 @@ document.addEventListener('click', event => {
   /* Act on Post button click */
   /* Complex since "New" button shares many of the same properties as "Post button */
   if (
-    element.classList.contains('icon__3Su4') ||
-    element.parentElement.classList.contains('icon__3Su4') ||
-    element.parentElement.classList.contains('btn-content-container__214G') ||
-    element.parentElement.classList.contains('header-right__2UzF')
+    element &&
+    (element.classList.contains('icon__3Su4') ||
+      element.parentElement?.classList.contains('icon__3Su4') ||
+      element.parentElement?.classList.contains('btn-content-container__214G') ||
+      element.parentElement?.classList.contains('header-right__2UzF'))
   ) {
     setTimeout(function () {
       /* Only post if post button was clicked and url changed */
@@ -276,16 +358,15 @@ document.addEventListener('click', event => {
         const currentDate = `${date.getDate()}/${date.getMonth()}/${date.getFullYear()} at ${date.getHours()}:${date.getMinutes()}`;
         const addition = `[Discussion Post (created on ${currentDate})](${window.location})  \n`;
         const problemName = window.location.pathname.split('/')[2]; // must be true.
-
-        uploadGit(addition, problemName, readmeFilename, discussionMsg, 'update', true);
+        updateReadmeWithDiscussionPost(addition, problemName, readmeFilename, discussionMsg, true);
       }
     }, 1000);
   }
 });
 
 function createRepoReadme() {
-  const content = btoa(unescape(encodeURIComponent(defaultRepoReadme)));
-  return uploadGit(content, readmeFilename, '', readmeMsg, 'upload');
+  const content = encode(defaultRepoReadme);
+  return uploadGitWith409Retry(content, readmeFilename, '', readmeMsg);
 }
 
 async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
@@ -299,30 +380,35 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
     'leethub_hook',
     'stats',
   ]);
+
   let readme;
+  let newSha;
+
   try {
-      const { content, sha } = await getGitHubFile(leethub_token, leethub_hook, readmeFilename).then(resp => resp.json());
-      readme = content;
-      stats.shas[readmeFilename] = {'': sha}
-      await chrome.storage.local.set({stats})
+    const { content, sha } = await getGitHubFile(
+      leethub_token,
+      leethub_hook,
+      readmeFilename
+    ).then(resp => resp.json());
+    readme = content;
+    stats.shas[readmeFilename] = { '': sha };
+    await api.storage.local.set({ stats });
   } catch (err) {
     if (err.message === '404') {
-      throw new RepoReadmeNotFoundErr('RepoReadmeNotFound', topicTags, problemName);
+      newSha = await createRepoReadme();
     }
-
     throw err;
   }
-  readme = decodeURIComponent(escape(atob(readme)));
+  readme = decode(readme);
   for (let topic of topicTags) {
     readme = appendProblemToReadme(topic.name, readme, leethub_hook, problemName);
   }
   readme = sortTopicsInReadme(readme);
-  readme = btoa(unescape(encodeURIComponent(readme)));
-  return new Promise((resolve, reject) =>
-    setTimeout(
-      () => resolve(uploadGit(readme, readmeFilename, '', updateReadmeMsg, 'upload')),
-      WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
-    )
+  readme = encode(readme);
+
+  return delay(
+    () => uploadGitWith409Retry(readme, readmeFilename, '', updateReadmeMsg, { sha: newSha }),
+    WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
   );
 }
 
@@ -358,7 +444,7 @@ function loader(leetCode) {
       }
 
       const problemName = leetCode.getProblemNameSlug();
-      const alreadyCompleted = await checkAlreadyCompleted(problemName);
+      const alreadyCompleted = await isCompleted(problemName);
       const language = leetCode.getLanguageExtension();
       if (!language) {
         throw new LeetHubError('LanguageNotFound');
@@ -370,13 +456,11 @@ function loader(leetCode) {
         const shaExists = stats?.shas?.[problemName]?.[readmeFilename] !== undefined;
 
         if (!shaExists) {
-          return uploadGit(
-            btoa(unescape(encodeURIComponent(probStatement))),
+          return uploadGitWith409Retry(
+            encode(probStatement),
             problemName,
             readmeFilename,
-            readmeMsg,
-            'upload',
-            false
+            readmeMsg
           );
         }
       });
@@ -385,26 +469,12 @@ function loader(leetCode) {
       const notes = leetCode.getNotesIfAny();
       let uploadNotes;
       if (notes != undefined && notes.length > 0) {
-        uploadNotes = uploadGit(
-          btoa(unescape(encodeURIComponent(notes))),
-          problemName,
-          'NOTES.md',
-          createNotesMsg,
-          'upload',
-          false
-        );
+        uploadNotes = uploadGitWith409Retry(encode(notes), problemName, 'NOTES.md', createNotesMsg);
       }
 
       /* Upload code to Git */
       const code = leetCode.findCode(probStats);
-      const uploadCode = uploadGit(
-        btoa(unescape(encodeURIComponent(code))),
-        problemName,
-        filename,
-        probStats,
-        'upload',
-        false
-      );
+      const uploadCode = uploadGitWith409Retry(encode(code), problemName, filename, probStats);
 
       /* Group problem into its relevant topics */
       const updateRepoReadMe = updateReadmeTopicTagsWithProblem(
@@ -412,12 +482,13 @@ function loader(leetCode) {
         problemName
       );
 
-      await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMe]);
+      const newSHAs = await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMe]);
 
       leetCode.markUploaded();
 
       if (!alreadyCompleted) {
-        incrementStats(leetCode.difficulty); // Increments local and persistent stats
+        // Increments local and persistent stats
+        incrementStats(leetCode.difficulty, problemName).then(setPersistentStats);
       }
     } catch (err) {
       leetCode.markUploadFailed();
@@ -426,16 +497,6 @@ function loader(leetCode) {
       if (!(err instanceof LeetHubError)) {
         console.error(err);
         return;
-      }
-
-      if (err instanceof RepoReadmeNotFoundErr) {
-        await createRepoReadme();
-        await new Promise(resolve => {
-          setTimeout(
-            () => resolve(updateReadmeTopicTagsWithProblem(err.topicTags, err.problemName)),
-            WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
-          );
-        });
       }
     }
   }, 1000);
@@ -468,8 +529,8 @@ async function v2SubmissionHandler(event, leetCode) {
   }
 
   const authenticated =
-    !isEmpty(await api.storage.local.get(['leethub_token'])) &&
-    !isEmpty(await api.storage.local.get(['leethub_hook']));
+    !isEmptyObject(await api.storage.local.get(['leethub_token'])) &&
+    !isEmptyObject(await api.storage.local.get(['leethub_hook']));
   if (!authenticated) {
     throw new LeetHubError('UserNotAuthenticated');
   }
