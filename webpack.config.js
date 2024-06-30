@@ -16,10 +16,12 @@ const ignore = [
   '**/.prettierrc',
   '**/.eslintrc',
   '**/.env',
+  '**/assets/.DS_Store',
   '**/package*',
   '**/webpack*',
   '**/scripts/leetcode/**',
   '**/scripts/welcome.js',
+  '**/scripts/popup.js',
   '**/README.md',
   '**/manifest-chrome.json',
   '**/manifest-firefox.json',
@@ -49,6 +51,7 @@ export default {
   entry: {
     leetcode: path.resolve(__dirname, 'scripts', 'leetcode', 'leetcode.js'),
     welcome: './scripts/welcome.js',
+    popup: './scripts/popup.js',
   },
   watchOptions: {
     ignored: '**/dist/**',
@@ -98,10 +101,12 @@ export default {
           transform: manifestTransform,
         },
         {
-          from: 'assets',
-          to: 'assets',
+          from: 'assets/**',
           globOptions: {
-            ignore,
+            ignore: [
+              ...ignore,
+              './assets/.DS_Store'
+            ],
           },
         },
         {
@@ -124,6 +129,10 @@ export default {
             {
               source: './dist/welcome.js',
               destination: './dist/scripts/welcome.js',
+            },
+            {
+              source: './dist/popup.js',
+              destination: './dist/scripts/popup.js',
             },
           ],
           copy: [ // Copy everything to chrome and firefox
