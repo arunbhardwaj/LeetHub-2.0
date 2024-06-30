@@ -95,6 +95,11 @@ export default {
         },
         {
           from: './manifest-chrome.json',
+          to: './manifest.json',
+          transform: manifestTransform,
+        },
+        {
+          from: './manifest-chrome.json',
           to: './chrome/manifest.json',
           transform: manifestTransform,
         },
