@@ -1,6 +1,7 @@
 import path from 'path';
 import CopyPlugin from 'copy-webpack-plugin';
 import FileManagerPlugin from 'filemanager-webpack-plugin';
+// https://stackoverflow.com/a/62892482/
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
