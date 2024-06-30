@@ -151,22 +151,6 @@ export default {
               },
             },
           ],
-          copy: [ // Copy everything to chrome and firefox
-            {
-              source: './dist/**',
-              destination: './dist/chrome',
-              globOptions: {
-                ignore: folderIgnore,
-              },
-            },
-            {
-              source: './dist/**',
-              destination: './dist/firefox',
-              globOptions: {
-                ignore: folderIgnore,
-              },
-            },
-          ],
         },
       },
     }),
