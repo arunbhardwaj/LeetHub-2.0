@@ -127,7 +127,7 @@ const getAndInitializeStats = problem => {
 /**
  * Increment the statistics for a given problem based on its difficulty.
  * @param {DIFFICULTY} difficulty - The difficulty level of the problem, which can be `easy`, `medium`, or `hard`.
- * @param {string} problem - The name of the problem being solved in slug form, e.g. `0001-two-sum`
+ * @param {string} problem - The slug problem name, e.g. `0001-two-sum`
  * @returns {Promise<Object>} A promise that resolves to the updated statistics object.
  */
 const incrementStats = (difficulty, problem) => {
@@ -412,6 +412,7 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   );
 }
 
+/** @param {LeetCodeV1 | LeetCodeV2} leetCode */
 function loader(leetCode) {
   let iterations = 0;
   const intervalId = setInterval(async () => {
@@ -502,7 +503,11 @@ function loader(leetCode) {
   }, 1000);
 }
 
-// Submit by Keyboard Shortcuts only support on LeetCode v2
+/**
+ * Submit by Keyboard Shortcuts (only supported on LeetCode v2)
+ * @param {Event} event
+ * @returns
+ */
 function wasSubmittedByKeyboard(event) {
   const isEnterKey = event.key === 'Enter';
   const isMacOS = window.navigator.userAgent.includes('Mac');
@@ -511,7 +516,10 @@ function wasSubmittedByKeyboard(event) {
   return isEnterKey && ((isMacOS && event.metaKey) || (!isMacOS && event.ctrlKey));
 }
 
-// Get SubmissionID by listening for URL changes to `/submissions/(d+)` format
+/**
+ * Get SubmissionID by listening for URL changes to `/submissions/(d+)` format
+ * @returns {string} submissionId
+ */
 async function listenForSubmissionId() {
   const { submissionId } = await api.runtime.sendMessage({
     type: 'LEETCODE_SUBMISSION',
@@ -523,6 +531,11 @@ async function listenForSubmissionId() {
   return submissionId;
 }
 
+/**
+ * @param {Event} event
+ * @param {LeetCodeV2} leetCode
+ * @returns {void}
+ */
 async function v2SubmissionHandler(event, leetCode) {
   if (event.type !== 'click' && !wasSubmittedByKeyboard(event)) {
     return;
@@ -605,8 +618,8 @@ api.storage.local.get('isSync', data => {
 setupManualSubmitBtn(
   debounce(
     () => {
-      // Manual submission event doesn't need to wait for submission url. It already has it.
       const leetCode = new LeetCodeV2();
+      // Manual submission event can only fire when we have submissionId. Simply retrieve it.
       const submissionId = window.location.href.match(/leetcode\.com\/.*\/submissions\/(\d+)/)[1];
       leetCode.submissionId = submissionId;
       loader(leetCode);

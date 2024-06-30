@@ -20,7 +20,7 @@ LeetCodeV1.prototype.init = async function () {};
 /* - Parse the code from the html reponse. */
 /* - Parse the stats from the html response (explore section) */
 LeetCodeV1.prototype.findCode = function (commitMsg) {
-  /* Get the submission details url from the submission page. */
+  // Get the submission details url from the submission page.
   let submissionURL;
   const e = document.getElementsByClassName('status-column__3SUg');
   if (checkElem(e)) {
@@ -74,12 +74,12 @@ LeetCodeV1.prototype.findCode = function (commitMsg) {
             slicedText = text.slice(text.indexOf('runtime'), text.indexOf('memory'));
             const resultRuntime = slicedText.slice(
               slicedText.indexOf("'") + 1,
-              slicedText.lastIndexOf("'"),
+              slicedText.lastIndexOf("'")
             );
             slicedText = text.slice(text.indexOf('memory'), text.indexOf('total_correct'));
             const resultMemory = slicedText.slice(
               slicedText.indexOf("'") + 1,
-              slicedText.lastIndexOf("'"),
+              slicedText.lastIndexOf("'")
             );
             commitMsg = `Time: ${resultRuntime}, Memory: ${resultMemory} - LeetHub`;
           }
@@ -91,7 +91,7 @@ LeetCodeV1.prototype.findCode = function (commitMsg) {
       }
     });
 };
-// Returns the language extension
+/** @returns {languages} */
 LeetCodeV1.prototype.getLanguageExtension = function () {
   const tag = [
     ...document.getElementsByClassName('ant-select-selection-selected-value'),
@@ -118,9 +118,7 @@ LeetCodeV1.prototype.getNotesIfAny = function () {
   if (
     checkElem(document.getElementsByClassName('notewrap__eHkN')) &&
     checkElem(
-      document
-        .getElementsByClassName('notewrap__eHkN')[0]
-        .getElementsByClassName('CodeMirror-code'),
+      document.getElementsByClassName('notewrap__eHkN')[0].getElementsByClassName('CodeMirror-code')
     )
   ) {
     let notesdiv = document
@@ -360,6 +358,7 @@ LeetCodeV2.prototype.getCode = function () {
 
   return code[0].innerText;
 };
+/** @returns {languages} */
 LeetCodeV2.prototype.getLanguageExtension = function () {
   if (this.submissionData != null) {
     return languages[this.submissionData.lang.verboseName];
@@ -403,7 +402,7 @@ LeetCodeV2.prototype.parseStats = function () {
       this.submissionData.runtimeDisplay,
       runtimePercentile,
       this.submissionData.memoryDisplay,
-      spacePercentile,
+      spacePercentile
     );
   }
 

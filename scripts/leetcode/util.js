@@ -1,5 +1,5 @@
-/* Enum for languages supported by LeetCode. */
-const languages = {
+/** Enum for languages supported by LeetCode. */
+const languages = Object.freeze({
   C: '.c',
   'C++': '.cpp',
   'C#': '.cs',
@@ -24,8 +24,9 @@ const languages = {
   Scala: '.scala',
   Swift: '.swift',
   TypeScript: '.ts',
-};
+});
 
+/** @enum */
 const DIFFICULTY = Object.freeze({
   EASY: 'Easy',
   MEDIUM: 'Medium',
@@ -50,12 +51,25 @@ function isEmptyObject(obj) {
   return true;
 }
 
-// Returns a function that can be immediately invoked but will start a timeout of 'wait' milliseconds before it can be called again.
+function assert(truthy, msg) {
+  if (!truthy) {
+    throw new LeetHubError(msg);
+  }
+}
+
+/**
+ * Returns a function that can be immediately invoked but will start
+ * a timeout of 'wait' milliseconds before it can be called again.
+ * @param {Function} func to be called after wait
+ * @param {number} wait time in ms
+ * @param {boolean} invokeBeforeTimeout true if you want to invoke func before waiting
+ * @returns {Function}
+ */
 function debounce(func, wait, invokeBeforeTimeout) {
   let timeout;
   return function () {
-    const context = this,
-      args = arguments;
+    const context = this;
+    const args = arguments;
     const later = function () {
       timeout = null;
       if (!invokeBeforeTimeout) func.apply(context, args);
@@ -80,6 +94,10 @@ function delay(func, wait, ...args) {
   return new Promise(resolve => setTimeout(() => resolve(func(...args)), wait));
 }
 
+/**
+ *
+ * @returns {chrome | browser} namespace of browser extension api
+ */
 function getBrowser() {
   if (typeof chrome !== 'undefined' && typeof chrome.runtime !== 'undefined') {
     return chrome;
@@ -100,11 +118,16 @@ function getDifficulty(difficulty) {
   return DIFFICULTY[difficulty] ?? DIFFICULTY.UNKNOWN;
 }
 
-/* Checks if an elem/array exists and has length */
+/**
+ * Checks if an HTML Collection exists and has elements
+ * @param {HTMLCollectionOf<Element>} elem
+ * @returns
+ */
 function checkElem(elem) {
   return elem && elem.length > 0;
 }
 
+/** @param {string} string @returns {string} problem slug, e.g. 0001-two-sum */
 function convertToSlug(string) {
   const a = 'àáâäæãåāăąçćčđďèéêëēėęěğǵḧîïíīįìłḿñńǹňôöòóœøōõőṕŕřßśšşșťțûüùúūǘůűųẃẍÿýžźż·/_,:;';
   const b = 'aaaaaaaaaacccddeeeeeeeegghiiiiiilmnnnnoooooooooprrsssssttuuuuuuuuuwxyyzzz------';
@@ -186,6 +209,7 @@ function mergeStats(obj1, obj2) {
 
 export {
   addLeadingZeros,
+  assert,
   checkElem,
   convertToSlug,
   debounce,
@@ -197,5 +221,5 @@ export {
   isEmptyObject,
   languages,
   LeetHubError,
-  mergeStats
+  mergeStats,
 };
