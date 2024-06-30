@@ -39,14 +39,6 @@ function handleMessage(request, sender, sendResponse) {
       api.tabs.remove(tab.id);
     });
   } else if (request.type === 'LEETCODE_SUBMISSION') {
-    // const tNow = Date.now();
-    // chrome.storage.local
-    //   .get('lastCheckIn')
-    //   .then(data =>
-    //     data?.lastCheckIn < tNow - ONE_HOUR_MS
-    //       ? chrome.storage.local.set({ sync_stats: true, lastCheckIn: tNow })
-    //       : chrome.storage.local.set({ lastCheckIn: tNow })
-    //   );
     api.webNavigation.onHistoryStateUpdated.addListener(
       (e = function (details) {
         const submissionId = details.url.match(/\/submissions\/(\d+)\//)[1];
