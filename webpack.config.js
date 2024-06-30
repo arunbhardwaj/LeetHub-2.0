@@ -13,6 +13,7 @@ const extensionVersion = process.env.npm_package_version;
 
 // Ignore when copying
 const ignore = [
+  // non-essential
   '**/dist/**',
   '**/.prettierrc',
   '**/.eslintrc',
@@ -20,13 +21,14 @@ const ignore = [
   '**/assets/.DS_Store',
   '**/package*',
   '**/webpack*',
+  '**/README.md',
+  '**/assets/extension', // web store assets
+  // webpack compiled files
   '**/scripts/leetcode/**',
   '**/scripts/welcome.js',
   '**/scripts/popup.js',
-  '**/README.md',
   '**/manifest-chrome.json',
   '**/manifest-firefox.json',
-  '**/assets/extension', // web store assets
   // ...entries.map((entry) => `**/${entry}.js`),
 ];
 
