@@ -47,6 +47,14 @@ function handleMessage(request, sender, sendResponse) {
       }),
       { url: [{ hostSuffix: 'leetcode.com' }, { pathContains: 'submissions' }] }
     );
+  } else if (request.action === 'syncPreviousSolutions') {
+    // We'll inject our script into the page to start the sync process
+    api.tabs.executeScript(sender.tab.id, {
+      file: 'scripts/leetcode/syncPreviousSolved.js'
+    });
+    
+    // Send a response to confirm receipt
+    sendResponse({ status: 'starting sync' });
   }
   return true;
 }

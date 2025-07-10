@@ -28,6 +28,21 @@ $('#reset_stats').on('click', () => {
   })
 });
 
+// Event handler for syncing previous solutions
+$('#sync_previous').on('click', () => {
+  // Open LeetCode in a new tab to perform the sync
+  api.tabs.create({ url: 'https://leetcode.com/submissions' }, tab => {
+    // Send a message to the content script to start the sync process
+    api.tabs.onUpdated.addListener(function listener(tabId, info) {
+      if (tabId === tab.id && info.status === 'complete') {
+        api.tabs.onUpdated.removeListener(listener);
+        api.tabs.sendMessage(tab.id, { action: 'syncPreviousSolutions' });
+        window.close(); // Close the popup
+      }
+    });
+  });
+});
+
 api.storage.local.get('leethub_token', data => {
   const token = data.leethub_token;
   if (token === null || token === undefined) {

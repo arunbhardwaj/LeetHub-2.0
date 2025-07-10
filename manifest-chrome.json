@@ -19,14 +19,17 @@
     "service_worker": "scripts/background.js"
   },
   "permissions": [
-    "unlimitedStorage",
-    "storage",
-    "webNavigation"
+    "cookies",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://leetcode.com/*"
   ],
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/*"],
-      "js": ["scripts/leetcode.js"],
+      "js": ["scripts/leetcode.js", "scripts/leetcode/syncPreviouslySolved.js"],
       "run_at": "document_idle"
     },
     {
