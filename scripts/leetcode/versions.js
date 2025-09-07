@@ -314,6 +314,20 @@ function LeetCodeV2() {
   this.progressSpinnerElementClass = 'leethub_progress';
   this.injectSpinnerStyle();
 }
+
+LeetCodeV2.prototype.getCommitMessage = function () {
+  if (
+    !this.submissionData ||
+    !this.submissionData.question ||
+    !Array.isArray(this.submissionData.question.topicTags)
+  ) {
+    return '[LeetHub] Unknown Problem';
+  }
+  const title = this.submissionData.question.title || 'Unknown Title';
+  const difficulty = this.submissionData.question.difficulty || 'Unknown Difficulty';
+  const tags = this.submissionData.question.topicTags.map(t => t.name).join(', ') || 'No Tags';
+  return `[LeetHub] ${title} | Difficulty: ${difficulty} | Tags: ${tags}`;
+};
 LeetCodeV2.prototype.init = async function () {
   const submissionId = this.submissionId;
 
