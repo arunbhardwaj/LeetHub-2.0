@@ -7,6 +7,10 @@ import {
   getDifficulty,
 } from './util.js';
 
+/*
+ * V1 - old UI functionality
+ * V2 - new UI functionality
+ */
 function LeetCodeV1() {
   this.difficulty;
   this.progressSpinnerElementId = 'leethub_progress_elem';
@@ -324,7 +328,7 @@ LeetCodeV2.prototype.init = async function () {
     variables: { submissionId: submissionId },
     operationName: 'submissionDetails',
   };
-  const options = {
+  const submissionDetailsOptions = {
     method: 'POST',
     headers: {
       cookie: document.cookie, // required to authorize the API request
@@ -332,11 +336,32 @@ LeetCodeV2.prototype.init = async function () {
     },
     body: JSON.stringify(submissionDetailsQuery),
   };
-  const data = await fetch('https://leetcode.com/graphql/', options)
+  const submissionData = await fetch('https://leetcode.com/graphql/', submissionDetailsOptions)
     .then(res => res.json())
-    .then(res => res.data.submissionDetails);
+    .then(res => res.data.submissionDetails)
+    
+  // Query for getting question details mainly frontendId
+  // TODO: maybe handle a case where submissionData.question does not exist (e.g. LeetCode changes structure of response object)
+  const questionDetailsQuery = {
+    query: "\n    query questionDetail($titleSlug: String!) {\n  languageList {\n    id\n    name\n  }\n  submittableLanguageList {\n    id\n    name\n    verboseName\n  }\n  statusList {\n    id\n    name\n  }\n  questionDiscussionTopic(questionSlug: $titleSlug) {\n    id\n    commentCount\n    topLevelCommentCount\n  }\n  ugcArticleOfficialSolutionArticle(questionSlug: $titleSlug) {\n    uuid\n    chargeType\n    canSee\n    hasVideoArticle\n  }\n  question(titleSlug: $titleSlug) {\n    title\n    titleSlug\n    questionId\n    questionFrontendId\n    questionTitle\n    translatedTitle\n    content\n    translatedContent\n    categoryTitle\n    difficulty\n    stats\n    companyTagStatsV2\n    topicTags {\n      name\n      slug\n      translatedName\n    }\n    similarQuestionList {\n      difficulty\n      titleSlug\n      title\n      translatedTitle\n      isPaidOnly\n    }\n    mysqlSchemas\n    dataSchemas\n    frontendPreviews\n    likes\n    dislikes\n    isPaidOnly\n    status\n    canSeeQuestion\n    enableTestMode\n    metaData\n    enableRunCode\n    enableSubmit\n    enableDebugger\n    envInfo\n    isLiked\n    nextChallenges {\n      difficulty\n      title\n      titleSlug\n      questionFrontendId\n    }\n    libraryUrl\n    adminUrl\n    hints\n    codeSnippets {\n      code\n      lang\n      langSlug\n    }\n    exampleTestcaseList\n    hasFrontendPreview\n    featuredContests {\n      titleSlug\n      title\n    }\n  }\n}\n    ",
+    variables: { titleSlug: submissionData.question.titleSlug },
+    operationName: 'questionDetail',
+  };
+  const questionDetailsOptions = {
+    method: 'POST',
+    headers: {
+      cookie: document.cookie, // required to authorize the API request
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(questionDetailsQuery),
+  };
+  const frontendId = await fetch('https://leetcode.com/graphql/', questionDetailsOptions)
+    .then(res => res.json())
+    .then(res => res.data.question.questionFrontendId)
+    
+  submissionData.question.questionFrontendId = frontendId;
 
-  this.submissionData = data;
+  this.submissionData = submissionData;
 };
 LeetCodeV2.prototype.findCode = function () {
   const code = this.getCode();
