@@ -404,7 +404,7 @@ LeetCodeV2.prototype.getLanguageExtension = function () {
 LeetCodeV2.prototype.getNotesIfAny = function () {};
 LeetCodeV2.prototype.getProblemNameSlug = function () {
   const slugTitle = this.submissionData.question.titleSlug;
-  const qNum = this.submissionData.question.questionId;
+  const qNum = this.submissionData.question.questionFrontendId;
 
   return addLeadingZeros(qNum + '-' + slugTitle);
 };
