@@ -197,34 +197,6 @@ const isCompleted = problemName => {
   });
 };
 
-/* Discussion posts prepended at top of README */
-/* Future implementations may require appending to bottom of file */
-const updateReadmeWithDiscussionPost = async (
-  addition,
-  directory,
-  filename,
-  commitMsg,
-  shouldPreprendDiscussionPosts
-) => {
-  let responseSHA;
-  const { leethub_token, leethub_hook } = await api.storage.local.get([
-    'leethub_token',
-    'leethub_hook',
-  ]);
-
-  return getGitHubFile(leethub_token, leethub_hook, directory, filename)
-    .then(resp => resp.json())
-    .then(data => {
-      responseSHA = data.sha;
-      return decode(data.content);
-    })
-    .then(existingContent =>
-      shouldPreprendDiscussionPosts ? encode(addition + existingContent) : encode(existingContent)
-    )
-    .then(newContent =>
-      upload(leethub_token, leethub_hook, newContent, directory, filename, responseSHA, commitMsg)
-    );
-};
 
 /**
  * Wrapper func to upload code to a specific GitHub repository and handle 409 errors (conflict)
@@ -255,7 +227,7 @@ async function uploadGitWith409Retry(code, problemName, filename, commitMsg, opt
 
   token = storageData.leethub_token;
   if (!token) {
-    throw new LeetHubError('LeethubTokenUndefined');
+    throw new LeetHubError('LeetHubTokenUndefined');
   }
 
   if (storageData.mode_type !== 'commit') {
@@ -333,41 +305,39 @@ async function getGitHubFile(token, hook, directory, filename) {
   return res;
 }
 
-/* Discussion Link - When a user makes a new post, the link is prepended to the README for that problem.*/
-document.addEventListener('click', event => {
-  const element = event.target;
-  const oldPath = window.location.pathname;
-
-  /* Act on Post button click */
-  /* Complex since "New" button shares many of the same properties as "Post button */
-  if (
-    element &&
-    (element.classList.contains('icon__3Su4') ||
-      element.parentElement?.classList.contains('icon__3Su4') ||
-      element.parentElement?.classList.contains('btn-content-container__214G') ||
-      element.parentElement?.classList.contains('header-right__2UzF'))
-  ) {
-    setTimeout(function () {
-      /* Only post if post button was clicked and url changed */
-      if (
-        oldPath !== window.location.pathname &&
-        oldPath === window.location.pathname.substring(0, oldPath.length) &&
-        !Number.isNaN(window.location.pathname.charAt(oldPath.length))
-      ) {
-        const date = new Date();
-        const currentDate = `${date.getDate()}/${date.getMonth()}/${date.getFullYear()} at ${date.getHours()}:${date.getMinutes()}`;
-        const addition = `[Discussion Post (created on ${currentDate})](${window.location})  \n`;
-        const problemName = window.location.pathname.split('/')[2]; // must be true.
-        updateReadmeWithDiscussionPost(addition, problemName, readmeFilename, discussionMsg, true);
-      }
-    }, 1000);
-  }
-});
-
 function createRepoReadme() {
   const content = encode(defaultRepoReadme);
   return uploadGitWith409Retry(content, readmeFilename, '', readmeMsg);
 }
+
+/* Discussion posts prepended at top of README */
+/* Future implementations may require appending to bottom of file */
+const updateReadmeWithDiscussionPost = async (
+  addition,
+  directory,
+  filename,
+  commitMsg,
+  shouldPreprendDiscussionPosts
+) => {
+  let responseSHA;
+  const { leethub_token, leethub_hook } = await api.storage.local.get([
+    'leethub_token',
+    'leethub_hook',
+  ]);
+
+  return getGitHubFile(leethub_token, leethub_hook, directory, filename)
+    .then(resp => resp.json())
+    .then(data => {
+      responseSHA = data.sha;
+      return decode(data.content);
+    })
+    .then(existingContent =>
+      shouldPreprendDiscussionPosts ? encode(addition + existingContent) : encode(existingContent)
+    )
+    .then(newContent =>
+      upload(leethub_token, leethub_hook, newContent, directory, filename, responseSHA, commitMsg)
+    );
+};
 
 async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   if (topicTags == null) {
@@ -411,6 +381,8 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
     WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
   );
 }
+
+
 
 /** @param {LeetCodeV1 | LeetCodeV2} leetCode */
 function loader(leetCode) {
@@ -636,3 +608,31 @@ class LeetHubNetworkError extends LeetHubError {
     this.status = response.status;
   }
 }
+
+/* Export functions for other modules */
+export {
+  getAndInitializeStats,
+  incrementStats,
+  isCompleted,
+  setPersistentStats,
+  upload,
+  createRepoReadme,
+  getGitHubFile,
+  uploadGitWith409Retry,
+  updateReadmeTopicTagsWithProblem,
+  decode,
+  encode
+};
+
+window.LeetHubExports = {
+  uploadGitWith409Retry,
+  createRepoReadme,
+  encode, 
+  decode,
+  getAndInitializeStats,
+  incrementStats,
+  setPersistentStats,
+  loader
+};
+
+window.leetCodeLoader = loader;

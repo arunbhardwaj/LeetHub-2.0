@@ -9,9 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const entries = ['leetcode', 'welcome'];
-const extensionVersion = process.env.npm_package_version;
-
-// Ignore when copying
+const extensionVersion = process.env.npm_package_version;  // Ignore when copying
 const ignore = [
   // non-essential
   '**/dist/**',
@@ -24,7 +22,7 @@ const ignore = [
   '**/README.md',
   '**/assets/extension', // web store assets
   // webpack compiled files
-  '**/scripts/leetcode/**',
+  '**/scripts/leetcode/leetcode.js',
   '**/scripts/welcome.js',
   '**/scripts/popup.js',
   '**/manifest-chrome.json',

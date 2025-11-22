@@ -22,7 +22,7 @@
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/*"],
-      "js": ["scripts/leetcode.js"],
+      "js": ["scripts/leetcode.js", "scripts/leetcode/syncPreviouslySolved.js"],
       "run_at": "document_idle"
     },
     {
