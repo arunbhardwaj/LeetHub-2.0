@@ -1,6 +1,6 @@
-import { getBrowser } from "./util.js";
+import { getBrowser } from './util.js';
 
-let api = getBrowser()
+let api = getBrowser();
 
 const getSubmissionPageBtns = () => {
   return document.querySelector('.flex.flex-none.gap-2:not(.justify-center):not(.justify-between)');
@@ -44,7 +44,7 @@ function addManualSubmitBtn(eventHandler) {
     btns.appendChild(
       (() => {
         const btn = document.createElement('button');
-        btn.innerText = 'Sync w/ LeetHub';
+        btn.innerText = 'Sync Code LeetHub';
         btn.setAttribute('style', 'background-color:darkorange');
         btn.setAttribute(
           'class',
@@ -72,7 +72,7 @@ function setupManualSubmitBtn(submitBtnHandler) {
     }
   });
 
-  // For continued SPA use, detect when LeetCode dynamic layout loads, set up click listener, then listen for btns. 
+  // For continued SPA use, detect when LeetCode dynamic layout loads, set up click listener, then listen for btns.
   const pageObserver = new MutationObserver((_, observer) => {
     // Display submission button on refresh trigger
     if (window.location.href.match(/leetcode\.com\/(.*)\/submissions\/(\d+)/)) {
@@ -80,15 +80,15 @@ function setupManualSubmitBtn(submitBtnHandler) {
         childList: true,
         subtree: true,
       });
-      return
-    } 
+      return;
+    }
 
     const dynamicLayout = document.querySelector('.flexlayout__layout');
     if (!dynamicLayout) {
       return;
     }
-    
-    observer.disconnect()
+
+    observer.disconnect();
 
     dynamicLayout.addEventListener('click', async () => {
       const submissionId = await listenForSubmissionId();
@@ -105,7 +105,7 @@ function setupManualSubmitBtn(submitBtnHandler) {
   pageObserver.observe(document.body, {
     childList: true,
     subtree: true,
-  })
+  });
 }
 
 // Get SubmissionID by listening for URL changes to `/submissions/(d+)` format

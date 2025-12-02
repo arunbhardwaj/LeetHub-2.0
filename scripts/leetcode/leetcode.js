@@ -242,7 +242,15 @@ const updateReadmeWithDiscussionPost = async (
  *
  * @throws {LeetHubError} If there's no token defined, the mode type is not `commit`, or if no repository hook is defined.
  */
-async function uploadGitWith409Retry(code, problemName, filename, commitMsg, optionals) {
+async function uploadGitWith409Retry(
+  code,
+  groupName,
+  primaryTopic,
+  problemName,
+  filename,
+  commitMsg,
+  optionals
+) {
   let token;
   let hook;
 
@@ -267,19 +275,23 @@ async function uploadGitWith409Retry(code, problemName, filename, commitMsg, opt
     throw new LeetHubError('NoRepoDefined');
   }
 
-  /* Get SHA, if it exists */
+  // Construct the full path for the file, including group, topic, and problem name
+  const fullPath = `${groupName}/${primaryTopic}/${problemName}`;
+
+  // Retrieve SHA if it exists in storageData.stats
   const sha = optionals?.sha
     ? optionals.sha
-    : storageData.stats?.shas?.[problemName]?.[filename] !== undefined
-    ? storageData.stats.shas[problemName][filename]
+    : storageData.stats?.shas?.[fullPath]?.[filename] !== undefined
+    ? storageData.stats.shas[fullPath][filename]
     : '';
 
   try {
+    // Attempt to upload with encoded content
     return await upload(
       token,
       hook,
-      code,
-      problemName,
+      code, // Pass encoded content here
+      fullPath,
       filename,
       sha,
       commitMsg,
@@ -287,12 +299,13 @@ async function uploadGitWith409Retry(code, problemName, filename, commitMsg, opt
     );
   } catch (err) {
     if (err.message === '409') {
-      const data = await getGitHubFile(token, hook, problemName, filename).then(res => res.json());
+      // Handle conflict by retrieving existing SHA and retrying upload
+      const data = await getGitHubFile(token, hook, fullPath, filename).then(res => res.json());
       return upload(
         token,
         hook,
-        code,
-        problemName,
+        code, // Use encoded content here as well
+        fullPath,
         filename,
         data.sha,
         commitMsg,
@@ -444,6 +457,20 @@ function loader(leetCode) {
         throw new LeetHubError('ProblemStatementNotFound');
       }
 
+      // Extract `envId` and set it as the group title
+      const envId = getEnvIdFromUrl();
+      if (envId) {
+        leetCode.submissionData = leetCode.submissionData || {};
+        leetCode.submissionData.question = leetCode.submissionData.question || {};
+        leetCode.submissionData.question.questionGroupTitle = envId;
+      }
+
+      // Extract the group name and primary topic
+      const groupName = leetCode.submissionData?.question?.questionGroupTitle || 'general';
+      console.log(leetCode.submissionData.question);
+      const topicTags = leetCode.submissionData?.question?.topicTags || [];
+      const primaryTopic = topicTags.length > 0 ? topicTags[0].name.toLowerCase() : 'misc';
+
       const problemName = leetCode.getProblemNameSlug();
       const alreadyCompleted = await isCompleted(problemName);
       const language = leetCode.getLanguageExtension();
@@ -454,11 +481,14 @@ function loader(leetCode) {
 
       /* Upload README */
       const uploadReadMe = await api.storage.local.get('stats').then(({ stats }) => {
-        const shaExists = stats?.shas?.[problemName]?.[readmeFilename] !== undefined;
+        const fullPath = `${groupName}/${primaryTopic}/${problemName}`;
+        const shaExists = stats?.shas?.[fullPath]?.[readmeFilename] !== undefined;
 
         if (!shaExists) {
           return uploadGitWith409Retry(
             encode(probStatement),
+            groupName,
+            primaryTopic,
             problemName,
             readmeFilename,
             readmeMsg
@@ -467,15 +497,29 @@ function loader(leetCode) {
       });
 
       /* Upload Notes if any*/
-      const notes = leetCode.getNotesIfAny();
       let uploadNotes;
+      const notes = leetCode.getNotesIfAny();
       if (notes != undefined && notes.length > 0) {
-        uploadNotes = uploadGitWith409Retry(encode(notes), problemName, 'NOTES.md', createNotesMsg);
+        uploadNotes = uploadGitWith409Retry(
+          encode(notes),
+          groupName,
+          primaryTopic,
+          problemName,
+          'NOTES.md',
+          createNotesMsg
+        );
       }
 
       /* Upload code to Git */
       const code = leetCode.findCode(probStats);
-      const uploadCode = uploadGitWith409Retry(encode(code), problemName, filename, probStats);
+      const uploadCode = uploadGitWith409Retry(
+        encode(code),
+        groupName,
+        primaryTopic,
+        problemName,
+        filename,
+        'Uploaded code'
+      );
 
       /* Group problem into its relevant topics */
       const updateRepoReadMe = updateReadmeTopicTagsWithProblem(
@@ -550,9 +594,15 @@ async function v2SubmissionHandler(event, leetCode) {
 
   // is click or is ctrl enter
   const submissionId = await listenForSubmissionId();
+
   leetCode.submissionId = submissionId;
   loader(leetCode);
   return true;
+}
+
+function getEnvIdFromUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('envId');
 }
 
 // Use MutationObserver to determine when the submit button elements are loaded
