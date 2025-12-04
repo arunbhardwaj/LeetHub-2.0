@@ -38,12 +38,15 @@
 ## What is LeetHub 2.0?
 <p>A <a href="https://chromewebstore.google.com/detail/leethub-v2/mhanfgfagplhgemhjfeolkkdidbakocm">chrome</a> and (new) <a href="https://addons.mozilla.org/en-US/firefox/addon/leethub-v2/">firefox</a> extension that automatically pushes your code to GitHub when you pass all tests on a <a href="https://leetcode.com/">Leetcode</a> problem. It's forked from the original <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi?hl=en">LeetHub</a> and improves on it to be faster, cleaner and compatible with the new dynamic LeetCode UI.</p>
 
-## Why LeetHub?
+## Why LeetHub 2.0?
 <p> <strong>1.</strong> Recruiters <em>want</em> to see your contributions to the Open Source community, be it through side projects, solving algorithms/data-structures, or contributing to existing OS projects.<br>
 As of now, GitHub is developers' #1 portfolio. LeetHub just makes it much easier (autonomous) to keep track of progress and contributions on the largest network of engineering community, GitHub.</p>
 
 <p> <strong>2.</strong> There's no easy way of accessing your leetcode problems in one place! <br>
 Moreover, pushing code manually to GitHub from Leetcode is very time consuming. So, why not just automate it entirely without spending a SINGLE additional second on it? </p>
+
+<p> <strong>2.</strong> Access to Public Repositories Only. <br>
+LeetHub 2.0 ensures your privacy by exclusively accessing your public repositories, so you can rest assured that your private repositories remain completely secure. </p>
 
 ## How does LeetHub work?     
 

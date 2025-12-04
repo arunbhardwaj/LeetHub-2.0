@@ -77,7 +77,7 @@ const createRepo = async (token, name) => {
   const AUTHENTICATION_URL = 'https://api.github.com/user/repos';
   let data = {
     name,
-    private: true,
+    private: false,
     auto_init: true,
     description: createRepoDescription,
   };
