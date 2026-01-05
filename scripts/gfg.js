@@ -100,7 +100,7 @@ const gfgLoader = setInterval(() => {
 
   if (
     window.location.href.includes(
-      'practice.geeksforgeeks.org/problems',
+      'geeksforgeeks.org/problems',
     )
   ) {
 
