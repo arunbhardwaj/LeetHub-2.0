@@ -232,6 +232,10 @@ $('#hook_button').on('click', () => {
     $('#error').text('No repository name added - Enter the name of your repository!');
     $('#name').focus();
     $('#error').show();
+  } else if (repositoryName().includes('/')) {
+    $('#error').text('Repository name cannot contain slashes. Please enter only the repository name (e.g., "repo-name" instead of "username/repo-name").');
+    $('#name').focus();
+    $('#error').show();
   } else {
     $('#error').hide();
     $('#success').text('Attempting to create Hook... Please wait.');
@@ -279,6 +283,19 @@ $('#unlink a').on('click', () => {
   $('#unlink').hide();
   $('#success').text('Successfully unlinked your current git repo. Please create/link a new hook.');
 });
+
+/* Update username prefix in the input field */
+const updateUsernamePrefix = () => {
+  api.storage.local.get('leethub_username', data => {
+    const username = data.leethub_username;
+    if (username) {
+      $('#username_prefix').text(`${username}/`);
+    }
+  });
+};
+
+/* Update username prefix on page load */
+updateUsernamePrefix();
 
 /* Detect mode type */
 api.storage.local.get('mode_type', data => {
