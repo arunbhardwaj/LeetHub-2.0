@@ -34,6 +34,8 @@ const DIFFICULTY = Object.freeze({
   UNKNOWN: 'Unknown',
 });
 
+const LEETCODE_DIRECTORY = 'LeetCode';
+
 class LeetHubError extends Error {
   constructor(message) {
     super(message);
@@ -116,6 +118,10 @@ function getBrowser() {
 function getDifficulty(difficulty) {
   difficulty &&= difficulty.toUpperCase().trim();
   return DIFFICULTY[difficulty] ?? DIFFICULTY.UNKNOWN;
+}
+
+function getLeetCodeProblemPath(problem, difficulty) {
+  return `${LEETCODE_DIRECTORY}/${getDifficulty(difficulty)}/${problem}`;
 }
 
 /**
@@ -218,7 +224,9 @@ export {
   formatStats,
   getBrowser,
   getDifficulty,
+  getLeetCodeProblemPath,
   isEmptyObject,
+  LEETCODE_DIRECTORY,
   languages,
   LeetHubError,
   mergeStats,
