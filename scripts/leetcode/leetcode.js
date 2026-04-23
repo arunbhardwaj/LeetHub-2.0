@@ -6,6 +6,7 @@ import {
   DIFFICULTY,
   getBrowser,
   getDifficulty,
+  getLeetCodeProblemPath,
   isEmptyObject,
   LeetHubError,
   mergeStats,
@@ -37,10 +38,12 @@ const api = getBrowser();
  *
  * @param {string} problem - The base problem directory or the entire file path if no filename is provided.
  * @param {string} [filename] - Optional parameter for the filename to be appended to the problem directory.
+ * @param {DIFFICULTY} [difficulty] - Optional difficulty used to group LeetCode problems.
  * @returns {string} - Returns a string representing the complete file path, either with or without the appended filename.
  */
-const getPath = (problem, filename) => {
-  return filename ? `${problem}/${filename}` : problem;
+const getPath = (problem, filename, difficulty) => {
+  const directory = difficulty ? getLeetCodeProblemPath(problem, difficulty) : problem;
+  return filename ? `${directory}/${filename}` : directory;
 };
 
 // https://web.archive.org/web/20190623091645/https://monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
@@ -70,8 +73,8 @@ const encode = data => btoa(unescape(encodeURIComponent(data)));
  *
  * @throws {LeetHubError} - Throws an error if the response is not OK (e.g., HTTP status code is not `200-299`).
  */
-const upload = async (token, hook, content, problem, filename, sha, message) => {
-  const path = getPath(problem, filename);
+const upload = async (token, hook, content, problem, filename, sha, message, difficulty) => {
+  const path = getPath(problem, filename, difficulty);
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
   let data = {
@@ -93,7 +96,7 @@ const upload = async (token, hook, content, problem, filename, sha, message) => 
   if (!res.ok) {
     throw new LeetHubError(res.status, { cause: res });
   }
-  console.log(`Successfully committed ${getPath(problem, filename)} to github`);
+  console.log(`Successfully committed ${path} to github`);
 
   const body = await res.json();
   //TODO: Think, should we be setting stats state here?
@@ -207,12 +210,14 @@ const updateReadmeWithDiscussionPost = async (
   shouldPreprendDiscussionPosts
 ) => {
   let responseSHA;
-  const { leethub_token, leethub_hook } = await api.storage.local.get([
+  const { leethub_token, leethub_hook, stats } = await api.storage.local.get([
     'leethub_token',
     'leethub_hook',
+    'stats',
   ]);
+  const difficulty = stats?.shas?.[directory]?.difficulty;
 
-  return getGitHubFile(leethub_token, leethub_hook, directory, filename)
+  return getGitHubFile(leethub_token, leethub_hook, directory, filename, difficulty)
     .then(resp => resp.json())
     .then(data => {
       responseSHA = data.sha;
@@ -222,7 +227,16 @@ const updateReadmeWithDiscussionPost = async (
       shouldPreprendDiscussionPosts ? encode(addition + existingContent) : encode(existingContent)
     )
     .then(newContent =>
-      upload(leethub_token, leethub_hook, newContent, directory, filename, responseSHA, commitMsg)
+      upload(
+        leethub_token,
+        leethub_hook,
+        newContent,
+        directory,
+        filename,
+        responseSHA,
+        commitMsg,
+        difficulty
+      )
     );
 };
 
@@ -287,7 +301,13 @@ async function uploadGitWith409Retry(code, problemName, filename, commitMsg, opt
     );
   } catch (err) {
     if (err.message === '409') {
-      const data = await getGitHubFile(token, hook, problemName, filename).then(res => res.json());
+      const data = await getGitHubFile(
+        token,
+        hook,
+        problemName,
+        filename,
+        optionals?.difficulty
+      ).then(res => res.json());
       return upload(
         token,
         hook,
@@ -313,8 +333,8 @@ async function uploadGitWith409Retry(code, problemName, filename, commitMsg, opt
  * @returns {Promise<Response>} A promise that resolves with the response from the GitHub API request.
  * @throws {Error} Throws an error if the response is not OK (e.g., HTTP status code is not 200-299).
  */
-async function getGitHubFile(token, hook, directory, filename) {
-  const path = getPath(directory, filename);
+async function getGitHubFile(token, hook, directory, filename, difficulty) {
+  const path = getPath(directory, filename, difficulty);
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
   let options = {
@@ -369,7 +389,7 @@ function createRepoReadme() {
   return uploadGitWith409Retry(content, readmeFilename, '', readmeMsg);
 }
 
-async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
+async function updateReadmeTopicTagsWithProblem(topicTags, problemName, difficulty) {
   if (topicTags == null) {
     console.log(new LeetHubError('TopicTagsNotFound'));
     return;
@@ -401,7 +421,7 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   }
   readme = decode(readme);
   for (let topic of topicTags) {
-    readme = appendProblemToReadme(topic.name, readme, leethub_hook, problemName);
+    readme = appendProblemToReadme(topic.name, readme, leethub_hook, problemName, difficulty);
   }
   readme = sortTopicsInReadme(readme);
   readme = encode(readme);
@@ -461,7 +481,8 @@ function loader(leetCode) {
             encode(probStatement),
             problemName,
             readmeFilename,
-            readmeMsg
+            readmeMsg,
+            { difficulty: leetCode.difficulty }
           );
         }
       });
@@ -470,17 +491,28 @@ function loader(leetCode) {
       const notes = leetCode.getNotesIfAny();
       let uploadNotes;
       if (notes != undefined && notes.length > 0) {
-        uploadNotes = uploadGitWith409Retry(encode(notes), problemName, 'NOTES.md', createNotesMsg);
+        uploadNotes = uploadGitWith409Retry(
+          encode(notes),
+          problemName,
+          'NOTES.md',
+          createNotesMsg,
+          {
+            difficulty: leetCode.difficulty,
+          }
+        );
       }
 
       /* Upload code to Git */
       const code = leetCode.findCode(probStats);
-      const uploadCode = uploadGitWith409Retry(encode(code), problemName, filename, probStats);
+      const uploadCode = uploadGitWith409Retry(encode(code), problemName, filename, probStats, {
+        difficulty: leetCode.difficulty,
+      });
 
       /* Group problem into its relevant topics */
       const updateRepoReadMe = updateReadmeTopicTagsWithProblem(
         leetCode.submissionData?.question?.topicTags,
-        problemName
+        problemName,
+        leetCode.difficulty
       );
 
       const newSHAs = await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMe]);
