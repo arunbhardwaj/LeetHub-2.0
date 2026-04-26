@@ -19,15 +19,16 @@
     "scripts": ["scripts/background.js"]
   },
   "permissions": ["unlimitedStorage", "storage", "webNavigation"],
+  "host_permissions": [
+    "https://github.com/*",
+    "https://api.github.com/*",
+    "https://leetcode.com/*"
+  ],
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/*"],
       "js": ["scripts/leetcode.js"],
       "run_at": "document_idle"
-    },
-    {
-      "matches": ["https://github.com/*"],
-      "js": ["scripts/authorize.js"]
     },
     {
       "matches": ["https://practice.geeksforgeeks.org/*"],

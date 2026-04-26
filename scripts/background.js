@@ -5,7 +5,7 @@ let api = isChrome() ? chrome : isFirefox() ? browser : undefined;
 api.runtime.onInstalled.addListener(details => {
   if (details.reason === 'install') {
     // Allow persistent stats to sync on repo link
-    api.storage.local.set({ sync_stats: true});
+    api.storage.local.set({ sync_stats: true });
   }
 });
 
@@ -25,6 +25,7 @@ function handleMessage(request, sender, sendResponse) {
     });
 
     api.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
+      if (!tabs?.length) return;
       var tab = tabs[0];
       api.tabs.remove(tab.id);
     });
@@ -33,20 +34,31 @@ function handleMessage(request, sender, sendResponse) {
     const urlOnboarding = api.runtime.getURL('welcome.html');
     api.tabs.create({ url: urlOnboarding, active: true }); // creates new tab
   } else if (request && request.closeWebPage === true && request.isSuccess === false) {
-    alert('Something went wrong while trying to authenticate your profile!');
+    console.error('Something went wrong while trying to authenticate your profile.');
     api.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
+      if (!tabs?.length) return;
       var tab = tabs[0];
       api.tabs.remove(tab.id);
     });
-  } else if (request.type === 'LEETCODE_SUBMISSION') {
-    api.webNavigation.onHistoryStateUpdated.addListener(
-      (e = function (details) {
-        const submissionId = details.url.match(/\/submissions\/(\d+)\//)[1];
-        sendResponse({ submissionId });
-        api.webNavigation.onHistoryStateUpdated.removeListener(e);
-      }),
-      { url: [{ hostSuffix: 'leetcode.com' }, { pathContains: 'submissions' }] }
-    );
+  } else if (request?.type === 'LEETCODE_SUBMISSION') {
+    const getSubmissionId = url => url?.match(/\/submissions(?:\/detail)?\/(\d+)\/?/)?.[1];
+    const timeoutId = setTimeout(() => {
+      api.webNavigation.onHistoryStateUpdated.removeListener(listener);
+      sendResponse({});
+    }, request.timeoutMs || 30000);
+
+    const listener = function (details) {
+      const submissionId = getSubmissionId(details.url);
+      if (!submissionId) return;
+
+      clearTimeout(timeoutId);
+      api.webNavigation.onHistoryStateUpdated.removeListener(listener);
+      sendResponse({ submissionId });
+    };
+
+    api.webNavigation.onHistoryStateUpdated.addListener(listener, {
+      url: [{ hostSuffix: 'leetcode.com', pathContains: 'submissions' }],
+    });
   }
   return true;
 }

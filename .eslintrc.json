@@ -1,0 +1,22 @@
+{
+  "env": {
+    "browser": true,
+    "es2022": true,
+    "jasmine": true,
+    "node": true
+  },
+  "extends": ["eslint:recommended"],
+  "globals": {
+    "$": "readonly",
+    "browser": "readonly",
+    "chrome": "readonly",
+    "oAuth2": "readonly"
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-console": "off"
+  }
+}

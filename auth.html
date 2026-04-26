@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="css/welcome.css" />
+  </head>
+  <body>
+    <main class="ui grid container">
+      <section class="sixteen wide center aligned column">
+        <br />
+        <p class="caption" style="font-size: 6em">Leet<span style="color: #ff6c0a">Hub</span> v2</p>
+        <p class="caption">Connect GitHub</p>
+        <br /><br />
+        <p id="auth_status">Preparing GitHub sign in...</p>
+        <p id="auth_code" class="caption" style="font-size: 3em"></p>
+        <p id="auth_hint"></p>
+        <p>
+          <a id="verify_link" class="positive ui button" target="_blank" rel="noopener"
+            >Open GitHub</a
+          >
+        </p>
+        <p>
+          <a id="welcome_link" hidden>Continue to setup</a>
+        </p>
+      </section>
+    </main>
+    <script src="scripts/auth.js"></script>
+  </body>
+</html>

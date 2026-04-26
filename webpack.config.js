@@ -27,16 +27,13 @@ const ignore = [
   '**/scripts/leetcode/**',
   '**/scripts/welcome.js',
   '**/scripts/popup.js',
+  '**/scripts/auth.js',
   '**/manifest-chrome.json',
   '**/manifest-firefox.json',
   // ...entries.map((entry) => `**/${entry}.js`),
 ];
 
-const folderIgnore = [
-  '**/chrome/**',
-  '**/firefox/**',
-  '**/manifest.json',
-]
+const folderIgnore = ['**/chrome/**', '**/firefox/**', '**/manifest.json'];
 
 const manifestTransform = content => {
   const filteredContent = content
@@ -55,6 +52,7 @@ export default {
     leetcode: path.resolve(__dirname, 'scripts', 'leetcode', 'leetcode.js'),
     welcome: './scripts/welcome.js',
     popup: './scripts/popup.js',
+    auth: './scripts/auth.js',
   },
   watchOptions: {
     ignored: '**/dist/**',
@@ -111,10 +109,7 @@ export default {
         {
           from: 'assets/**',
           globOptions: {
-            ignore: [
-              ...ignore,
-              './assets/.DS_Store'
-            ],
+            ignore: [...ignore, './assets/.DS_Store'],
           },
         },
         {
@@ -142,8 +137,13 @@ export default {
               source: './dist/popup.js',
               destination: './dist/scripts/popup.js',
             },
+            {
+              source: './dist/auth.js',
+              destination: './dist/scripts/auth.js',
+            },
           ],
-          copy: [ // Copy everything to chrome and firefox
+          copy: [
+            // Copy everything to chrome and firefox
             {
               source: './dist/**',
               destination: './dist/chrome',

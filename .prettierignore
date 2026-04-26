@@ -1,0 +1,7 @@
+dist
+node_modules
+scripts/jquery-3.3.1.min.js
+scripts/semantic-2.4.1.min.js
+scripts/gfg.js
+package-lock.json
+assets

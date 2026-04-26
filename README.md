@@ -10,30 +10,7 @@
   <a href="https://github.com/arunbhardwaj/LeetHub-2.0/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="license"/>
   </a>
-  <!-- <a href="https://discord.gg/anXT9vErxu">
-    <img src="https://img.shields.io/discord/781373810251137074" alt="discord">
-  </a> -->
-  <!-- <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">
-    <img src="https://img.shields.io/chrome-web-store/v/aciombdipochlnkbpcbgdpjffcfdbggi.svg" alt="chrome-webstore"/>
-  </a> -->
-  <!-- <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">
-    <img src="https://img.shields.io/chrome-web-store/d/aciombdipochlnkbpcbgdpjffcfdbggi.svg" alt="users">
-  </a>
-  <a href="https://github.com/arunbhardwaj/LeetHub-1.1/graphs/contributors" alt="Contributors">
-    <img src="https://img.shields.io/github/contributors/arunbhardwaj/LeetHub-1.1" />
-  </a> -->
 </p>
-
-<!-- <div align="center">
-  <a href="https://www.producthunt.com/posts/leethub?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-leethub" target="_blank">
-    <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=275757&theme=light" alt="LeetHub - Automatically sync your code b/w Leetcode & GitHub. | Product Hunt" />
-  </a>
-
-  [![Chrome](https://user-images.githubusercontent.com/53124886/111952712-34f12300-8aee-11eb-9fdd-ad579a1eb235.png)](https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi) [![Firefox](https://user-images.githubusercontent.com/53124886/126341427-4a4e57aa-767a-467e-83d2-b31fa3564441.png)](https://addons.mozilla.org/en-US/firefox/addon/leethub/)
-</div> -->
-
-<!-- ## LeetHub progress and numbers (YouTube Video):
-[![LeetHub](https://user-images.githubusercontent.com/43754306/165053510-a757c95e-c3bc-49d5-995c-7a52368abd37.png)](https://www.youtube.com/watch?v=o33PIjqlOgw "LeetHub saves lives!") -->
 
 ## What is LeetHub 2.0?
 <p>A <a href="https://chromewebstore.google.com/detail/leethub-v2/mhanfgfagplhgemhjfeolkkdidbakocm">chrome</a> and (new) <a href="https://addons.mozilla.org/en-US/firefox/addon/leethub-v2/">firefox</a> extension that automatically pushes your code to GitHub when you pass all tests on a <a href="https://leetcode.com/">Leetcode</a> problem. It's forked from the original <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi?hl=en">LeetHub</a> and improves on it to be faster, cleaner and compatible with the new dynamic LeetCode UI.</p>
@@ -50,13 +27,21 @@ Moreover, pushing code manually to GitHub from Leetcode is very time consuming. 
 <p>It's as simple as:</p>
 <ol>
   <li>After installation, launch LeetHub.</li>
-  <li>Click on "authorize with GitHub" button to automatically set up your account with LeetHub.</li>
-  <li>Setup an existing/new repository with LeetHub (private by default) by clicking "Get Started" button.</li>
+  <li>Click <code>Authorize with GitHub</code> to set up your account.</li>
+  <li>Click <code>Get Started</code> to create or link a repository (private by default).</li>
   <li>Begin Leetcoding! To view your progress, simply click on the extension!</li>
 </ol>
 
 
 #### BONUS: Star [this repository](https://github.com/arunbhardwaj/LeetHub-2.0) for further development of features. If you want a particular feature, simply [request](https://github.com/arunbhardwaj/LeetHub-2.0/labels/feature) for it!
+
+
+## Privacy & security
+
+- LeetHub uses GitHub's OAuth Device Flow to obtain a token with <code>repo</code> scope and stores it in extension local storage (<code>chrome.storage.local</code>/<code>browser.storage.local</code>).
+- The token is used to create/link repositories and upload solutions and <code>stats.json</code> to GitHub.
+- LeetHub runs locally in your browser; this repo does not include a backend service.
+- To revoke access, remove extension data or unlink in the extension, then revoke the OAuth app in GitHub Settings > Applications > Authorized OAuth Apps.
 
 
 ## Why did I decide to work on LeetHub?
@@ -69,25 +54,38 @@ After the 2023 SVB bank closure and growing layoffs, it became clear to me that 
 ![leetcode view](assets/extension/leetcode.png)
 
 
-# How to set up LeetHub for local development?
+## How to set up LeetHub for local development?
 
 
-  1. Fork this repo and clone to your local machine
-  2. Run "npm run setup" to install the developer dependencies
-  3. Run `npm run build` to build the final extension files into the `./dist/` directory
-  4. Go to <a href="chrome://extensions">chrome://extensions </a> or <a href="https://firefox-source-docs.mozilla.org/devtools-user/about_colon_debugging/index.html#extensions">about:debugging</a> in firefox
-    a. In Chrome, enable [Developer mode](https://support.google.com/chrome/a/answer/2714278) by toggling the switch on top right corner
-  6. Click `Load unpacked` or `Load Temporary Add-on...`
-  7. Select the `./dist/chrome` or `./dist/firefox` LeetHub folder
-  8. That's it! Be sure to `npm run build` and reload the extension after making changes
+  1. Fork this repo and clone it locally.
+  2. Run <code>npm run setup</code> to install developer dependencies.
+  3. Run <code>npm run build</code> to build the extension into <code>./dist/</code>.
+  4. Open <code>chrome://extensions</code> (Chrome) or <code>about:debugging</code> (Firefox).
+  5. In Chrome, enable <code>Developer mode</code>.
+  6. Click <code>Load unpacked</code> (Chrome) or <code>Load Temporary Add-on...</code> (Firefox).
+  7. Select <code>./dist/chrome</code> or <code>./dist/firefox</code>.
+  8. Re-run <code>npm run build</code> and reload the extension after changes.
 
 
-Other npm commands available:
+## Contributing & testing
+
+Prerequisites:
+
+- Node.js 18+ (LTS)
+- npm (bundled with Node.js)
+
+Common scripts:
 
 ```
-npm run               Show list of commands available
 npm run format        Auto-format JavaScript, HTML/CSS
 npm run format-test   Test all code is formatted properly
 npm run lint          Lint JavaScript
 npm run lint-test     Test all code is linted properly
+npm run test          Run Jasmine tests
+npm run build         Build the extension
 ```
+
+Build output:
+
+- <code>./dist/</code> contains the base build output.
+- <code>./dist/chrome</code> and <code>./dist/firefox</code> contain browser-specific packages after <code>npm run build</code>.

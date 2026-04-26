@@ -1,0 +1,6 @@
+dist
+node_modules
+scripts/gfg.js
+scripts/jquery-3.3.1.min.js
+scripts/semantic-2.4.1.min.js
+webpack.config.js

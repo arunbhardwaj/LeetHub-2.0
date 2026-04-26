@@ -13,9 +13,31 @@ const repositoryName = () => {
 const createRepoDescription =
   'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)';
 
+const setElementText = (selector, text) => {
+  const element = document.querySelector(selector);
+  element.textContent = text;
+};
+
+const setMessageWithLink = (selector, parts) => {
+  const element = document.querySelector(selector);
+  element.textContent = '';
+  for (const part of parts) {
+    if (part.href) {
+      const link = document.createElement('a');
+      link.href = part.href;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = part.text;
+      element.appendChild(link);
+    } else {
+      element.appendChild(document.createTextNode(part.text));
+    }
+  }
+};
+
 /* Sync's local storage with persistent stats and returns the pulled stats. Currently only syncs when we install, or unlink then relink */
 const syncStats = async () => {
-  let { leethub_hook, leethub_token, sync_stats, stats } = await api.storage.local.get([
+  let { leethub_hook, leethub_token, sync_stats } = await api.storage.local.get([
     'leethub_token',
     'leethub_hook',
     'sync_stats',
@@ -98,12 +120,21 @@ const createRepo = async (token, name) => {
   res = await res.json();
 
   /* Set Repo Hook, and set mode type to commit */
-  api.storage.local.set({ mode_type: 'commit', leethub_hook: res.full_name });
+  api.storage.local.set({
+    mode_type: 'commit',
+    repo: res.html_url,
+    leethub_hook: res.full_name,
+    leethub_default_branch: res.default_branch || 'main',
+  });
   await api.storage.local.remove('stats');
   $('#error').hide();
-  $('#success').html(
-    `Successfully created <a target="blank" href="${res.html_url}">${name}</a>. Start <a href="http://leetcode.com">LeetCoding</a>!`
-  );
+  setMessageWithLink('#success', [
+    { text: 'Successfully created ' },
+    { text: name, href: res.html_url },
+    { text: '. Start ' },
+    { text: 'LeetCoding', href: 'https://leetcode.com' },
+    { text: '!' },
+  ]);
   $('#success').show();
   $('#unlink').show();
   /* Show new layout */
@@ -114,16 +145,16 @@ const createRepo = async (token, name) => {
 const getLinkErrorString = (statusCode, name) => {
   /* Status codes for linking repo */
   const errorStrings = {
-    301: `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> This repository has been moved permenantly. Try creating a new one.`,
-    403: `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> Forbidden action. Please make sure you have the right access to this repository.`,
-    404: `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> Resource not found. Make sure you enter the right repository name.`,
+    301: `Error linking ${name} to LeetHub. This repository has moved permanently. Try creating a new one.`,
+    403: `Error linking ${name} to LeetHub. Forbidden action. Please make sure you have write access to this repository.`,
+    404: `Error linking ${name} to LeetHub. Resource not found. Make sure you entered the right repository name.`,
   };
   return errorStrings[statusCode];
 };
 /* Status codes for linking of repo */
 const handleLinkRepoError = (statusCode, name) => {
   $('#success').hide();
-  $('#error').html(getLinkErrorString(statusCode, name));
+  setElementText('#error', getLinkErrorString(statusCode, name));
   $('#error').show();
   $('#unlink').show();
 };
@@ -160,12 +191,21 @@ const linkRepo = (token, name) => {
 
     const res = JSON.parse(xhr.responseText);
     api.storage.local.set(
-      { mode_type: 'commit', repo: res.html_url, leethub_hook: res.full_name },
+      {
+        mode_type: 'commit',
+        repo: res.html_url,
+        leethub_hook: res.full_name,
+        leethub_default_branch: res.default_branch || 'main',
+      },
       () => {
         $('#error').hide();
-        $('#success').html(
-          `Successfully linked <a target="blank" href="${res.html_url}">${name}</a> to LeetHub. Start <a href="http://leetcode.com">LeetCoding</a> now!`
-        );
+        setMessageWithLink('#success', [
+          { text: 'Successfully linked ' },
+          { text: name, href: res.html_url },
+          { text: ' to LeetHub. Start ' },
+          { text: 'LeetCoding', href: 'https://leetcode.com' },
+          { text: ' now!' },
+        ]);
         $('#success').show();
         $('#unlink').show();
         console.log('Successfully set new repo hook');

@@ -5,7 +5,46 @@ import {
   addLeadingZeros,
   formatStats,
   getDifficulty,
+  LeetHubError,
 } from './util.js';
+
+function getCookieValue(name) {
+  return document.cookie
+    .split(';')
+    .map(cookie => cookie.trim())
+    .find(cookie => cookie.startsWith(`${name}=`))
+    ?.split('=')
+    .slice(1)
+    .join('=');
+}
+
+async function requestGraphQL(body) {
+  const headers = {
+    'content-type': 'application/json',
+  };
+  const csrfToken = getCookieValue('csrftoken');
+  if (csrfToken) {
+    headers['x-csrftoken'] = csrfToken;
+  }
+
+  const res = await fetch('https://leetcode.com/graphql/', {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    throw new LeetHubError(`LeetCodeGraphQLRequestFailed::${res.status}`);
+  }
+
+  const json = await res.json();
+  if (json.errors?.length) {
+    throw new LeetHubError(`LeetCodeGraphQLError::${json.errors[0].message}`);
+  }
+
+  return json.data;
+}
 
 /*
  * V1 - old UI functionality
@@ -129,7 +168,7 @@ LeetCodeV1.prototype.getNotesIfAny = function () {
       .getElementsByClassName('notewrap__eHkN')[0]
       .getElementsByClassName('CodeMirror-code')[0];
     if (notesdiv) {
-      for (i = 0; i < notesdiv.childNodes.length; i++) {
+      for (let i = 0; i < notesdiv.childNodes.length; i++) {
         if (notesdiv.childNodes[i].childNodes.length == 0) continue;
         const text = notesdiv.childNodes[i].childNodes[0].innerText;
         if (text) {
@@ -232,7 +271,7 @@ LeetCodeV1.prototype.parseQuestion = function () {
       this.difficulty = getDifficulty(null);
     }
     // Final formatting of the contents of the README for each problem
-    const markdown = `<h2><a href="${questionUrl}">${qtitle}</a></h2><h3>${difficulty}</h3><hr>${qbody}`;
+    const markdown = `<h2><a href="${questionUrl}">${qtitle}</a></h2><h3>${this.difficulty}</h3><hr>${qbody}`;
     return markdown;
   } else if (checkElem(questionDescriptionElem)) {
     let questionTitle = document.getElementsByClassName('question-title');
@@ -279,7 +318,9 @@ LeetCodeV1.prototype.insertToAnchorElement = function (elem) {
       checkElem(action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6')) &&
       action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6').length > 1
     ) {
-      target = action[0].getElementsByClassName('row')[0].getElementsByClassName('col-sm-6')[1];
+      const target = action[0]
+        .getElementsByClassName('row')[0]
+        .getElementsByClassName('col-sm-6')[1];
       elem.className = 'pull-left';
       if (target.childNodes.length > 0) target.childNodes[0].prepend(elem);
     }
@@ -320,6 +361,9 @@ function LeetCodeV2() {
 }
 LeetCodeV2.prototype.init = async function () {
   const submissionId = this.submissionId;
+  if (!submissionId) {
+    throw new LeetHubError('SubmissionIdNotFound');
+  }
 
   // Query for getting the solution runtime and memory stats, the code, the coding language, the question id, question title and question difficulty
   const submissionDetailsQuery = {
@@ -328,38 +372,27 @@ LeetCodeV2.prototype.init = async function () {
     variables: { submissionId: submissionId },
     operationName: 'submissionDetails',
   };
-  const submissionDetailsOptions = {
-    method: 'POST',
-    headers: {
-      cookie: document.cookie, // required to authorize the API request
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(submissionDetailsQuery),
-  };
-  const submissionData = await fetch('https://leetcode.com/graphql/', submissionDetailsOptions)
-    .then(res => res.json())
-    .then(res => res.data.submissionDetails)
-    
+  const submissionData = await requestGraphQL(submissionDetailsQuery).then(
+    data => data.submissionDetails
+  );
+
+  if (!submissionData) {
+    throw new LeetHubError('SubmissionDetailsNotFound');
+  }
+
   // Query for getting question details mainly frontendId
   // TODO: maybe handle a case where submissionData.question does not exist (e.g. LeetCode changes structure of response object)
   const questionDetailsQuery = {
-    query: "\n    query questionDetail($titleSlug: String!) {\n  languageList {\n    id\n    name\n  }\n  submittableLanguageList {\n    id\n    name\n    verboseName\n  }\n  statusList {\n    id\n    name\n  }\n  questionDiscussionTopic(questionSlug: $titleSlug) {\n    id\n    commentCount\n    topLevelCommentCount\n  }\n  ugcArticleOfficialSolutionArticle(questionSlug: $titleSlug) {\n    uuid\n    chargeType\n    canSee\n    hasVideoArticle\n  }\n  question(titleSlug: $titleSlug) {\n    title\n    titleSlug\n    questionId\n    questionFrontendId\n    questionTitle\n    translatedTitle\n    content\n    translatedContent\n    categoryTitle\n    difficulty\n    stats\n    companyTagStatsV2\n    topicTags {\n      name\n      slug\n      translatedName\n    }\n    similarQuestionList {\n      difficulty\n      titleSlug\n      title\n      translatedTitle\n      isPaidOnly\n    }\n    mysqlSchemas\n    dataSchemas\n    frontendPreviews\n    likes\n    dislikes\n    isPaidOnly\n    status\n    canSeeQuestion\n    enableTestMode\n    metaData\n    enableRunCode\n    enableSubmit\n    enableDebugger\n    envInfo\n    isLiked\n    nextChallenges {\n      difficulty\n      title\n      titleSlug\n      questionFrontendId\n    }\n    libraryUrl\n    adminUrl\n    hints\n    codeSnippets {\n      code\n      lang\n      langSlug\n    }\n    exampleTestcaseList\n    hasFrontendPreview\n    featuredContests {\n      titleSlug\n      title\n    }\n  }\n}\n    ",
+    query:
+      '\n    query questionDetail($titleSlug: String!) {\n  languageList {\n    id\n    name\n  }\n  submittableLanguageList {\n    id\n    name\n    verboseName\n  }\n  statusList {\n    id\n    name\n  }\n  questionDiscussionTopic(questionSlug: $titleSlug) {\n    id\n    commentCount\n    topLevelCommentCount\n  }\n  ugcArticleOfficialSolutionArticle(questionSlug: $titleSlug) {\n    uuid\n    chargeType\n    canSee\n    hasVideoArticle\n  }\n  question(titleSlug: $titleSlug) {\n    title\n    titleSlug\n    questionId\n    questionFrontendId\n    questionTitle\n    translatedTitle\n    content\n    translatedContent\n    categoryTitle\n    difficulty\n    stats\n    companyTagStatsV2\n    topicTags {\n      name\n      slug\n      translatedName\n    }\n    similarQuestionList {\n      difficulty\n      titleSlug\n      title\n      translatedTitle\n      isPaidOnly\n    }\n    mysqlSchemas\n    dataSchemas\n    frontendPreviews\n    likes\n    dislikes\n    isPaidOnly\n    status\n    canSeeQuestion\n    enableTestMode\n    metaData\n    enableRunCode\n    enableSubmit\n    enableDebugger\n    envInfo\n    isLiked\n    nextChallenges {\n      difficulty\n      title\n      titleSlug\n      questionFrontendId\n    }\n    libraryUrl\n    adminUrl\n    hints\n    codeSnippets {\n      code\n      lang\n      langSlug\n    }\n    exampleTestcaseList\n    hasFrontendPreview\n    featuredContests {\n      titleSlug\n      title\n    }\n  }\n}\n    ',
     variables: { titleSlug: submissionData.question.titleSlug },
     operationName: 'questionDetail',
   };
-  const questionDetailsOptions = {
-    method: 'POST',
-    headers: {
-      cookie: document.cookie, // required to authorize the API request
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(questionDetailsQuery),
-  };
-  const frontendId = await fetch('https://leetcode.com/graphql/', questionDetailsOptions)
-    .then(res => res.json())
-    .then(res => res.data.question.questionFrontendId)
-    
-  submissionData.question.questionFrontendId = frontendId;
+  const frontendId = await requestGraphQL(questionDetailsQuery).then(
+    data => data.question.questionFrontendId
+  );
+
+  submissionData.question.questionFrontendId = frontendId || submissionData.question.questionId;
 
   this.submissionData = submissionData;
 };
@@ -386,7 +419,9 @@ LeetCodeV2.prototype.getCode = function () {
 /** @returns {languages} */
 LeetCodeV2.prototype.getLanguageExtension = function () {
   if (this.submissionData != null) {
-    return languages[this.submissionData.lang.verboseName];
+    return (
+      languages[this.submissionData.lang.verboseName] || languages[this.submissionData.lang.name]
+    );
   }
 
   const tag = document.querySelector('button[id^="headlessui-listbox-button"]');
@@ -409,13 +444,20 @@ LeetCodeV2.prototype.getProblemNameSlug = function () {
   return addLeadingZeros(qNum + '-' + slugTitle);
 };
 LeetCodeV2.prototype.getSuccessStateAndUpdate = function () {
+  if (this.submissionData != null) {
+    return this.isAcceptedSubmission();
+  }
+
   const successTag = document.querySelectorAll('[data-e2e-locator="submission-result"]');
-  if (checkElem(successTag)) {
+  if (checkElem(successTag) && successTag[0].innerText.trim().toLowerCase().includes('accepted')) {
     console.log(successTag[0]);
     successTag[0].classList.add('marked_as_success');
     return true;
   }
   return false;
+};
+LeetCodeV2.prototype.isAcceptedSubmission = function () {
+  return this.submissionData?.statusCode === 10;
 };
 LeetCodeV2.prototype.parseStats = function () {
   if (this.submissionData != null) {
@@ -533,7 +575,10 @@ LeetCodeV2.prototype.insertToAnchorElement = function (elem) {
     return;
   }
   // TODO: target within the Run and Submit div regardless of UI position of submit button
-  let target = document.querySelector('[data-e2e-locator="submission-result"]').parentElement;
+  let target =
+    document.querySelector('[data-e2e-locator="submission-result"]')?.parentElement ||
+    document.querySelector('[data-e2e-locator="console-submit-button"]')?.parentElement ||
+    document.body;
   if (target) {
     elem.className = 'runcode-wrapper__8rXm';
     target.appendChild(elem);
