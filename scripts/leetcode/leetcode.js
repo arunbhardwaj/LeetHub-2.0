@@ -558,7 +558,13 @@ async function v2SubmissionHandler(event, leetCode) {
 // Use MutationObserver to determine when the submit button elements are loaded
 const submitBtnObserver = new MutationObserver(function (_mutations, observer) {
   const v1SubmitBtn = document.querySelector('[data-cy="submit-code-btn"]');
-  const v2SubmitBtn = document.querySelector('[data-e2e-locator="console-submit-button"]');
+  let v2SubmitBtn = document.querySelector('[data-e2e-locator="console-submit-button"]');
+  
+  if (!v2SubmitBtn) {
+    // Fallback: look for a button containing "Submit" in the action area
+    const buttons = Array.from(document.querySelectorAll('button'));
+    v2SubmitBtn = buttons.find(b => b.innerText && b.innerText.includes('Submit') && !b.innerText.includes('Submit to'));
+  }
   const textareaList = document.getElementsByTagName('textarea');
   const textarea =
     textareaList.length === 4

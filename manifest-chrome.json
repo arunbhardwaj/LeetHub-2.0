@@ -31,7 +31,7 @@
     },
     {
       "matches": ["https://github.com/*"],
-      "js": ["scripts/authorize.js"]
+      "js": ["scripts/config.js", "scripts/authorize.js"]
     },
     {
       "matches": ["https://practice.geeksforgeeks.org/*"],

@@ -409,7 +409,17 @@ LeetCodeV2.prototype.getProblemNameSlug = function () {
   return addLeadingZeros(qNum + '-' + slugTitle);
 };
 LeetCodeV2.prototype.getSuccessStateAndUpdate = function () {
-  const successTag = document.querySelectorAll('[data-e2e-locator="submission-result"]');
+  let successTag = document.querySelectorAll('[data-e2e-locator="submission-result"]');
+  
+  if (!checkElem(successTag)) {
+    // Fallback: look for span or div elements containing 'Accepted' with specific styling classes used by LeetCode
+    const elements = Array.from(document.querySelectorAll('span, div'));
+    const acceptedElem = elements.find(el => el.innerText && el.innerText.trim() === 'Accepted' && (el.className.includes('text-success') || el.className.includes('text-green')));
+    if (acceptedElem) {
+      successTag = [acceptedElem];
+    }
+  }
+
   if (checkElem(successTag)) {
     console.log(successTag[0]);
     successTag[0].classList.add('marked_as_success');

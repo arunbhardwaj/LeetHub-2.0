@@ -19,6 +19,9 @@ function handleMessage(request, sender, sendResponse) {
     /* Set token */
     api.storage.local.set({ leethub_token: request.token });
 
+    /* Set auth mode to oauth (PAT mode is set directly in popup.js) */
+    api.storage.local.set({ auth_mode: 'oauth' });
+
     /* Close pipe */
     api.storage.local.set({ pipe_leethub: false }, () => {
       console.log('Closed pipe.');
