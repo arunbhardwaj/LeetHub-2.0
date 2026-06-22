@@ -146,7 +146,23 @@ const linkRepo = (token, name) => {
       // BUG FIX
       // unable to gain access to repo in commit mode. Must switch to hook mode.
       /* Set mode type to hook and Repo Hook to NONE */
-      handleLinkRepoError(xhr.status, name);
+
+      /* Enhanced error for PAT users */
+      api.storage.local.get('auth_mode', data => {
+        if (data?.auth_mode === 'pat' && xhr.status === 404) {
+          $('#error').html(
+            getLinkErrorString(xhr.status, name) +
+            '<br><br>💡 <strong>Tip:</strong> You\'re using a fine-grained token. ' +
+            'Make sure this repository is within your token\'s scope. ' +
+            '<a href="https://github.com/settings/personal-access-tokens" target="_blank">' +
+            'Check your token settings →</a>'
+          );
+          $('#error').show();
+        } else {
+          handleLinkRepoError(xhr.status, name);
+        }
+      });
+
       api.storage.local.set({ mode_type: 'hook', leethub_hook: null }, () => {
         console.log(`Error linking ${name} to LeetHub`);
         console.log('Defaulted repo hook to NONE');
@@ -216,8 +232,19 @@ $('#type').on('change', function () {
   const valueSelected = this.value;
   if (valueSelected) {
     $('#hook_button').attr('disabled', false);
+    
+    // Toggle input fields
+    if (valueSelected === 'link') {
+      $('#name').hide();
+      $('#repo_dropdown').show();
+    } else {
+      $('#name').show();
+      $('#repo_dropdown').hide();
+    }
   } else {
     $('#hook_button').attr('disabled', true);
+    $('#name').show();
+    $('#repo_dropdown').hide();
   }
 });
 
@@ -228,22 +255,19 @@ $('#hook_button').on('click', () => {
       'No option selected - Pick an option from dropdown menu below that best suits you!'
     );
     $('#error').show();
-  } else if (!repositoryName()) {
+  } else if (option() === 'new' && !repositoryName()) {
     $('#error').text('No repository name added - Enter the name of your repository!');
     $('#name').focus();
+    $('#error').show();
+  } else if (option() === 'link' && !$('#repo_dropdown').val()) {
+    $('#error').text('No repository selected - Please select a repository to link!');
+    $('#repo_dropdown').focus();
     $('#error').show();
   } else {
     $('#error').hide();
     $('#success').text('Attempting to create Hook... Please wait.');
     $('#success').show();
 
-    /* 
-      Perform processing
-      - step 1: Check if current stage === hook.
-      - step 2: store repo name as repoName in chrome storage.
-      - step 3: if (1), POST request to repoName (iff option = create new repo) ; else display error message.
-      - step 4: if proceed from 3, hide hook_mode and display commit_mode (show stats e.g: files pushed/questions-solved/leaderboard)
-    */
     api.storage.local.get('leethub_token', data => {
       const token = data.leethub_token;
       if (token === null || token === undefined) {
@@ -256,28 +280,58 @@ $('#hook_button').on('click', () => {
       } else if (option() === 'new') {
         createRepo(token, repositoryName());
       } else {
-        api.storage.local.get('leethub_username', data2 => {
-          const username = data2.leethub_username;
-          if (!username) {
-            /* Improper authorization. */
-            $('#error').text(
-              'Improper Authorization error - Grant LeetHub access to your GitHub account to continue (launch extension to proceed)'
-            );
-            $('#error').show();
-            $('#success').hide();
-          } else {
-            linkRepo(token, `${username}/${repositoryName()}`, false);
-          }
-        });
+        // Linking existing repo - use full_name from dropdown directly
+        const selectedRepo = $('#repo_dropdown').val();
+        linkRepo(token, selectedRepo, false);
       }
     });
   }
 });
 
+/* Fetch repos to populate dropdown */
+const populateRepoDropdown = async (token) => {
+  try {
+    const res = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
+      headers: {
+        Authorization: `token ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+      }
+    });
+    
+    if (res.ok) {
+      const repos = await res.json();
+      const dropdown = $('#repo_dropdown');
+      dropdown.empty();
+      
+      if (repos.length === 0) {
+        dropdown.append('<option value="">No repositories found</option>');
+      } else {
+        dropdown.append('<option value="">Select a repository...</option>');
+        repos.forEach(repo => {
+          dropdown.append(`<option value="${repo.full_name}">${repo.name} (${repo.owner.login})</option>`);
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Failed to fetch repos", e);
+  }
+};
+
 $('#unlink a').on('click', () => {
   unlinkRepo();
   $('#unlink').hide();
   $('#success').text('Successfully unlinked your current git repo. Please create/link a new hook.');
+});
+
+/* Detect auth mode and adjust UI for PAT users */
+api.storage.local.get('auth_mode', data => {
+  if (data?.auth_mode === 'pat') {
+    /* Show PAT banner */
+    $('#pat_banner').show();
+    /* Hide "Create new repo" option — PAT tokens typically can't create repos
+       unless the user specifically granted that permission */
+    $('#opt_new').hide();
+  }
 });
 
 /* Detect mode type */
@@ -325,5 +379,12 @@ api.storage.local.get('mode_type', data => {
   } else {
     document.getElementById('hook_mode').style.display = 'inherit';
     document.getElementById('commit_mode').style.display = 'none';
+    /* Populate dropdown for hook mode */
+    api.storage.local.get('leethub_token', data2 => {
+      const token = data2.leethub_token;
+      if (token) {
+        populateRepoDropdown(token);
+      }
+    });
   }
 });

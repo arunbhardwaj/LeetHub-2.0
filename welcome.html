@@ -23,6 +23,13 @@
         <p class="caption">
           Automatically sync your code from LeetCode to GitHub
         </p>
+
+        <!-- PAT Mode Banner -->
+        <div id="pat_banner" class="pat-banner" style="display: none">
+          🔒 <strong>Selective Repos Mode</strong> — You're using a fine-grained token.
+          Only repositories within your token's scope are accessible.
+        </div>
+
         <br /><br /><br /><br /><br /><br /><br /><br />
         <p hidden id="error"></p>
         <p hidden id="success"></p>
@@ -47,7 +54,7 @@
             <div class="field">
               <select id="type">
                 <option value="">Pick an Option</option>
-                <option value="new">
+                <option id="opt_new" value="new">
                   Create a new Private Repository
                 </option>
                 <option value="link">
@@ -66,6 +73,9 @@
                 placeholder="Repository Name"
                 type="text"
               />
+              <select id="repo_dropdown" style="display:none; height: 38px; border-radius: 4px; border: 1px solid rgba(34,36,38,.15);">
+                <option value="">Loading repositories...</option>
+              </select>
             </div>
           </div>
         </div>

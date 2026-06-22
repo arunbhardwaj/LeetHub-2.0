@@ -63,3 +63,18 @@ a {
   color: white !important;
   cursor: pointer;
 }
+
+/* ── PAT Mode Banner ── */
+
+.pat-banner {
+  background: rgba(255, 108, 10, 0.12);
+  border: 1px solid rgba(255, 108, 10, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 16px auto;
+  max-width: 600px;
+  font-size: 0.9em;
+  color: #ffb366 !important;
+  text-align: center;
+  line-height: 1.5;
+}

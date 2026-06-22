@@ -25,10 +25,60 @@
             Authenticate with GitHub to use
             <strong>Leet<span style="color: #ff6c0a">Hub</span></strong>
           </p>
-          <button id="authenticate" class="ui secondary button">
-            <i class="icon github"></i>
-            Authenticate
-          </button>
+
+          <!-- Dual Auth Selector -->
+          <div id="auth_selector">
+            <div class="auth-option" id="auth_oauth">
+              <div class="auth-option-icon">🔑</div>
+              <div class="auth-option-title">Quick Setup</div>
+              <div class="auth-option-desc">All Repos Access</div>
+            </div>
+            <div class="auth-divider">or</div>
+            <div class="auth-option" id="auth_pat_toggle">
+              <div class="auth-option-icon">🔒</div>
+              <div class="auth-option-title">Selective Repos</div>
+              <div class="auth-option-desc">Token-Based Access</div>
+            </div>
+          </div>
+
+          <!-- PAT Input Section (hidden by default) -->
+          <div id="pat_section" style="display: none">
+            <div class="pat-instructions">
+              <p class="pat-instructions-title">Fine-Grained Personal Access Token</p>
+              <p class="pat-checklist">
+                ✅ Go to GitHub → Settings → Developer settings → Fine-grained tokens<br />
+                ✅ Set <strong>Repository access</strong> to "Only select repositories"<br />
+                ✅ Pick your LeetHub repo(s)<br />
+                ✅ Under <strong>Permissions → Repository permissions</strong>:<br />
+                &nbsp;&nbsp;&nbsp;&nbsp;• Contents: <strong>Read and write</strong><br />
+                &nbsp;&nbsp;&nbsp;&nbsp;• Metadata: <strong>Read-only</strong> (auto-selected)
+              </p>
+              <a
+                href="https://github.com/settings/personal-access-tokens/new"
+                target="_blank"
+                class="ui small secondary button"
+                style="margin-bottom: 8px"
+              >
+                Create Token on GitHub →
+              </a>
+            </div>
+            <div class="ui input" style="width: 100%; margin-top: 8px">
+              <input
+                id="pat_input"
+                type="password"
+                placeholder="Paste your fine-grained token here"
+                style="width: 100%"
+              />
+            </div>
+            <p id="pat_error" class="pat-error" style="display: none"></p>
+            <p id="pat_success" class="pat-success" style="display: none"></p>
+            <button id="pat_submit" class="ui small positive button" style="margin-top: 8px">
+              Validate & Connect
+            </button>
+            <button id="pat_back" class="ui small button" style="margin-top: 8px">
+              ← Back
+            </button>
+          </div>
         </div>
 
         <!-- Repo Hook mode -->
@@ -46,6 +96,7 @@
 
         <!-- Commit mode -->
         <div id="commit_mode" hidden>
+          <p id="auth_mode_badge" class="auth-mode-badge" style="display: none"></p>
           <p id="repo_url" class="ui small header"></p>
           <p class="onboarding">Problems Solved: <span id="p_solved">0</span></p>
           <p class="ui small header">
@@ -96,6 +147,7 @@
       </div>
     </div>
 
+    <script src="scripts/config.js"></script>
     <script src="scripts/oauth2.js"></script>
     <script type="text/javascript" src="scripts/popup.js"></script>
   </body>

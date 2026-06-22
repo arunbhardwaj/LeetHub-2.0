@@ -1,6 +1,5 @@
 .env
-scripts/authorize.js
-scripts/oauth2.js
+scripts/config.js
 node_modules
 .vscode
 dist/
