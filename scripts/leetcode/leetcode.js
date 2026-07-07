@@ -1,6 +1,8 @@
 import { LeetCodeV1, LeetCodeV2 } from './versions.js';
 import setupManualSubmitBtn from './submitBtn.js';
 import {
+  createAndCloseIssue,
+  createAndMergePR,
   debounce,
   delay,
   DIFFICULTY,
@@ -9,6 +11,7 @@ import {
   isEmptyObject,
   LeetHubError,
   mergeStats,
+  shouldRatioTrigger,
 } from './util.js';
 import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics.js';
 
@@ -412,6 +415,58 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   );
 }
 
+/**
+ * Rations extra GitHub Issues/PRs against submissions based on the user's configured
+ * `leethub_issue_pct` / `leethub_pr_pct` sliders (0-100), so a matching percentage of
+ * submissions also open+close an Issue and/or open+merge a PR, keeping GitHub stats
+ * (commits, issues, PRs) in sync rather than only inflating commit count.
+ * @param {string} problemName - problem slug
+ * @param {string} title - commit-style message reused as the issue/PR title & body
+ */
+async function ratioIssueAndPRForSubmission(problemName, title) {
+  const {
+    leethub_token: token,
+    leethub_hook: hook,
+    leethub_issue_pct: issuePct = 0,
+    leethub_pr_pct: prPct = 0,
+    leethub_submission_count: prevCount = 0,
+  } = await api.storage.local.get([
+    'leethub_token',
+    'leethub_hook',
+    'leethub_issue_pct',
+    'leethub_pr_pct',
+    'leethub_submission_count',
+  ]);
+
+  if (!token || !hook) return;
+
+  const submissionCount = prevCount + 1;
+  await api.storage.local.set({ leethub_submission_count: submissionCount });
+
+  if (issuePct > 0) {
+    const shouldOpenIssue = await shouldRatioTrigger(
+      api,
+      'leethub_issue_count',
+      submissionCount,
+      issuePct
+    );
+    if (shouldOpenIssue) {
+      await createAndCloseIssue(token, hook, title, `Auto-synced for \`${problemName}\` - LeetHub`).catch(
+        err => console.error(new LeetHubError('CreateIssueFailed'), err)
+      );
+    }
+  }
+
+  if (prPct > 0) {
+    const shouldOpenPR = await shouldRatioTrigger(api, 'leethub_pr_count', submissionCount, prPct);
+    if (shouldOpenPR) {
+      await createAndMergePR(token, hook, problemName).catch(err =>
+        console.error(new LeetHubError('CreatePRFailed'), err)
+      );
+    }
+  }
+}
+
 /** @param {LeetCodeV1 | LeetCodeV2} leetCode */
 function loader(leetCode) {
   let iterations = 0;
@@ -486,6 +541,11 @@ function loader(leetCode) {
       const newSHAs = await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMe]);
 
       leetCode.markUploaded();
+
+      /* Optionally also open+close an Issue and/or open+merge a PR for this submission,
+       * so a user-configured percentage of submissions keep issue/PR stats in sync
+       * with commit stats, instead of only ever incrementing commit count. */
+      await ratioIssueAndPRForSubmission(problemName, probStats);
 
       if (!alreadyCompleted) {
         // Increments local and persistent stats

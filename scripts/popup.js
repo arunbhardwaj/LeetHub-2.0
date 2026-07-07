@@ -59,6 +59,28 @@ api.storage.local.get('leethub_token', data => {
                   );
                 }
               });
+
+              /* Set up Issue % / PR % sliders */
+              api.storage.local.get(['leethub_issue_pct', 'leethub_pr_pct'], data4 => {
+                const issuePct = data4?.leethub_issue_pct ?? 0;
+                const prPct = data4?.leethub_pr_pct ?? 0;
+
+                $('#issue_pct_slider').val(issuePct);
+                $('#issue_pct_value').text(issuePct);
+                $('#issue_pct_slider').on('input', function () {
+                  const value = Number(this.value);
+                  $('#issue_pct_value').text(value);
+                  api.storage.local.set({ leethub_issue_pct: value });
+                });
+
+                $('#pr_pct_slider').val(prPct);
+                $('#pr_pct_value').text(prPct);
+                $('#pr_pct_slider').on('input', function () {
+                  const value = Number(this.value);
+                  $('#pr_pct_value').text(value);
+                  api.storage.local.set({ leethub_pr_pct: value });
+                });
+              });
             } else {
               $('#hook_mode').show();
             }

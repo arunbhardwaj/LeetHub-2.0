@@ -207,11 +207,164 @@ function mergeStats(obj1, obj2) {
   return merged;
 }
 
+/**
+ * Decides, via a ratio-based rationing counter, whether the current submission
+ * should also trigger an extra GitHub action (Issue or PR), so that over time
+ * the fraction of submissions triggering the action converges on `percent`.
+ * @param {chrome | browser} api - browser extension api namespace
+ * @param {string} counterKey - storage key used to track how many times this action has fired
+ * @param {number} submissionCount - total number of submissions synced so far (including this one)
+ * @param {number} percent - desired percentage (0-100) of submissions that should trigger the action
+ * @returns {Promise<boolean>} true if this submission should trigger the action
+ */
+async function shouldRatioTrigger(api, counterKey, submissionCount, percent) {
+  if (!percent) return false;
+
+  const data = await api.storage.local.get(counterKey);
+  const current = data[counterKey] || 0;
+  const target = Math.round((submissionCount * percent) / 100);
+
+  if (current < target) {
+    await api.storage.local.set({ [counterKey]: current + 1 });
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Opens a GitHub issue and immediately closes it, so it shows up in the repo's
+ * closed-issues history alongside the corresponding commit.
+ * @param {string} token - GitHub personal access token
+ * @param {string} hook - "owner/repo"
+ * @param {string} title - issue title
+ * @param {string} body - issue body
+ * @returns {Promise<number>} the created issue number
+ */
+async function createAndCloseIssue(token, hook, title, body) {
+  const headers = {
+    Authorization: `token ${token}`,
+    Accept: 'application/vnd.github.v3+json',
+  };
+
+  const createRes = await fetch(`https://api.github.com/repos/${hook}/issues`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ title, body }),
+  });
+  if (!createRes.ok) {
+    throw new LeetHubError(`CreateIssueFailed_${createRes.status}`);
+  }
+  const issue = await createRes.json();
+
+  const closeRes = await fetch(`https://api.github.com/repos/${hook}/issues/${issue.number}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ state: 'closed' }),
+  });
+  if (!closeRes.ok) {
+    throw new LeetHubError(`CloseIssueFailed_${closeRes.status}`);
+  }
+
+  return issue.number;
+}
+
+/**
+ * Opens a small GitHub pull request (a sync-marker commit on a throwaway branch
+ * against the repo's default branch) and immediately merges it, so it shows up
+ * in the repo's merged-PR history alongside the corresponding commit.
+ * @param {string} token - GitHub personal access token
+ * @param {string} hook - "owner/repo"
+ * @param {string} problemName - problem slug, used to namespace the branch/marker file
+ * @returns {Promise<number>} the merged pull request number
+ */
+async function createAndMergePR(token, hook, problemName) {
+  const headers = {
+    Authorization: `token ${token}`,
+    Accept: 'application/vnd.github.v3+json',
+  };
+
+  const repoRes = await fetch(`https://api.github.com/repos/${hook}`, { headers });
+  if (!repoRes.ok) {
+    throw new LeetHubError(`GetRepoFailed_${repoRes.status}`);
+  }
+  const { default_branch } = await repoRes.json();
+
+  const refRes = await fetch(
+    `https://api.github.com/repos/${hook}/git/ref/heads/${default_branch}`,
+    { headers }
+  );
+  if (!refRes.ok) {
+    throw new LeetHubError(`GetRefFailed_${refRes.status}`);
+  }
+  const {
+    object: { sha: baseSha },
+  } = await refRes.json();
+
+  const branchName = `leethub-${problemName}-${Date.now()}`;
+
+  const createBranchRes = await fetch(`https://api.github.com/repos/${hook}/git/refs`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: baseSha }),
+  });
+  if (!createBranchRes.ok) {
+    throw new LeetHubError(`CreateBranchFailed_${createBranchRes.status}`);
+  }
+
+  const markerPath = `${problemName}/.leethub-sync`;
+  const commitRes = await fetch(`https://api.github.com/repos/${hook}/contents/${markerPath}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({
+      message: `Sync ${problemName} - LeetHub`,
+      content: btoa(`Synced at ${new Date().toISOString()}`),
+      branch: branchName,
+    }),
+  });
+  if (!commitRes.ok) {
+    throw new LeetHubError(`BranchCommitFailed_${commitRes.status}`);
+  }
+
+  const prRes = await fetch(`https://api.github.com/repos/${hook}/pulls`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      title: `Sync ${problemName} - LeetHub`,
+      head: branchName,
+      base: default_branch,
+      body: `Automated sync commit for ${problemName}.`,
+    }),
+  });
+  if (!prRes.ok) {
+    throw new LeetHubError(`CreatePRFailed_${prRes.status}`);
+  }
+  const pr = await prRes.json();
+
+  const mergeRes = await fetch(`https://api.github.com/repos/${hook}/pulls/${pr.number}/merge`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ merge_method: 'merge' }),
+  });
+  if (!mergeRes.ok) {
+    throw new LeetHubError(`MergePRFailed_${mergeRes.status}`);
+  }
+
+  await fetch(`https://api.github.com/repos/${hook}/git/refs/heads/${branchName}`, {
+    method: 'DELETE',
+    headers,
+  }).catch(() => {});
+
+  return pr.number;
+}
+
 export {
   addLeadingZeros,
   assert,
   checkElem,
   convertToSlug,
+  createAndCloseIssue,
+  createAndMergePR,
   debounce,
   delay,
   DIFFICULTY,
@@ -222,4 +375,5 @@ export {
   languages,
   LeetHubError,
   mergeStats,
+  shouldRatioTrigger,
 };

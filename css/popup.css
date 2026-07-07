@@ -33,3 +33,34 @@ body {
   padding-top: 2%;
   font-size: medium;
 }
+
+.leethub-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 90%;
+  height: 4px;
+  border-radius: 2px;
+  background: #d8d3d3;
+  outline: none;
+  margin: 6px 0;
+}
+
+.leethub-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ff6c0a;
+  cursor: pointer;
+  border: none;
+}
+
+.leethub-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ff6c0a;
+  cursor: pointer;
+  border: none;
+}

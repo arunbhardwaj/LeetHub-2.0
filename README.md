@@ -56,6 +56,19 @@ Moreover, pushing code manually to GitHub from Leetcode is very time consuming. 
 </ol>
 
 
+## Keep your GitHub stats in sync (Issues & PRs)
+
+<p>By default, LeetHub only creates commits. If you'd rather your GitHub activity graph and issue/PR counts move together instead of just your commit count, open the extension popup and use the two sliders in commit mode:</p>
+
+<ul>
+  <li><strong>Issue %</strong> - the percentage of LeetCode submissions that should also open and immediately close a GitHub Issue.</li>
+  <li><strong>PR %</strong> - the percentage of LeetCode submissions that should also open and immediately merge a GitHub Pull Request.</li>
+</ul>
+
+<p>For example, setting both sliders to 50% means that out of every 2 submissions synced, roughly 1 will also get a closed Issue and 1 will also get a merged PR, alongside the commit that's always made. Both sliders default to 0% (issues/PRs disabled), and can be set independently.</p>
+
+<p>Under the hood, LeetHub tracks how many submissions have synced and rations Issues/PRs against that count, so the actual ratio converges on your chosen percentage over time rather than relying on random chance for each individual submission.</p>
+
 #### BONUS: Star [this repository](https://github.com/arunbhardwaj/LeetHub-2.0) for further development of features. If you want a particular feature, simply [request](https://github.com/arunbhardwaj/LeetHub-2.0/labels/feature) for it!
 
 

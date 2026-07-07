@@ -69,6 +69,36 @@
             </p>
           </div>
 
+          <div class="ui small header" style="margin-top: 1em;">
+            Issue %: <span id="issue_pct_value">0</span>%
+          </div>
+          <input
+            id="issue_pct_slider"
+            class="leethub-slider"
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value="0"
+          />
+          <p style="font-size: 0.8em; opacity: 0.75;">
+            % of submissions that also open + close an Issue
+          </p>
+
+          <div class="ui small header">PR %: <span id="pr_pct_value">0</span>%</div>
+          <input
+            id="pr_pct_slider"
+            class="leethub-slider"
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value="0"
+          />
+          <p style="font-size: 0.8em; opacity: 0.75;">
+            % of submissions that also open + merge a PR
+          </p>
+
           <div class="ui small header">
             Want more features?
             <a
