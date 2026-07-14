@@ -11,6 +11,7 @@ import {
   mergeStats,
 } from './util.js';
 import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics.js';
+import { generateReadme, updateReadmeWithProblem } from './readmeGenerator.js';
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
@@ -23,6 +24,47 @@ const defaultRepoReadme =
 const readmeFilename = 'README.md';
 const statsFilename = 'stats.json';
 
+// Feature flags
+const ENABLE_DIFFICULTY_FOLDERS = true; // Set to false to disable difficulty-based folders
+
+// Default commit message templates
+const DEFAULT_COMMIT_MESSAGES = {
+  readme: 'Create README - LeetHub',
+  solution: 'Added solution - LeetHub',
+  notes: 'Attach NOTES - LeetHub',
+  discussion: 'Prepend discussion post - LeetHub',
+  stats: 'Updated stats',
+  updateReadme: 'Update README - Topic Tags',
+};
+
+/**
+ * Gets custom commit message from storage or returns default
+ * @param {string} messageType - The type of commit message
+ * @param {Object} [data] - Optional data to interpolate into the message
+ * @returns {Promise<string>} - The commit message
+ */
+async function getCommitMessage(messageType, data = {}) {
+  const { custom_commit_messages } = await api.storage.local.get('custom_commit_messages');
+  const messages = custom_commit_messages || DEFAULT_COMMIT_MESSAGES;
+  let message = messages[messageType] || DEFAULT_COMMIT_MESSAGES[messageType] || messageType;
+
+  // Interpolate data into message
+  if (data.problemName) {
+    message = message.replace('{problem}', data.problemName);
+  }
+  if (data.language) {
+    message = message.replace('{language}', data.language);
+  }
+  if (data.difficulty) {
+    message = message.replace('{difficulty}', data.difficulty);
+  }
+  if (data.date) {
+    message = message.replace('{date}', new Date().toISOString().split('T')[0]);
+  }
+
+  return message;
+}
+
 // problem types
 const NORMAL_PROBLEM = 0;
 const EXPLORE_SECTION_PROBLEM = 1;
@@ -34,13 +76,21 @@ const api = getBrowser();
 /**
  * Constructs a file path by appending the given filename to the problem directory.
  * If no filename is provided, it returns the problem name as the path.
+ * Supports difficulty-based folder organization when enabled.
  *
  * @param {string} problem - The base problem directory or the entire file path if no filename is provided.
  * @param {string} [filename] - Optional parameter for the filename to be appended to the problem directory.
+ * @param {string} [difficulty] - Optional difficulty level for folder organization.
  * @returns {string} - Returns a string representing the complete file path, either with or without the appended filename.
  */
-const getPath = (problem, filename) => {
-  return filename ? `${problem}/${filename}` : problem;
+const getPath = (problem, filename, difficulty) => {
+  if (!ENABLE_DIFFICULTY_FOLDERS || !difficulty) {
+    return filename ? `${problem}/${filename}` : problem;
+  }
+
+  // Organize by difficulty folders: Easy/, Medium/, Hard/
+  const diffFolder = difficulty.charAt(0).toUpperCase() + difficulty.slice(1).toLowerCase();
+  return filename ? `${diffFolder}/${problem}/${filename}` : `${diffFolder}/${problem}`;
 };
 
 // https://web.archive.org/web/20190623091645/https://monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
@@ -70,8 +120,8 @@ const encode = data => btoa(unescape(encodeURIComponent(data)));
  *
  * @throws {LeetHubError} - Throws an error if the response is not OK (e.g., HTTP status code is not `200-299`).
  */
-const upload = async (token, hook, content, problem, filename, sha, message) => {
-  const path = getPath(problem, filename);
+const upload = async (token, hook, content, problem, filename, sha, message, difficulty) => {
+  const path = getPath(problem, filename, difficulty);
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
   let data = {
@@ -287,7 +337,7 @@ async function uploadGitWith409Retry(code, problemName, filename, commitMsg, opt
     );
   } catch (err) {
     if (err.message === '409') {
-      const data = await getGitHubFile(token, hook, problemName, filename).then(res => res.json());
+      const data = await getGitHubFile(token, hook, problemName, filename, optionals?.difficulty).then(res => res.json());
       return upload(
         token,
         hook,
@@ -310,11 +360,12 @@ async function uploadGitWith409Retry(code, problemName, filename, commitMsg, opt
  * @param {string} hook - The owner and repository name in the format "owner/repository".
  * @param {string} directory - The directory within the repository where the file is located.
  * @param {string} filename - The name of the file to be fetched.
+ * @param {string} [difficulty] - The difficulty level for folder organization.
  * @returns {Promise<Response>} A promise that resolves with the response from the GitHub API request.
  * @throws {Error} Throws an error if the response is not OK (e.g., HTTP status code is not 200-299).
  */
-async function getGitHubFile(token, hook, directory, filename) {
-  const path = getPath(directory, filename);
+async function getGitHubFile(token, hook, directory, filename, difficulty) {
+  const path = getPath(directory, filename, difficulty);
   const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
 
   let options = {
@@ -369,7 +420,7 @@ function createRepoReadme() {
   return uploadGitWith409Retry(content, readmeFilename, '', readmeMsg);
 }
 
-async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
+async function updateReadmeTopicTagsWithProblem(topicTags, problemName, difficulty) {
   if (topicTags == null) {
     console.log(new LeetHubError('TopicTagsNotFound'));
     return;
@@ -388,7 +439,9 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
     const { content, sha } = await getGitHubFile(
       leethub_token,
       leethub_hook,
-      readmeFilename
+      readmeFilename,
+      '',
+      difficulty
     ).then(resp => resp.json());
     readme = content;
     stats.shas[readmeFilename] = { '': sha };
@@ -407,7 +460,7 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   readme = encode(readme);
 
   return delay(
-    () => uploadGitWith409Retry(readme, readmeFilename, '', updateReadmeMsg, { sha: newSha }),
+    () => uploadGitWith409Retry(readme, readmeFilename, '', updateReadmeMsg, { sha: newSha, difficulty }),
     WAIT_FOR_GITHUB_API_TO_NOT_THROW_409_MS
   );
 }
@@ -451,6 +504,19 @@ function loader(leetCode) {
         throw new LeetHubError('LanguageNotFound');
       }
       const filename = problemName + language;
+      const difficulty = leetCode.difficulty?.toLowerCase() || 'unknown';
+
+      // Skip if already completed (prevents duplicate folders)
+      if (alreadyCompleted) {
+        console.log(`Problem ${problemName} already completed, skipping...`);
+        leetCode.markUploaded();
+        return;
+      }
+
+      // Get custom commit messages
+      const solutionMsg = await getCommitMessage('solution', { problemName, language, difficulty });
+      const readmeMessage = await getCommitMessage('readme', { problemName });
+      const notesMessage = await getCommitMessage('notes', { problemName });
 
       /* Upload README */
       const uploadReadMe = await api.storage.local.get('stats').then(({ stats }) => {
@@ -461,7 +527,8 @@ function loader(leetCode) {
             encode(probStatement),
             problemName,
             readmeFilename,
-            readmeMsg
+            readmeMessage,
+            { difficulty }
           );
         }
       });
@@ -470,17 +537,18 @@ function loader(leetCode) {
       const notes = leetCode.getNotesIfAny();
       let uploadNotes;
       if (notes != undefined && notes.length > 0) {
-        uploadNotes = uploadGitWith409Retry(encode(notes), problemName, 'NOTES.md', createNotesMsg);
+        uploadNotes = uploadGitWith409Retry(encode(notes), problemName, 'NOTES.md', notesMessage, { difficulty });
       }
 
       /* Upload code to Git */
       const code = leetCode.findCode(probStats);
-      const uploadCode = uploadGitWith409Retry(encode(code), problemName, filename, probStats);
+      const uploadCode = uploadGitWith409Retry(encode(code), problemName, filename, solutionMsg, { difficulty });
 
       /* Group problem into its relevant topics */
       const updateRepoReadMe = updateReadmeTopicTagsWithProblem(
         leetCode.submissionData?.question?.topicTags,
-        problemName
+        problemName,
+        difficulty
       );
 
       const newSHAs = await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMe]);
