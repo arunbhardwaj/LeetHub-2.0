@@ -1,16 +1,26 @@
-/* Enum for languages supported by GeeksForGeeks. */
-// const gfgLanguages = {
-//   Python3: '.py',
-//   'C++': '.cpp',
-//   Java: '.java',
-//   Javascript: '.js',
-// };
+/* GeeksforGeeks Integration for LeetHub v2 */
+
+// Languages supported by GeeksforGeeks
+const gfgLanguages = {
+  Python3: '.py',
+  'C++': '.cpp',
+  Java: '.java',
+  Javascript: '.js',
+  C: '.c',
+  Go: '.go',
+  Rust: '.rs',
+  Kotlin: '.kt',
+  Swift: '.swift',
+  TypeScript: '.ts',
+};
 
 /* Commit messages */
 const README_MSG = 'Create README - LeetHub';
 const SUBMIT_MSG = 'Added solution - LeetHub';
 const UPDATE_MSG = 'Updated solution - LeetHub';
+
 let START_MONITOR = true;
+
 const toKebabCase = (string) => {
   return string
     .replace(/[^a-zA-Z0-9\. ]/g, '') // remove special chars
@@ -20,174 +30,282 @@ const toKebabCase = (string) => {
 };
 
 function findGfgLanguage() {
-  const ele = document.getElementsByClassName('divider text')[0]
-    .innerText;
-  const lang = ele.split('(')[0].trim();
-  if (lang.length > 0 && languages[lang]) {
-    return languages[lang];
+  try {
+    const ele = document.getElementsByClassName('divider text')[0]?.innerText;
+    if (!ele) return null;
+    
+    const lang = ele.split('(')[0].trim();
+    if (lang.length > 0 && gfgLanguages[lang]) {
+      return gfgLanguages[lang];
+    }
+  } catch (e) {
+    console.error('Error finding GFG language:', e);
   }
   return null;
 }
 
 function findTitle() {
-  const ele = document.querySelector('[class^="problems_header_content__title"] > h3')
-    .innerText;
-  if (ele != null) {
-    return ele;
+  try {
+    const ele = document.querySelector('[class^="problems_header_content__title"] > h3')?.innerText;
+    return ele || '';
+  } catch (e) {
+    console.error('Error finding GFG title:', e);
+    return '';
   }
-  return '';
 }
 
 function findDifficulty() {
-  const ele = document.querySelectorAll('[class^="problems_header_description"]')[0].children[0].innerText;
-
-  if (ele != null) {
-    if (ele.trim() == 'Basic' || ele.trim() === 'School') {
-      return 'Easy';
+  try {
+    const ele = document.querySelectorAll('[class^="problems_header_description"]')[0]?.children[0]?.innerText;
+    if (ele != null) {
+      if (ele.trim() === 'Basic' || ele.trim() === 'School') {
+        return 'Easy';
+      }
+      return ele.trim();
     }
-    return ele;
+  } catch (e) {
+    console.error('Error finding GFG difficulty:', e);
+  }
+  return 'Unknown';
+}
+
+function getProblemStatement() {
+  try {
+    const ele = document.querySelector('[class^="problems_problem_content"]');
+    return ele ? ele.outerHTML : '';
+  } catch (e) {
+    console.error('Error getting problem statement:', e);
+    return '';
+  }
+}
+
+function getCode() {
+  try {
+    const scriptContent = `
+      var editor = ace.edit("ace-editor");
+      var editorContent = editor.getValue();
+      var para = document.createElement("pre");
+      para.innerText += editorContent;
+      para.setAttribute("id", "codeDataLeetHub");
+      document.body.appendChild(para);
+    `;
+
+    var script = document.createElement('script');
+    script.id = 'tmpScript';
+    script.appendChild(document.createTextNode(scriptContent));
+    (document.body || document.head || document.documentElement).appendChild(script);
+    
+    const text = document.getElementById('codeDataLeetHub')?.innerText || '';
+    
+    // Cleanup
+    const nodeDeletionScript = `
+      var elem = document.getElementById("codeDataLeetHub");
+      if (elem) elem.remove();
+    `;
+    var cleanupScript = document.createElement('script');
+    cleanupScript.id = 'tmpScript2';
+    cleanupScript.appendChild(document.createTextNode(nodeDeletionScript));
+    (document.body || document.head || document.documentElement).appendChild(cleanupScript);
+
+    return text;
+  } catch (e) {
+    console.error('Error getting code:', e);
+    return '';
+  }
+}
+
+function getGfgStats() {
+  try {
+    const stats = document.querySelector('[class^="problems_header_description"]');
+    if (stats) {
+      const accuracy = stats.querySelector('[class^="problems_accuracy"]');
+      return accuracy ? accuracy.innerText : '';
+    }
+  } catch (e) {
+    console.error('Error getting GFG stats:', e);
   }
   return '';
 }
 
-function getProblemStatement() {
-  const ele = document.querySelector('[class^="problems_problem_content"]');
-  return `${ele.outerHTML}`;
+// Upload function similar to LeetCode
+async function uploadToGitHub(content, problemName, filename, message, difficulty) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(['leethub_token', 'leethub_hook', 'stats'], async (data) => {
+      const { leethub_token: token, leethub_hook: hook, stats } = data;
+      
+      if (!token || !hook) {
+        reject(new Error('Not authenticated or no repo linked'));
+        return;
+      }
+
+      // Determine path based on difficulty
+      const diffFolder = difficulty ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1).toLowerCase() : '';
+      const path = diffFolder ? `${diffFolder}/${problemName}/${filename}` : `${problemName}/${filename}`;
+      
+      // Get existing SHA if file exists
+      let sha = '';
+      if (stats?.shas?.[problemName]?.[filename]) {
+        sha = stats.shas[problemName][filename];
+      }
+
+      const URL = `https://api.github.com/repos/${hook}/contents/${path}`;
+      
+      const options = {
+        method: 'PUT',
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify({
+          message,
+          content,
+          sha,
+        }),
+      };
+
+      try {
+        const res = await fetch(URL, options);
+        if (!res.ok) {
+          throw new Error(`GitHub API error: ${res.status}`);
+        }
+        
+        const body = await res.json();
+        
+        // Update stats
+        if (!stats.shas) stats.shas = {};
+        if (!stats.shas[problemName]) stats.shas[problemName] = {};
+        stats.shas[problemName][filename] = body.content.sha;
+        stats.shas[problemName].difficulty = difficulty?.toLowerCase() || 'unknown';
+        
+        chrome.storage.local.set({ stats });
+        
+        console.log(`Successfully committed ${path} to github`);
+        resolve(body.content.sha);
+      } catch (err) {
+        console.error('Upload failed:', err);
+        reject(err);
+      }
+    });
+  });
 }
 
-function getCode() {
-
-  const scriptContent = `
-  var editor = ace.edit("ace-editor");
-  var editorContent = editor.getValue();
-  var para = document.createElement("pre");
-  para.innerText+=editorContent;
-  para.setAttribute("id","codeDataLeetHub")
-  document.body.appendChild(para);
-  `;
-
-  var script = document.createElement('script');
-  script.id = 'tmpScript';
-  script.appendChild(document.createTextNode(scriptContent));
-  (
-    document.body ||
-    document.head ||
-    document.documentElement
-  ).appendChild(script);
-  const text = document.getElementById('codeDataLeetHub').innerText;
-
-  const nodeDeletionScript = `
-  document.body.removeChild(para)
-  `;
-  var script = document.createElement('script');
-  script.id = 'tmpScript';
-  script.appendChild(document.createTextNode(nodeDeletionScript));
-  (
-    document.body ||
-    document.head ||
-    document.documentElement
-  ).appendChild(script);
-
-  return text || '';
+// Increment stats
+function incrementGfgStats(difficulty) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get('stats', (data) => {
+      let stats = data.stats || { solved: 0, easy: 0, medium: 0, hard: 0, shas: {} };
+      
+      stats.solved += 1;
+      if (difficulty === 'Easy') stats.easy += 1;
+      else if (difficulty === 'Medium') stats.medium += 1;
+      else if (difficulty === 'Hard') stats.hard += 1;
+      
+      chrome.storage.local.set({ stats });
+      resolve(stats);
+    });
+  });
 }
 
+// Check if problem already completed
+function isGfgCompleted(problemName) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get('stats', (data) => {
+      const stats = data.stats;
+      if (!stats?.shas?.[problemName]) {
+        resolve(false);
+        return;
+      }
+      
+      for (let file of Object.keys(stats.shas[problemName])) {
+        if (file.includes(problemName)) {
+          resolve(true);
+          return;
+        }
+      }
+      resolve(false);
+    });
+  });
+}
+
+// Main loader
 const gfgLoader = setInterval(() => {
-  let code = null;
-  let problemStatement = null;
-  let title = null;
-  let language = null;
-  let difficulty = null;
+  if (window.location.href.includes('practice.geeksforgeeks.org/problems')) {
+    const submitBtn = document.evaluate(
+      ".//button[text()='Submit']",
+      document.body,
+      null,
+      XPathResult.ANY_TYPE,
+      null
+    ).iterateNext();
 
-  if (
-    window.location.href.includes(
-      'practice.geeksforgeeks.org/problems',
-    )
-  ) {
-
-    const submitBtn = document.evaluate(".//button[text()='Submit']", document.body, null, XPathResult.ANY_TYPE, null).iterateNext();
-
-    submitBtn.addEventListener('click', function () {
-      START_MONITOR = true;
-      const submission = setInterval(() => {
-        const output = document.querySelectorAll('[class^="problems_content"]')[0]
-          .innerText;
-        if (
-          output.includes('Problem Solved Successfully') &&
-          START_MONITOR
-        ) {
-          // clear timeout
-          START_MONITOR = false;
-          clearInterval(gfgLoader);
-          clearInterval(submission);
-          // get data
-          title = findTitle().trim();
-          difficulty = findDifficulty();
-          problemStatement = getProblemStatement();
-          code = getCode();
-          language = findGfgLanguage();
-
-          // format data
-          const probName = `${title} - GFG`;
-
-          problemStatement = `# ${title}\n## ${difficulty}\n${problemStatement}`;
-
-          // if language was found
-          if (language !== null) {
-            chrome.storage.local.get('stats', (s) => {
-              const { stats } = s;
-              const fileName = toKebabCase(title + language);
-              const filePath = probName + fileName;
-              let sha = null;
-              if (
-                stats !== undefined &&
-                stats.shas !== undefined &&
-                stats.shas[probName] !== undefined &&
-                stats.shas[probName][fileName] !== undefined
-              ) {
-                sha = stats.shas[probName][fileName];
+    if (submitBtn) {
+      submitBtn.addEventListener('click', function () {
+        START_MONITOR = true;
+        const submission = setInterval(async () => {
+          try {
+            const output = document.querySelector('[class^="problems_content"]')?.innerText || '';
+            
+            if (output.includes('Problem Solved Successfully') && START_MONITOR) {
+              START_MONITOR = false;
+              clearInterval(gfgLoader);
+              clearInterval(submission);
+              
+              // Get data
+              const title = findTitle().trim();
+              const difficulty = findDifficulty();
+              const problemStatement = getProblemStatement();
+              const code = getCode();
+              const language = findGfgLanguage();
+              
+              if (!title || !language) {
+                console.error('Could not find title or language');
+                return;
               }
-
-              // Only create README if not already created
-              // if (sha === null) {
-              uploadGit(
-                btoa(unescape(encodeURIComponent(problemStatement))),
+              
+              // Check if already completed
+              const alreadyCompleted = await isGfgCompleted(title);
+              if (alreadyCompleted) {
+                console.log(`GFG problem ${title} already completed, skipping...`);
+                return;
+              }
+              
+              // Format data
+              const probName = `${title} - GFG`;
+              const fileName = toKebabCase(title + language);
+              
+              // Create README
+              const readmeContent = `# ${title}\n## ${difficulty}\n${problemStatement}`;
+              await uploadToGitHub(
+                btoa(unescape(encodeURIComponent(readmeContent))),
                 probName,
                 'README.md',
                 README_MSG,
-                'upload',
-                undefined,
-                undefined,
-                difficulty,
+                difficulty
               );
-              // }
-
-              if (code !== '') {
-                setTimeout(function () {
-                  uploadGit(
-                    btoa(unescape(encodeURIComponent(code))),
-                    probName,
-                    toKebabCase(title + language),
-                    SUBMIT_MSG,
-                    'upload',
-                    undefined,
-                    undefined,
-                    difficulty,
-                  );
-                }, 1000);
+              
+              // Upload code
+              if (code) {
+                await uploadToGitHub(
+                  btoa(unescape(encodeURIComponent(code))),
+                  probName,
+                  fileName,
+                  SUBMIT_MSG,
+                  difficulty
+                );
+                
+                // Increment stats
+                await incrementGfgStats(difficulty);
+                
+                console.log(`Successfully uploaded GFG solution: ${title}`);
               }
-            });
+            } else if (output.includes('Compilation Error')) {
+              clearInterval(submission);
+            }
+          } catch (err) {
+            console.error('GFG submission error:', err);
           }
-        } else if (output.includes('Compilation Error')) {
-          // clear timeout and do nothing
-          clearInterval(submission);
-        } else if (
-          !START_MONITOR &&
-          (output.includes('Compilation Error') ||
-            output.includes('Correct Answer'))
-        ) {
-          clearInterval(submission);
-        }
-      }, 1000);
-    });
+        }, 1000);
+      });
+    }
   }
 }, 1000);
