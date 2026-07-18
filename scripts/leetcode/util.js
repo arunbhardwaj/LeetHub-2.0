@@ -24,6 +24,7 @@ const languages = Object.freeze({
   Scala: '.scala',
   Swift: '.swift',
   TypeScript: '.ts',
+  Bash: '.sh',
 });
 
 /** @enum */
