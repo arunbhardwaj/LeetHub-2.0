@@ -559,13 +559,6 @@ async function v2SubmissionHandler(event, leetCode) {
 const submitBtnObserver = new MutationObserver(function (_mutations, observer) {
   const v1SubmitBtn = document.querySelector('[data-cy="submit-code-btn"]');
   const v2SubmitBtn = document.querySelector('[data-e2e-locator="console-submit-button"]');
-  const textareaList = document.getElementsByTagName('textarea');
-  const textarea =
-    textareaList.length === 4
-      ? textareaList[2]
-      : textareaList.length === 2
-      ? textareaList[0]
-      : textareaList[1];
 
   if (v1SubmitBtn) {
     observer.disconnect();
@@ -575,12 +568,12 @@ const submitBtnObserver = new MutationObserver(function (_mutations, observer) {
     return;
   }
 
-  if (v2SubmitBtn && textarea) {
+  if (v2SubmitBtn) {
     observer.disconnect();
 
     const leetCode = new LeetCodeV2();
     if (!!!v2SubmitBtn.onclick) {
-      textarea.addEventListener('keydown', e => v2SubmissionHandler(e, leetCode));
+      document.addEventListener('keydown', e => v2SubmissionHandler(e, leetCode), true);
       v2SubmitBtn.onclick = e => v2SubmissionHandler(e, leetCode);
     }
   }
