@@ -79,3 +79,87 @@ api.storage.local.get('leethub_token', data => {
     xhr.send();
   }
 });
+
+/* Gemini API Key Management */
+api.storage.local.get('gemini_api_key', data => {
+  if (data.gemini_api_key) {
+    const masked = '••••••••' + data.gemini_api_key.slice(-4);
+    $('#gemini_status').text(`✅ API key saved (${masked})`);
+  }
+});
+
+$('#save_gemini_key').on('click', () => {
+  const key = $('#gemini_api_key').val().trim();
+  if (!key) {
+    $('#gemini_status').css('color', '#d9534f').text('❌ Please enter a valid API key.');
+    return;
+  }
+  api.storage.local.set({ gemini_api_key: key }, () => {
+    const masked = '••••••••' + key.slice(-4);
+    $('#gemini_api_key').val('');
+    $('#gemini_status').css('color', '#5cb85c').text(`✅ API key saved (${masked})`);
+  });
+});
+
+$('#sync_backlog').on('click', async () => {
+  const $status = $('#sync_status');
+  const $btn = $('#sync_backlog');
+  
+  $btn.addClass('disabled');
+  $status.text('Fetching your profile data...');
+
+  try {
+    const { leethub_username } = await api.storage.local.get('leethub_username');
+    if (!leethub_username) {
+      $status.text('Error: Username not found. Please submit one problem normally first.');
+      $btn.removeClass('disabled');
+      return;
+    }
+
+    $status.text('Fetching past submissions (Target: 156+)...');
+    
+    const query = {
+      query: `query recentAcSubmissions($username: String!, $limit: Int!) {
+        recentAcSubmissionList(username: $username, limit: $limit) {
+          id
+          titleSlug
+        }
+      }`,
+      variables: { username: leethub_username, limit: 200 } 
+    };
+
+    const res = await fetch('https://leetcode.com/graphql/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(query)
+    });
+    
+    const data = await res.json();
+    const submissions = data.data.recentAcSubmissionList;
+
+    if (!submissions || submissions.length === 0) {
+      $status.text('No previous submissions found.');
+      $btn.removeClass('disabled');
+      return;
+    }
+
+    for (let i = 0; i < submissions.length; i++) {
+      $status.text(`Syncing problem ${i + 1} of ${submissions.length}... Please keep popup open.`);
+      
+      await api.runtime.sendMessage({
+        type: 'LEETCODE_SUBMISSION',
+        submissionId: submissions[i].id
+      });
+
+      // Wait 5 seconds between requests
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+
+    $status.text('Backlog sync successfully completed!');
+  } catch (err) {
+    console.error(err);
+    $status.text('An error occurred during sync.');
+  } finally {
+    $btn.removeClass('disabled');
+  }
+});

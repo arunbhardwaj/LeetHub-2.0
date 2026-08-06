@@ -17,7 +17,6 @@ const readmeMsg = 'Create README - LeetHub';
 const updateReadmeMsg = 'Update README - Topic Tags';
 const updateStatsMsg = 'Updated stats';
 const discussionMsg = 'Prepend discussion post - LeetHub';
-const createNotesMsg = 'Attach NOTES - LeetHub';
 const defaultRepoReadme =
   'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)';
 const readmeFilename = 'README.md';
@@ -96,7 +95,6 @@ const upload = async (token, hook, content, problem, filename, sha, message) => 
   console.log(`Successfully committed ${getPath(problem, filename)} to github`);
 
   const body = await res.json();
-  //TODO: Think, should we be setting stats state here?
   const stats = await getAndInitializeStats(problem);
   stats.shas[problem][filename] = body.content.sha;
   api.storage.local.set({ stats });
@@ -271,8 +269,8 @@ async function uploadGitWith409Retry(code, problemName, filename, commitMsg, opt
   const sha = optionals?.sha
     ? optionals.sha
     : storageData.stats?.shas?.[problemName]?.[filename] !== undefined
-    ? storageData.stats.shas[problemName][filename]
-    : '';
+      ? storageData.stats.shas[problemName][filename]
+      : '';
 
   try {
     return await upload(
@@ -287,14 +285,24 @@ async function uploadGitWith409Retry(code, problemName, filename, commitMsg, opt
     );
   } catch (err) {
     if (err.message === '409') {
-      const data = await getGitHubFile(token, hook, problemName, filename).then(res => res.json());
+      let dataSha = '';
+      try {
+        const data = await getGitHubFile(token, hook, problemName, filename).then(res => res.json());
+        dataSha = data.sha;
+      } catch (e) {
+        // If 404, the file is new. The 409 was caused by a concurrent branch update.
+        // We can safely leave dataSha as '' and retry.
+        if (e.message !== '404') {
+          throw e;
+        }
+      }
       return upload(
         token,
         hook,
         code,
         problemName,
         filename,
-        data.sha,
+        dataSha,
         commitMsg,
         optionals?.difficulty
       );
@@ -415,88 +423,145 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
 /** @param {LeetCodeV1 | LeetCodeV2} leetCode */
 function loader(leetCode) {
   let iterations = 0;
+  console.log('[LeetHub] Loader initialized, starting polling loop...');
   const intervalId = setInterval(async () => {
     try {
       const isSuccessfulSubmission = leetCode.getSuccessStateAndUpdate();
       if (!isSuccessfulSubmission) {
         iterations++;
+        console.log(`[LeetHub] Polling for success state... Attempt ${iterations}/10`);
         if (iterations > 9) {
-          // poll for max 10 attempts (10 seconds)
           throw new LeetHubError('Could not find successful submission after 10 seconds.');
         }
         return;
       }
+
+      console.log('[LeetHub] Successful submission detected! Starting upload pipeline...');
       leetCode.startSpinner();
 
-      // If successful, stop polling
+      // Stop polling
       clearInterval(intervalId);
 
-      // For v2, query LeetCode API for submission results
+      // Query LeetCode API for submission results
+      console.log('[LeetHub] Initializing LeetCode submission data...');
       await leetCode.init();
 
       const probStats = leetCode.parseStats();
+      console.log('[LeetHub] Parsed stats:', probStats);
       if (!probStats) {
         throw new LeetHubError('SubmissionStatsNotFound');
       }
 
       const probStatement = leetCode.parseQuestion();
+      console.log('[LeetHub] Parsed question statement (length):', probStatement ? probStatement.length : 0);
       if (!probStatement) {
         throw new LeetHubError('ProblemStatementNotFound');
       }
 
       const problemName = leetCode.getProblemNameSlug();
+      console.log('[LeetHub] Problem name slug:', problemName);
+
       const alreadyCompleted = await isCompleted(problemName);
+      console.log('[LeetHub] Is problem already completed in stats?', alreadyCompleted);
+
       const language = leetCode.getLanguageExtension();
+      console.log('[LeetHub] Code language extension:', language);
       if (!language) {
         throw new LeetHubError('LanguageNotFound');
       }
+
       const filename = problemName + language;
 
-      /* Upload README */
-      const uploadReadMe = await api.storage.local.get('stats').then(({ stats }) => {
-        const shaExists = stats?.shas?.[problemName]?.[readmeFilename] !== undefined;
+      // FIX: declare code here — before the AI block so it can be passed to Gemini
+      const code = await Promise.resolve(leetCode.findCode(probStats));
+      console.log('[LeetHub] Found code (length):', code ? code.length : 0);
 
-        if (!shaExists) {
-          return uploadGitWith409Retry(
-            encode(probStatement),
-            problemName,
-            readmeFilename,
-            readmeMsg
-          );
+      /* ── AI README generation ── */
+      const existingNotes = leetCode.getNotesIfAny();
+      let finalReadmeContent = probStatement;
+      let isAiGenerated = false;
+
+      try {
+        // FIX: use `api` — `leetcode_api` was undefined
+        const { gemini_api_key } = await api.storage.local.get('gemini_api_key');
+
+        if (gemini_api_key) {
+          console.log('[LeetHub] Generating full README.md via Gemini API...');
+
+          // FIX: use `api` — `leetcode_api` was undefined
+          const aiResponse = await api.runtime.sendMessage({
+            type: 'GENERATE_AI_EXPLANATION',
+            apiKey: gemini_api_key,
+            problemTitle: problemName,
+            problemStatement: probStatement,
+            code: code,         // FIX: now defined above before use
+            language: language  // pass language for prompt context in background.js
+          });
+
+          if (aiResponse && aiResponse.success && aiResponse.readme) {
+            console.log('[LeetHub] Gemini README generated successfully.');
+            finalReadmeContent = aiResponse.readme;
+            isAiGenerated = true;
+          } else {
+            console.warn('[LeetHub] Gemini returned error, falling back to standard README:', aiResponse?.error);
+          }
+        } else {
+          console.log('[LeetHub] No Gemini API key set. Using standard README.');
         }
-      });
-
-      /* Upload Notes if any*/
-      const notes = leetCode.getNotesIfAny();
-      let uploadNotes;
-      if (notes != undefined && notes.length > 0) {
-        uploadNotes = uploadGitWith409Retry(encode(notes), problemName, 'NOTES.md', createNotesMsg);
+      } catch (aiError) {
+        console.error('[LeetHub] AI generation failed, falling back to standard README.', aiError);
       }
 
-      /* Upload code to Git */
-      const code = leetCode.findCode(probStats);
-      const uploadCode = uploadGitWith409Retry(encode(code), problemName, filename, probStats);
+      // If user has manual notes, prepend them to the README
+      if (existingNotes && existingNotes.length > 0) {
+        console.log('[LeetHub] Prepending manual notes to README.md...');
+        finalReadmeContent = `## 📝 My Notes\n${existingNotes}\n\n---\n\n${finalReadmeContent}`;
+      }
 
-      /* Group problem into its relevant topics */
-      const updateRepoReadMe = updateReadmeTopicTagsWithProblem(
+      /* Upload README.md — one file, one commit */
+      console.log('[LeetHub] Initiating README.md upload...');
+      const uploadReadMeSHA = await uploadGitWith409Retry(
+        encode(finalReadmeContent),
+        problemName,
+        readmeFilename,
+        isAiGenerated ? 'Create AI-powered README - LeetHub' : readmeMsg
+      );
+
+      /* Upload code file separately */
+      console.log('[LeetHub] Initiating code upload...');
+      const uploadCodeSHA = await uploadGitWith409Retry(encode(code), problemName, filename, probStats);
+
+      /* Update repo-level README with topic tags */
+      console.log('[LeetHub] Updating repository main README with topic tags...');
+      const updateRepoReadMeSHA = await updateReadmeTopicTagsWithProblem(
         leetCode.submissionData?.question?.topicTags,
         problemName
       );
 
-      const newSHAs = await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMe]);
+      const newSHAs = [uploadReadMeSHA, uploadCodeSHA, updateRepoReadMeSHA];
+      console.log('[LeetHub] All uploads completed successfully!', newSHAs);
 
       leetCode.markUploaded();
 
       if (!alreadyCompleted) {
-        // Increments local and persistent stats
+        console.log('[LeetHub] Incrementing stats...');
         incrementStats(leetCode.difficulty, problemName).then(setPersistentStats);
       }
     } catch (err) {
+      if (err && err.message && err.message.includes('Extension context invalidated')) {
+        console.warn('[LeetHub] Extension context invalidated. Alerting user to refresh.');
+        alert('LeetHub extension was recently updated. Please refresh this page (F5) and submit your solution again!');
+      } else {
+        console.error('[LeetHub] Error in upload pipeline:', err);
+      }
+
       leetCode.markUploadFailed();
       clearInterval(intervalId);
 
       if (!(err instanceof LeetHubError)) {
-        console.error(err);
+        if (!err || !err.message || !err.message.includes('Extension context invalidated')) {
+          console.error(err);
+        }
         return;
       }
     }
@@ -564,8 +629,8 @@ const submitBtnObserver = new MutationObserver(function (_mutations, observer) {
     textareaList.length === 4
       ? textareaList[2]
       : textareaList.length === 2
-      ? textareaList[0]
-      : textareaList[1];
+        ? textareaList[0]
+        : textareaList[1];
 
   if (v1SubmitBtn) {
     observer.disconnect();

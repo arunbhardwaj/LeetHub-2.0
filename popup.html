@@ -69,6 +69,25 @@
             </p>
           </div>
 
+          <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #ccc;">
+            <p class="ui small header">🤖 Gemini AI Explanations</p>
+            <div class="ui mini input" style="width: 100%; margin-bottom: 8px;">
+              <input id="gemini_api_key" type="password" placeholder="Enter your Gemini API Key" style="width: 100%;" />
+            </div>
+            <button id="save_gemini_key" class="ui primary button" style="width: 100%; margin-bottom: 5px;">
+              <i class="icon key"></i> Save API Key
+            </button>
+            <p id="gemini_status" style="margin-top: 5px; font-size: 0.85em; color: #5cb85c;"></p>
+          </div>
+
+          <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #ccc;">
+            <p class="ui small header">Sync Previous Solutions</p>
+            <button id="sync_backlog" class="ui secondary button" style="width: 100%;">
+              <i class="icon sync"></i> Sync Backlog
+            </button>
+            <p id="sync_status" style="margin-top: 10px; font-weight: bold; color: #ff6c0a;"></p>
+          </div>
+
           <div class="ui small header">
             Want more features?
             <a

@@ -23,6 +23,9 @@
     "storage",
     "webNavigation"
   ],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*"
+  ],
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/*"],
@@ -39,6 +42,6 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://api.github.com https://generativelanguage.googleapis.com https://leetcode.com;"
   }
 }
