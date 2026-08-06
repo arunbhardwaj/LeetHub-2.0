@@ -2,61 +2,7 @@ import { getBrowser } from './leetcode/util.js';
 
 const api = getBrowser();
 
-const option = () => {
-  return $('#type').val();
-};
-
-const repositoryName = () => {
-  return $('#name').val().trim();
-};
-
-const createRepoDescription =
-  'A collection of LeetCode questions to ace the coding interview! - Created using [LeetHub v2](https://github.com/arunbhardwaj/LeetHub-2.0)';
-
-/* Sync's local storage with persistent stats and returns the pulled stats. Currently only syncs when we install, or unlink then relink */
-const syncStats = async () => {
-  let { leethub_hook, leethub_token, sync_stats, stats } = await api.storage.local.get([
-    'leethub_token',
-    'leethub_hook',
-    'sync_stats',
-    'stats',
-  ]);
-
-  if (sync_stats === false) {
-    console.log('Persistent stats already synced!');
-    return;
-  }
-
-  const URL = `https://api.github.com/repos/${leethub_hook}/contents/stats.json`;
-
-  let options = {
-    method: 'GET',
-    headers: {
-      Authorization: `token ${leethub_token}`,
-      Accept: 'application/vnd.github.v3+json',
-    },
-  };
-
-  let resp = await fetch(URL, options);
-  if (!resp.ok && resp.status == 404) {
-    await api.storage.local.set({ sync_stats: false });
-    console.log('No stats found; starting fresh');
-    return {};
-  }
-  let data = await resp.json();
-  let pStatsJson = decodeURIComponent(escape(atob(data.content)));
-  let pStats = await JSON.parse(pStatsJson);
-
-  api.storage.local.set({ stats: pStats.leetcode, sync_stats: false }, () =>
-    console.log(`Successfully synced local stats with GitHub stats`)
-  );
-
-  // emulate the nested return obj of api.storage.local.get('stats')
-  return { stats: pStats.leetcode };
-};
-
 const getCreateErrorString = (statusCode, name) => {
-  /* Status codes for creating of repo */
   const errorStrings = {
     304: `Error creating ${name} - Unable to modify repository. Try again later!`,
     400: `Error creating ${name} - Bad POST request, make sure you're not overriding any existing scripts`,
@@ -64,22 +10,91 @@ const getCreateErrorString = (statusCode, name) => {
     403: `Error creating ${name} - Forbidden access to repository. Try again later!`,
     422: `Error creating ${name} - Unprocessable Entity. Repository may have already been created. Try Linking instead (select 2nd option).`,
   };
-  return errorStrings[statusCode];
+  return errorStrings[statusCode] || `Error creating ${name} (${statusCode})`;
 };
 
-const handleRepoCreateError = (statusCode, name) => {
-  $('#success').hide();
-  $('#error').text(getCreateErrorString(statusCode, name));
-  $('#error').show();
+const getLinkErrorString = (statusCode, name) => {
+  const errorStrings = {
+    301: `Error linking <a target="blank" href="https://github.com/${name}">${name}</a>. <br> This repository has been moved permanently.`,
+    403: `Error linking <a target="blank" href="https://github.com/${name}">${name}</a>. <br> Forbidden action. Check repository permissions.`,
+    404: `Error linking <a target="blank" href="https://github.com/${name}">${name}</a>. <br> Resource not found. Check repository name.`,
+  };
+  return errorStrings[statusCode] || `Error linking ${name} (${statusCode})`;
 };
 
-const createRepo = async (token, name) => {
+/* Sync's local storage with persistent stats and returns the pulled stats. */
+const syncStats = async (platform) => {
+  const hookKey = platform === 'leetcode' ? 'leethub_hook' : (platform === 'gfg' ? 'gfg_hook' : 'codechef_hook');
+  const statsKey = platform === 'leetcode' ? 'stats' : (platform === 'gfg' ? 'gfg_stats' : 'codechef_stats');
+  const syncKey = platform === 'leetcode' ? 'sync_stats' : (platform === 'gfg' ? 'gfg_sync_stats' : 'codechef_sync_stats');
+
+  let storage = await api.storage.local.get([
+    'leethub_token',
+    hookKey,
+    syncKey,
+    statsKey,
+  ]);
+
+  const token = storage.leethub_token;
+  const hook = storage[hookKey];
+  const syncVal = storage[syncKey];
+
+  if (syncVal === false) {
+    console.log(`Persistent stats for ${platform} already synced!`);
+    return;
+  }
+
+  const URL = `https://api.github.com/repos/${hook}/contents/stats.json`;
+
+  let options = {
+    method: 'GET',
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+    },
+  };
+
+  let resp = await fetch(URL, options);
+  if (!resp.ok && resp.status == 404) {
+    await api.storage.local.set({ [syncKey]: false });
+    console.log(`No stats found for ${platform}; starting fresh`);
+    return {};
+  }
+  let data = await resp.json();
+  let pStatsJson = decodeURIComponent(escape(atob(data.content)));
+  let pStats = await JSON.parse(pStatsJson);
+
+  const statsObj = platform === 'leetcode' ? pStats.leetcode : (platform === 'gfg' ? pStats.gfg : pStats.codechef);
+
+  await api.storage.local.set({ [statsKey]: statsObj, [syncKey]: false });
+  console.log(`Successfully synced local stats with GitHub stats for ${platform}`);
+
+  return { stats: statsObj };
+};
+
+const createRepo = async (token, name, platform) => {
+  const hookKey = platform === 'leetcode' ? 'leethub_hook' : (platform === 'gfg' ? 'gfg_hook' : 'codechef_hook');
+  const statsKey = platform === 'leetcode' ? 'stats' : (platform === 'gfg' ? 'gfg_stats' : 'codechef_stats');
+  
+  const prefix = platform === 'leetcode' ? 'lc' : (platform === 'gfg' ? 'gfg' : 'cc');
+  const errId = `#${prefix}_error`;
+  const successId = `#${prefix}_success`;
+  const modeId = `#${prefix}_hook_mode`;
+  const commitId = `#${prefix}_commit_mode`;
+  const repoUrlId = `#${prefix}_repo_url`;
+  const solvedId = `#${prefix}_p_solved`;
+  const easyId = `#${prefix}_p_solved_easy`;
+  const medId = `#${prefix}_p_solved_medium`;
+  const hardId = `#${prefix}_p_solved_hard`;
+
   const AUTHENTICATION_URL = 'https://api.github.com/user/repos';
   let data = {
     name,
     private: true,
     auto_init: true,
-    description: createRepoDescription,
+    description: platform === 'leetcode' 
+      ? 'A collection of LeetCode questions to ace the coding interview! - Created using LeetHub v2'
+      : (platform === 'gfg' ? 'A collection of GeeksforGeeks questions - Created using LeetHub v2' : 'A collection of CodeChef questions - Created using LeetHub v2'),
   };
 
   const options = {
@@ -93,48 +108,47 @@ const createRepo = async (token, name) => {
 
   let res = await fetch(AUTHENTICATION_URL, options);
   if (!res.ok) {
-    return handleRepoCreateError(res.status, name);
+    $(successId).hide();
+    $(errId).text(getCreateErrorString(res.status, name));
+    $(errId).show();
+    return;
   }
   res = await res.json();
 
-  /* Set Repo Hook, and set mode type to commit */
-  api.storage.local.set({ mode_type: 'commit', leethub_hook: res.full_name });
-  await api.storage.local.remove('stats');
-  $('#error').hide();
-  $('#success').html(
-    `Successfully created <a target="blank" href="${res.html_url}">${name}</a>. Start <a href="http://leetcode.com">LeetCoding</a>!`
+  await api.storage.local.set({ mode_type: 'commit', [hookKey]: res.full_name });
+  await api.storage.local.remove(statsKey);
+
+  $(errId).hide();
+  $(successId).html(
+    `Successfully created <a target="_blank" href="${res.html_url}">${name}</a>. Start solving!`
   );
-  $('#success').show();
-  $('#unlink').show();
-  /* Show new layout */
-  document.getElementById('hook_mode').style.display = 'none';
-  document.getElementById('commit_mode').style.display = 'inherit';
+  $(successId).show();
+
+  $(modeId).hide();
+  $(repoUrlId).html(`<a target="blank" href="${res.html_url}">${res.full_name}</a>`);
+  $(solvedId).text(0);
+  $(easyId).text(0);
+  $(medId).text(0);
+  $(hardId).text(0);
+  $(commitId).show();
 };
 
-const getLinkErrorString = (statusCode, name) => {
-  /* Status codes for linking repo */
-  const errorStrings = {
-    301: `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> This repository has been moved permenantly. Try creating a new one.`,
-    403: `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> Forbidden action. Please make sure you have the right access to this repository.`,
-    404: `Error linking <a target="blank" href="${`https://github.com/${name}`}">${name}</a> to LeetHub. <br> Resource not found. Make sure you enter the right repository name.`,
-  };
-  return errorStrings[statusCode];
-};
-/* Status codes for linking of repo */
-const handleLinkRepoError = (statusCode, name) => {
-  $('#success').hide();
-  $('#error').html(getLinkErrorString(statusCode, name));
-  $('#error').show();
-  $('#unlink').show();
-};
+const linkRepo = (token, name, platform) => {
+  const hookKey = platform === 'leetcode' ? 'leethub_hook' : (platform === 'gfg' ? 'gfg_hook' : 'codechef_hook');
+  const statsKey = platform === 'leetcode' ? 'stats' : (platform === 'gfg' ? 'gfg_stats' : 'codechef_stats');
+  const syncKey = platform === 'leetcode' ? 'sync_stats' : (platform === 'gfg' ? 'gfg_sync_stats' : 'codechef_sync_stats');
+  
+  const prefix = platform === 'leetcode' ? 'lc' : (platform === 'gfg' ? 'gfg' : 'cc');
+  const errId = `#${prefix}_error`;
+  const successId = `#${prefix}_success`;
+  const modeId = `#${prefix}_hook_mode`;
+  const commitId = `#${prefix}_commit_mode`;
+  const repoUrlId = `#${prefix}_repo_url`;
+  const solvedId = `#${prefix}_p_solved`;
+  const easyId = `#${prefix}_p_solved_easy`;
+  const medId = `#${prefix}_p_solved_medium`;
+  const hardId = `#${prefix}_p_solved_hard`;
 
-/* 
-    Method for linking hook with an existing repository 
-    Steps:
-    1. Check if existing repository exists and the user has write access to it.
-    2. Link Hook to it (chrome Storage).
-*/
-const linkRepo = (token, name) => {
   const AUTHENTICATION_URL = `https://api.github.com/repos/${name}`;
 
   const xhr = new XMLHttpRequest();
@@ -143,50 +157,48 @@ const linkRepo = (token, name) => {
       return;
     }
     if (xhr.status !== 200) {
-      // BUG FIX
-      // unable to gain access to repo in commit mode. Must switch to hook mode.
-      /* Set mode type to hook and Repo Hook to NONE */
-      handleLinkRepoError(xhr.status, name);
-      api.storage.local.set({ mode_type: 'hook', leethub_hook: null }, () => {
+      $(successId).hide();
+      $(errId).html(getLinkErrorString(xhr.status, name));
+      $(errId).show();
+
+      api.storage.local.set({ [hookKey]: null }, () => {
         console.log(`Error linking ${name} to LeetHub`);
-        console.log('Defaulted repo hook to NONE');
       });
 
-      /* Hide accordingly */
-      document.getElementById('hook_mode').style.display = 'inherit';
-      document.getElementById('commit_mode').style.display = 'none';
+      $(modeId).show();
+      $(commitId).hide();
       return;
     }
 
     const res = JSON.parse(xhr.responseText);
     api.storage.local.set(
-      { mode_type: 'commit', repo: res.html_url, leethub_hook: res.full_name },
+      { mode_type: 'commit', [hookKey]: res.full_name },
       () => {
-        $('#error').hide();
-        $('#success').html(
-          `Successfully linked <a target="blank" href="${res.html_url}">${name}</a> to LeetHub. Start <a href="http://leetcode.com">LeetCoding</a> now!`
+        $(errId).hide();
+        $(successId).html(
+          `Successfully linked <a target="_blank" href="${res.html_url}">${name}</a>!`
         );
-        $('#success').show();
-        $('#unlink').show();
-        console.log('Successfully set new repo hook');
+        $(successId).show();
       }
     );
-    /* Get Persistent Stats or Create new stats */
-    api.storage.local
-      .get('sync_stats')
-      .then(data => (data?.sync_stats ? syncStats() : api.storage.local.get('stats')))
-      .then(data => {
-        /* Get problems solved count */
-        const stats = data?.stats;
-        $('#p_solved').text(stats?.solved ?? 0);
-        $('#p_solved_easy').text(stats?.easy ?? 0);
-        $('#p_solved_medium').text(stats?.medium ?? 0);
-        $('#p_solved_hard').text(stats?.hard ?? 0);
-      });
 
-    /* Hide accordingly */
-    document.getElementById('hook_mode').style.display = 'none';
-    document.getElementById('commit_mode').style.display = 'inherit';
+    api.storage.local.get(syncKey).then(data => {
+      if (data?.[syncKey]) {
+        return syncStats(platform);
+      } else {
+        return api.storage.local.get(statsKey).then(res2 => ({ stats: res2?.[statsKey] }));
+      }
+    }).then(data => {
+      const stats = data?.stats;
+      $(solvedId).text(stats?.solved ?? 0);
+      $(easyId).text(stats?.easy ?? 0);
+      $(medId).text(stats?.medium ?? 0);
+      $(hardId).text(stats?.hard ?? 0);
+    });
+
+    $(repoUrlId).html(`<a target="blank" href="${res.html_url}">${res.full_name}</a>`);
+    $(modeId).hide();
+    $(commitId).show();
   });
 
   xhr.open('GET', AUTHENTICATION_URL, true);
@@ -195,135 +207,112 @@ const linkRepo = (token, name) => {
   xhr.send();
 };
 
-const unlinkRepo = () => {
-  /* Reset mode type to hook, stats to null */
+const unlinkRepo = (platform) => {
+  const hookKey = platform === 'leetcode' ? 'leethub_hook' : (platform === 'gfg' ? 'gfg_hook' : 'codechef_hook');
+  const statsKey = platform === 'leetcode' ? 'stats' : (platform === 'gfg' ? 'gfg_stats' : 'codechef_stats');
+  const syncKey = platform === 'leetcode' ? 'sync_stats' : (platform === 'gfg' ? 'gfg_sync_stats' : 'codechef_sync_stats');
+  
+  const prefix = platform === 'leetcode' ? 'lc' : (platform === 'gfg' ? 'gfg' : 'cc');
+  const modeId = `#${prefix}_hook_mode`;
+  const commitId = `#${prefix}_commit_mode`;
+  const successId = `#${prefix}_success`;
+
   api.storage.local.set(
-    { mode_type: 'hook', leethub_hook: null, sync_stats: true, stats: null },
+    { [hookKey]: null, [syncKey]: true, [statsKey]: null },
     () => {
-      console.log(`Unlinked repo`);
-      console.log('Cleared local stats');
+      console.log(`Unlinked ${platform} repo`);
     }
   );
 
-  /* Hide accordingly */
-  document.getElementById('hook_mode').style.display = 'inherit';
-  document.getElementById('commit_mode').style.display = 'none';
+  $(successId).text('Successfully unlinked repo.');
+  $(successId).show();
+  $(modeId).show();
+  $(commitId).hide();
 };
 
-/* Check for value of select tag, Get Started disabled by default */
-
-$('#type').on('change', function () {
-  const valueSelected = this.value;
-  if (valueSelected) {
-    $('#hook_button').attr('disabled', false);
-  } else {
-    $('#hook_button').attr('disabled', true);
-  }
+// Dropdowns and Hooking
+$('#lc_type').on('change', function () {
+  $('#lc_hook_button').attr('disabled', !this.value);
+});
+$('#gfg_type').on('change', function () {
+  $('#gfg_hook_button').attr('disabled', !this.value);
+});
+$('#cc_type').on('change', function () {
+  $('#cc_hook_button').attr('disabled', !this.value);
 });
 
-$('#hook_button').on('click', () => {
-  /* on click should generate: 1) option 2) repository name */
-  if (!option()) {
-    $('#error').text(
-      'No option selected - Pick an option from dropdown menu below that best suits you!'
-    );
-    $('#error').show();
-  } else if (!repositoryName()) {
-    $('#error').text('No repository name added - Enter the name of your repository!');
-    $('#name').focus();
-    $('#error').show();
-  } else {
-    $('#error').hide();
-    $('#success').text('Attempting to create Hook... Please wait.');
-    $('#success').show();
+const handleHookClick = (platform) => {
+  const prefix = platform === 'leetcode' ? 'lc' : (platform === 'gfg' ? 'gfg' : 'cc');
+  const typeId = `#${prefix}_type`;
+  const nameId = `#${prefix}_name`;
+  const errId = `#${prefix}_error`;
+  const successId = `#${prefix}_success`;
 
-    /* 
-      Perform processing
-      - step 1: Check if current stage === hook.
-      - step 2: store repo name as repoName in chrome storage.
-      - step 3: if (1), POST request to repoName (iff option = create new repo) ; else display error message.
-      - step 4: if proceed from 3, hide hook_mode and display commit_mode (show stats e.g: files pushed/questions-solved/leaderboard)
-    */
+  const typeVal = $(typeId).val();
+  const nameVal = $(nameId).val().trim();
+
+  if (!typeVal) {
+    $(errId).text('No option selected.').show();
+  } else if (!nameVal) {
+    $(errId).text('No repository name added.').show();
+    $(nameId).focus();
+  } else {
+    $(errId).hide();
+    $(successId).text('Linking repository... Please wait.').show();
+
     api.storage.local.get('leethub_token', data => {
       const token = data.leethub_token;
-      if (token === null || token === undefined) {
-        /* Not authorized yet. */
-        $('#error').text(
-          'Authorization error - Grant LeetHub access to your GitHub account to continue (launch extension to proceed)'
-        );
-        $('#error').show();
-        $('#success').hide();
-      } else if (option() === 'new') {
-        createRepo(token, repositoryName());
+      if (!token) {
+        $(errId).text('Authorization error. Please authenticate LeetHub first.').show();
+        $(successId).hide();
+      } else if (typeVal === 'new') {
+        createRepo(token, nameVal, platform);
       } else {
         api.storage.local.get('leethub_username', data2 => {
           const username = data2.leethub_username;
           if (!username) {
-            /* Improper authorization. */
-            $('#error').text(
-              'Improper Authorization error - Grant LeetHub access to your GitHub account to continue (launch extension to proceed)'
-            );
-            $('#error').show();
-            $('#success').hide();
+            $(errId).text('Username not found in storage. Try re-authenticating.').show();
+            $(successId).hide();
           } else {
-            linkRepo(token, `${username}/${repositoryName()}`, false);
+            linkRepo(token, `${username}/${nameVal}`, platform);
           }
         });
       }
     });
   }
-});
+};
 
-$('#unlink a').on('click', () => {
-  unlinkRepo();
-  $('#unlink').hide();
-  $('#success').text('Successfully unlinked your current git repo. Please create/link a new hook.');
-});
+$('#lc_hook_button').on('click', () => handleHookClick('leetcode'));
+$('#gfg_hook_button').on('click', () => handleHookClick('gfg'));
+$('#cc_hook_button').on('click', () => handleHookClick('codechef'));
 
-/* Detect mode type */
-api.storage.local.get('mode_type', data => {
-  const mode = data.mode_type;
+$('#lc_unlink').on('click', () => unlinkRepo('leetcode'));
+$('#gfg_unlink').on('click', () => unlinkRepo('gfg'));
+$('#cc_unlink').on('click', () => unlinkRepo('codechef'));
 
-  if (mode && mode === 'commit') {
-    /* Check if still access to repo */
-    api.storage.local.get('leethub_token', data2 => {
-      const token = data2.leethub_token;
-      if (token === null || token === undefined) {
-        /* Not authorized yet. */
-        $('#error').text(
-          'Authorization error - Grant LeetHub access to your GitHub account to continue (click LeetHub extension on the top right to proceed)'
-        );
-        $('#error').show();
-        $('#success').hide();
-        /* Hide accordingly */
-        document.getElementById('hook_mode').style.display = 'inherit';
-        document.getElementById('commit_mode').style.display = 'none';
-      } else {
-        /* Get access to repo */
-        api.storage.local.get('leethub_hook', repoName => {
-          const hook = repoName.leethub_hook;
-          if (!hook) {
-            /* Not authorized yet. */
-            $('#error').text(
-              'Improper Authorization error - Grant LeetHub access to your GitHub account to continue (click LeetHub extension on the top right to proceed)'
-            );
-            $('#error').show();
-            $('#success').hide();
-            /* Hide accordingly */
-            document.getElementById('hook_mode').style.display = 'inherit';
-            document.getElementById('commit_mode').style.display = 'none';
-          } else {
-            /* Username exists, at least in storage. Confirm this */
-            linkRepo(token, hook);
-          }
-        });
-      }
-    });
+// Initialization logic
+api.storage.local.get(['leethub_token', 'leethub_hook', 'gfg_hook', 'codechef_hook'], (data) => {
+  const token = data.leethub_token;
+  if (!token) {
+    $('#lc_error, #gfg_error, #cc_error').text('Please click the extension icon to authenticate with GitHub first.').show();
+    return;
+  }
 
-    document.getElementById('hook_mode').style.display = 'none';
-    document.getElementById('commit_mode').style.display = 'inherit';
+  if (data.leethub_hook) {
+    linkRepo(token, data.leethub_hook, 'leetcode');
   } else {
-    document.getElementById('hook_mode').style.display = 'inherit';
-    document.getElementById('commit_mode').style.display = 'none';
+    $('#lc_hook_mode').show();
+  }
+
+  if (data.gfg_hook) {
+    linkRepo(token, data.gfg_hook, 'gfg');
+  } else {
+    $('#gfg_hook_mode').show();
+  }
+
+  if (data.codechef_hook) {
+    linkRepo(token, data.codechef_hook, 'codechef');
+  } else {
+    $('#cc_hook_mode').show();
   }
 });

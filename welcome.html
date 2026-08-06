@@ -2,138 +2,226 @@
 <html>
   <head>
     <link rel="stylesheet" href="css/welcome.css" />
-    <script
-      src="scripts/jquery-3.3.1.min.js"
-    ></script>
-
+    <script src="scripts/jquery-3.3.1.min.js"></script>
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css"
       rel="stylesheet"
     />
     <script src="scripts/semantic-2.4.1.min.js"></script>
+    <style>
+      .ui.segment {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 12px !important;
+        padding: 30px !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+      .platform-title {
+        font-family: 'Norwester', 'Helvetica Neue', sans-serif;
+        font-size: 2em !important;
+        margin-bottom: 20px !important;
+      }
+      .stat-label {
+        font-size: 1.1em;
+        font-weight: bold;
+        margin-right: 15px;
+      }
+      .unlink-btn {
+        margin-top: 15px !important;
+        display: inline-block;
+      }
+    </style>
   </head>
 
   <body>
     <div class="ui grid container">
+      <!-- Header -->
       <div class="sixteen wide center aligned column">
         <br />
-        <p class="caption" style="font-size: 9em">
+        <p class="caption" style="font-size: 6em; line-height: 1.1;">
           Leet<span style="color: #ff6c0a">Hub</span> v2
         </p>
-        <p class="caption">
-          Automatically sync your code from LeetCode to GitHub
+        <p class="caption" style="font-size: 1.5em; opacity: 0.85;">
+          Automatically sync your code from LeetCode & GeeksforGeeks to GitHub
         </p>
-        <br /><br /><br /><br /><br /><br /><br /><br />
-        <p hidden id="error"></p>
-        <p hidden id="success"></p>
-        <p hidden id="unlink">
-          Linked the wrong repo? <a>Unlink</a>.
-        </p>
+        <br /><br />
       </div>
 
-      <!-- Create Hook -->
-      <div
-        style="display: none"
-        id="hook_mode"
-        class="ui grid container"
-      >
-        <div class="six wide column">
-          <p class="caption ui large header center aligned">
-            To get started with LeetHub
-          </p>
-        </div>
-        <div class="four wide left aligned column">
-          <div class="ui form">
-            <div class="field">
-              <select id="type">
-                <option value="">Pick an Option</option>
-                <option value="new">
-                  Create a new Private Repository
-                </option>
-                <option value="link">
-                  Link an Existing Repository
-                </option>
-              </select>
+      <!-- Main Panels -->
+      <div class="ui three column stackable grid container" style="width: 100%; margin: 0 auto;">
+        
+        <!-- LeetCode Panel -->
+        <div class="column">
+          <div class="ui segment">
+            <h2 class="ui platform-title inverted header">
+              <i class="code icon" style="color: #ff6c0a;"></i> LeetCode Sync
+            </h2>
+            
+            <!-- LeetCode Hook Form -->
+            <div id="lc_hook_mode" class="ui form">
+              <p style="opacity: 0.8; margin-bottom: 20px;">Link a repository to sync your LeetCode submissions.</p>
+              <div class="field">
+                <select id="lc_type" class="ui dropdown">
+                  <option value="">Pick an Option</option>
+                  <option value="new">Create a new Private Repository</option>
+                  <option value="link">Link an Existing Repository</option>
+                </select>
+              </div>
+              <div class="field">
+                <input
+                  autocomplete="off"
+                  id="lc_name"
+                  placeholder="Repository Name"
+                  type="text"
+                />
+              </div>
+              <button id="lc_hook_button" disabled class="ui orange fluid button">
+                Link LeetCode Repo
+              </button>
             </div>
-          </div>
-        </div>
-        <div class="six wide column">
-          <div class="ui form">
-            <div class="field">
-              <input
-                autocomplete="off"
-                id="name"
-                placeholder="Repository Name"
-                type="text"
-              />
+
+            <!-- LeetCode Stats / Linked Mode -->
+            <div id="lc_commit_mode" style="display: none;">
+              <p class="ui small header" style="color: #ff6c0a !important; margin-bottom: 25px;">
+                Linked Repo: <span id="lc_repo_url" style="color: white; font-weight: normal;">None</span>
+              </p>
+              <div style="font-size: 1.8em; margin-bottom: 15px;" class="ui inverted header">
+                Problems Solved: <span id="lc_p_solved">0</span>
+              </div>
+              <div style="margin-bottom: 25px;">
+                <span class="stat-label" style="color: #5cb85c">Easy: <span id="lc_p_solved_easy" style="color: white; font-weight: normal;">0</span></span>
+                <span class="stat-label" style="color: #f0ad4e">Medium: <span id="lc_p_solved_medium" style="color: white; font-weight: normal;">0</span></span>
+                <span class="stat-label" style="color: #d9534f">Hard: <span id="lc_p_solved_hard" style="color: white; font-weight: normal;">0</span></span>
+              </div>
+              <button id="lc_unlink" class="ui red basic inverted button compact unlink-btn">
+                Unlink Repository
+              </button>
             </div>
+
+            <p hidden id="lc_error" style="color: #d9534f !important; margin-top: 15px; font-weight: bold;"></p>
+            <p hidden id="lc_success" style="color: #5cb85c !important; margin-top: 15px; font-weight: bold;"></p>
           </div>
         </div>
 
-        <div class="sixteen wide right aligned column">
-          <br />
-          <button
-            id="hook_button"
-            disabled
-            class="positive ui button"
-          >
-            Get Started
-          </button>
-        </div>
-      </div>
+        <!-- GeeksforGeeks Panel -->
+        <div class="column">
+          <div class="ui segment">
+            <h2 class="ui platform-title inverted header">
+              <i class="terminal icon" style="color: #308d46;"></i> GeeksforGeeks Sync
+            </h2>
+            
+            <!-- GFG Hook Form -->
+            <div id="gfg_hook_mode" class="ui form">
+              <p style="opacity: 0.8; margin-bottom: 20px;">Link a repository to sync your GeeksforGeeks submissions.</p>
+              <div class="field">
+                <select id="gfg_type" class="ui dropdown">
+                  <option value="">Pick an Option</option>
+                  <option value="new">Create a new Private Repository</option>
+                  <option value="link">Link an Existing Repository</option>
+                </select>
+              </div>
+              <div class="field">
+                <input
+                  autocomplete="off"
+                  id="gfg_name"
+                  placeholder="Repository Name"
+                  type="text"
+                />
+              </div>
+              <button id="gfg_hook_button" disabled class="ui green fluid button">
+                Link GFG Repo
+              </button>
+            </div>
 
-      <!-- Show stats -->
-      <div
-        style="display: none"
-        id="commit_mode"
-        class="ui grid container"
-      >
-        <div class="eight wide center aligned column">
-          <br /><br />
-          <div
-            style="font-size: 2.3em"
-            class="ui inverted large header"
-          >
-            Problems Solved: <span id="p_solved">0</span>
-          </div>
-          <div
-            styl="font-size: 2.3em"
-            class="ui inverted large header"
-          >
-            <span style="color: #5cb85c">Easy:</span>
-            <span id="p_solved_easy" style="color: #5cb85c">0 </span>
-            <span style="color: #f0ad4e">&ensp; &ensp; Medium:</span>
-            <span id="p_solved_medium" style="color: #f0ad4e"
-              >0
-            </span>
-            <span style="color: #d9534f">&ensp; &ensp; Hard:</span>
-            <span id="p_solved_hard" style="color: #d9534f">0 </span>
+            <!-- GFG Stats / Linked Mode -->
+            <div id="gfg_commit_mode" style="display: none;">
+              <p class="ui small header" style="color: #308d46 !important; margin-bottom: 25px;">
+                Linked Repo: <span id="gfg_repo_url" style="color: white; font-weight: normal;">None</span>
+              </p>
+              <div style="font-size: 1.8em; margin-bottom: 15px;" class="ui inverted header">
+                Problems Solved: <span id="gfg_p_solved">0</span>
+              </div>
+              <div style="margin-bottom: 25px;">
+                <span class="stat-label" style="color: #5cb85c">Easy: <span id="gfg_p_solved_easy" style="color: white; font-weight: normal;">0</span></span>
+                <span class="stat-label" style="color: #f0ad4e">Medium: <span id="gfg_p_solved_medium" style="color: white; font-weight: normal;">0</span></span>
+                <span class="stat-label" style="color: #d9534f">Hard: <span id="gfg_p_solved_hard" style="color: white; font-weight: normal;">0</span></span>
+              </div>
+              <button id="gfg_unlink" class="ui red basic inverted button compact unlink-btn">
+                Unlink Repository
+              </button>
+            </div>
+
+            <p hidden id="gfg_error" style="color: #d9534f !important; margin-top: 15px; font-weight: bold;"></p>
+            <p hidden id="gfg_success" style="color: #5cb85c !important; margin-top: 15px; font-weight: bold;"></p>
           </div>
         </div>
-        <div class="eight wide center aligned column">
-          <br /><br /><br />
-          <div class="ui inverted large header">
-            Want more features? <br /><a
-              style="color: aqua !important; font-size: 0.8em"
-              target="_blank"
-              href="https://github.com/arunbhardwaj/LeetHub-2.0/labels/feature"
-              >Request a feature!</a
-            >
+
+        <!-- CodeChef Panel -->
+        <div class="column">
+          <div class="ui segment">
+            <h2 class="ui platform-title inverted header">
+              <i class="fire icon" style="color: #b97a57;"></i> CodeChef Sync
+            </h2>
+            
+            <!-- CodeChef Hook Form -->
+            <div id="cc_hook_mode" class="ui form">
+              <p style="opacity: 0.8; margin-bottom: 20px;">Link a repository to sync your CodeChef submissions.</p>
+              <div class="field">
+                <select id="cc_type" class="ui dropdown">
+                  <option value="">Pick an Option</option>
+                  <option value="new">Create a new Private Repository</option>
+                  <option value="link">Link an Existing Repository</option>
+                </select>
+              </div>
+              <div class="field">
+                <input
+                  autocomplete="off"
+                  id="cc_name"
+                  placeholder="Repository Name"
+                  type="text"
+                />
+              </div>
+              <button id="cc_hook_button" disabled class="ui purple fluid button" style="background-color: #8e44ad !important;">
+                Link CodeChef Repo
+              </button>
+            </div>
+
+            <!-- CodeChef Stats / Linked Mode -->
+            <div id="cc_commit_mode" style="display: none;">
+              <p class="ui small header" style="color: #8e44ad !important; margin-bottom: 25px;">
+                Linked Repo: <span id="cc_repo_url" style="color: white; font-weight: normal;">None</span>
+              </p>
+              <div style="font-size: 1.8em; margin-bottom: 15px;" class="ui inverted header">
+                Problems Solved: <span id="cc_p_solved">0</span>
+              </div>
+              <div style="margin-bottom: 25px;">
+                <span class="stat-label" style="color: #5cb85c">Easy: <span id="cc_p_solved_easy" style="color: white; font-weight: normal;">0</span></span>
+                <span class="stat-label" style="color: #f0ad4e">Medium: <span id="cc_p_solved_medium" style="color: white; font-weight: normal;">0</span></span>
+                <span class="stat-label" style="color: #d9534f">Hard: <span id="cc_p_solved_hard" style="color: white; font-weight: normal;">0</span></span>
+              </div>
+              <button id="cc_unlink" class="ui red basic inverted button compact unlink-btn">
+                Unlink Repository
+              </button>
+            </div>
+
+            <p hidden id="cc_error" style="color: #d9534f !important; margin-top: 15px; font-weight: bold;"></p>
+            <p hidden id="cc_success" style="color: #5cb85c !important; margin-top: 15px; font-weight: bold;"></p>
           </div>
         </div>
+
       </div>
 
       <!-- Rate on GitHub -->
       <div class="sixteen wide right aligned column">
-        <br /><br /><br /><br /><br />
+        <br /><br /><br />
         <div class="ui inverted small header">
           <a
             style="color: rgb(143, 202, 202) !important"
             target="_blank"
             href="https://github.com/arunbhardwaj/LeetHub-2.0"
-            >Star <span style="color: white">Leet</span
-            ><span style="color: #ff6c0a !important">Hub</span> on
-            GitHub</a
+            >Star <span style="color: white">Leet</span><span style="color: #ff6c0a !important">Hub</span> on GitHub</a
           >
         </div>
       </div>
