@@ -1,6 +1,6 @@
 body {
   width: 350px;
-  background-color: #dfd9d99d !important;
+  background-color: #f2f0ee;
   padding: 10px;
   text-align: center;
   transition: background-color 0.75s ease;
@@ -9,9 +9,25 @@ body {
   font-family: 'Helvetica Neue', 'Lucida Grande', sans-serif;
 }
 
+button {
+  background: #333;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  padding: 8px 12px;
+}
+
+button:hover {
+  background: #111;
+}
+
+a {
+  color: #24727a;
+}
+
 #title {
-  font-family: 'Norwester', 'Helvetica Neue', 'Lucida Grande',
-    sans-serif;
+  font-family: 'Norwester', 'Helvetica Neue', 'Lucida Grande', sans-serif;
   font-size: 30px;
   font-weight: bold;
   margin-bottom: 0px;
@@ -19,8 +35,7 @@ body {
 }
 
 #caption {
-  font-family: 'Norwester', 'Helvetica Neue', 'Lucida Grande',
-    sans-serif;
+  font-family: 'Norwester', 'Helvetica Neue', 'Lucida Grande', sans-serif;
   font-size: 14px;
   font-weight: normal;
   margin-bottom: 0px;
@@ -32,4 +47,38 @@ body {
   font-weight: 500;
   padding-top: 2%;
   font-size: medium;
+}
+
+.status-block {
+  margin-top: 16px;
+  padding-bottom: 12px;
+}
+
+#connection_detail {
+  color: #555;
+}
+
+#change_repository {
+  margin-bottom: 8px;
+}
+
+.last-sync {
+  border-top: solid black 1px;
+  padding-top: 10px;
+}
+
+.sync-success {
+  color: #287a48;
+}
+
+.sync-failed,
+#last_sync_message {
+  color: #a12b2b;
+}
+
+#reset_confirmation {
+  border: 1px solid #888;
+  background: white;
+  margin-top: 10px;
+  padding: 10px;
 }

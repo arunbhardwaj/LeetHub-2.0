@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="GFGHub icon">
+  <rect width="128" height="128" rx="22" fill="#171717" />
+  <path
+    fill="#ffffff"
+    d="M18 37c0-10 8-18 18-18h22v10H36c-4 0-8 4-8 8v39c0 4 4 8 8 8h14V65H38V55h22v39H36c-10 0-18-8-18-18V37z"
+  />
+  <path fill="#ff6c0a" d="M70 19h11v31h19V19h11v75h-11V61H81v33H70V19z" />
+  <rect x="18" y="105" width="93" height="5" rx="2.5" fill="#ff6c0a" />
+</svg>

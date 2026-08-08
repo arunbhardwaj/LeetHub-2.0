@@ -1,93 +1,83 @@
-<h1 align="center">
-  <a href="https://standardjs.com"><img src="assets/octocode.png" alt="LeetHub v2 - Automatically sync your code to GitHub." width="400"></a>
-  <br>
-  <a href="https://chrome.google.com/webstore/detail/leethub-v2/mhanfgfagplhgemhjfeolkkdidbakocm">LeetHub v2</a> - Automatically sync your code to GitHub.
-  <br>
-  <br>
-</h1>
+# GFGHub
 
-<p align="center">
-  <a href="https://github.com/arunbhardwaj/LeetHub-2.0/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="license"/>
-  </a>
-  <!-- <a href="https://discord.gg/anXT9vErxu">
-    <img src="https://img.shields.io/discord/781373810251137074" alt="discord">
-  </a> -->
-  <!-- <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">
-    <img src="https://img.shields.io/chrome-web-store/v/aciombdipochlnkbpcbgdpjffcfdbggi.svg" alt="chrome-webstore"/>
-  </a> -->
-  <!-- <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi">
-    <img src="https://img.shields.io/chrome-web-store/d/aciombdipochlnkbpcbgdpjffcfdbggi.svg" alt="users">
-  </a>
-  <a href="https://github.com/arunbhardwaj/LeetHub-1.1/graphs/contributors" alt="Contributors">
-    <img src="https://img.shields.io/github/contributors/arunbhardwaj/LeetHub-1.1" />
-  </a> -->
-</p>
+GFGHub is a browser extension that automatically uploads an Accepted GeeksforGeeks solution to a selected GitHub repository. It captures the editor contents when **Submit** is clicked, waits for the final verdict, and uploads that exact snapshot only after GitHub confirms the write.
 
-<!-- <div align="center">
-  <a href="https://www.producthunt.com/posts/leethub?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-leethub" target="_blank">
-    <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=275757&theme=light" alt="LeetHub - Automatically sync your code b/w Leetcode & GitHub. | Product Hunt" />
-  </a>
+Failed submissions—Wrong Answer, Compilation Error, Time Limit Exceeded, and Runtime Error—do not trigger GitHub activity.
 
-  [![Chrome](https://user-images.githubusercontent.com/53124886/111952712-34f12300-8aee-11eb-9fdd-ad579a1eb235.png)](https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi) [![Firefox](https://user-images.githubusercontent.com/53124886/126341427-4a4e57aa-767a-467e-83d2-b31fa3564441.png)](https://addons.mozilla.org/en-US/firefox/addon/leethub/)
-</div> -->
+## What it does
 
-<!-- ## LeetHub progress and numbers (YouTube Video):
-[![LeetHub](https://user-images.githubusercontent.com/43754306/165053510-a757c95e-c3bc-49d5-995c-7a52368abd37.png)](https://www.youtube.com/watch?v=o33PIjqlOgw "LeetHub saves lives!") -->
+- Connects to GitHub through the extension setup flow.
+- Lets you select a writable existing repository or create a private repository.
+- Uploads `README.md` and `Solution.<extension>` under a stable problem-slug folder.
+- Updates the same language file on re-submission without creating duplicates.
+- Keeps different languages side by side, such as `Solution.java`, `Solution.cpp`, and `Solution.py`.
+- Avoids a commit when the GitHub file already has identical content.
+- Tracks unique solved problems and Easy, Medium, and Hard totals locally.
+- Shows success/failure feedback on the GFG page and the latest outcome in the popup.
 
-## What is LeetHub 2.0?
-<p>A <a href="https://chromewebstore.google.com/detail/leethub-v2/mhanfgfagplhgemhjfeolkkdidbakocm">chrome</a> and (new) <a href="https://addons.mozilla.org/en-US/firefox/addon/leethub-v2/">firefox</a> extension that automatically pushes your code to GitHub when you pass all tests on a <a href="https://leetcode.com/">Leetcode</a> problem. It's forked from the original <a href="https://chrome.google.com/webstore/detail/leethub/aciombdipochlnkbpcbgdpjffcfdbggi?hl=en">LeetHub</a> and improves on it to be faster, cleaner and compatible with the new dynamic LeetCode UI.</p>
+## Install in Chrome developer mode
 
-## Why LeetHub?
-<p> <strong>1.</strong> Recruiters <em>want</em> to see your contributions to the Open Source community, be it through side projects, solving algorithms/data-structures, or contributing to existing OS projects.<br>
-As of now, GitHub is developers' #1 portfolio. LeetHub just makes it much easier (autonomous) to keep track of progress and contributions on the largest network of engineering community, GitHub.</p>
+1. Install [Node.js](https://nodejs.org/) and clone this repository.
+2. Run `npm install`.
+3. Run `npm run build`.
+4. Open `chrome://extensions` in Chrome.
+5. Enable **Developer mode**.
+6. Select **Load unpacked** and choose `dist/chrome`.
+7. Pin GFGHub if you want quick access to setup and statistics.
 
-<p> <strong>2.</strong> There's no easy way of accessing your leetcode problems in one place! <br>
-Moreover, pushing code manually to GitHub from Leetcode is very time consuming. So, why not just automate it entirely without spending a SINGLE additional second on it? </p>
+## GitHub setup
 
-## How does LeetHub work?     
+1. Open the GFGHub popup and select **Connect GitHub**.
+2. Complete GitHub authorization.
+3. Select a writable repository, enter an `owner/name`, or create a private repository.
+4. Confirm the popup shows **Sync: Ready**.
+5. Open a modern GeeksforGeeks problem page and submit a solution.
 
-<p>It's as simple as:</p>
-<ol>
-  <li>After installation, launch LeetHub.</li>
-  <li>Click on "authorize with GitHub" button to automatically set up your account with LeetHub.</li>
-  <li>Setup an existing/new repository with LeetHub (private by default) by clicking "Get Started" button.</li>
-  <li>Begin Leetcoding! To view your progress, simply click on the extension!</li>
-</ol>
+GFGHub never chooses a repository automatically. Changing repositories preserves local solved statistics. Existing legacy storage key names are retained for compatibility.
 
+## Repository layout
 
-#### BONUS: Star [this repository](https://github.com/arunbhardwaj/LeetHub-2.0) for further development of features. If you want a particular feature, simply [request](https://github.com/arunbhardwaj/LeetHub-2.0/labels/feature) for it!
+For a problem with slug `binary-search`, the repository contains:
 
-
-## Why did I decide to work on LeetHub?
-<p>
-After the 2023 SVB bank closure and growing layoffs, it became clear to me that maintaining your skills is incredibly important. In that effort, it helps to have a source to contain all your learnings over the years: a repo you can go back to and see your commit history and any notes you've taken. With the previous and other extensions broken by recent LeetCode and GitHub changes, I decided to build one out myself using the original as a starting point.
-</p>
-
-# Let's see you ACE that coding interview!
-
-![leetcode view](assets/extension/leetcode.png)
-
-
-# How to set up LeetHub for local development?
-
-
-  1. Fork this repo and clone to your local machine
-  2. Run "npm run setup" to install the developer dependencies
-  3. Run `npm run build` to build the final extension files into the `./dist/` directory
-  4. Go to <a href="chrome://extensions">chrome://extensions </a> or <a href="https://firefox-source-docs.mozilla.org/devtools-user/about_colon_debugging/index.html#extensions">about:debugging</a> in firefox
-    a. In Chrome, enable [Developer mode](https://support.google.com/chrome/a/answer/2714278) by toggling the switch on top right corner
-  6. Click `Load unpacked` or `Load Temporary Add-on...`
-  7. Select the `./dist/chrome` or `./dist/firefox` LeetHub folder
-  8. That's it! Be sure to `npm run build` and reload the extension after making changes
-
-
-Other npm commands available:
-
+```text
+binary-search/
+├── README.md
+├── Solution.java
+├── Solution.cpp
+└── Solution.py
 ```
-npm run               Show list of commands available
-npm run format        Auto-format JavaScript, HTML/CSS
-npm run format-test   Test all code is formatted properly
-npm run lint          Lint JavaScript
-npm run lint-test     Test all code is linted properly
+
+The README includes the problem title, canonical GeeksforGeeks URL, available difficulty, and available problem statement. Source code is not stored in popup status or statistics records.
+
+## Supported languages
+
+C, C++, C#, Dart, Go, Java, JavaScript, Kotlin, PHP, Python, Ruby, Rust, Scala, Swift, and TypeScript.
+
+## Local development
+
+```bash
+npm install
+npm run build
+npm test
+npm run lint
 ```
+
+Additional commands:
+
+- `npm run dev` — production-mode watch build.
+- `npm run format` — format JavaScript, HTML, and CSS.
+- `npm run format-test` — check formatting.
+- `npm run lint:fix` — apply safe ESLint fixes.
+
+Build output is generated in `dist/`, with ready-to-load Chrome and Firefox directories at `dist/chrome` and `dist/firefox`.
+
+## Current limitations
+
+- GFG DOM selectors can require maintenance when GeeksforGeeks changes its problem-page UI.
+- The repository picker lists the first 100 recently updated writable repositories; any other repository can be entered manually as `owner/name`.
+- Firefox build output is produced, but the complete OAuth-to-Accepted flow still needs live release validation in Firefox.
+- Failed sync retry is not implemented; submit the captured solution again after fixing setup or connectivity.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

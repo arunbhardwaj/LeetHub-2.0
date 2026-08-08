@@ -1,65 +1,102 @@
 body {
-  background-color: #000000 !important;
-  padding: 10px;
-  text-align: center;
-  transition: background-color 0.75s ease;
+  background: #151515;
+  color: #f5f5f5;
   font-family: 'Helvetica Neue', 'Lucida Grande', sans-serif;
+  margin: 0;
+  padding: 40px 20px;
 }
 
-#title {
-  font-family: 'Norwester', 'Helvetica Neue', 'Lucida Grande',
-    sans-serif;
-  font-size: 5em;
-  font-weight: bold;
-  margin-bottom: 0px;
-  margin-top: 10px;
+.setup-card {
+  background: #222;
+  border-radius: 10px;
+  margin: 0 auto;
+  max-width: 680px;
+  padding: 30px;
 }
 
 .caption {
-  font-family: 'Norwester', 'Helvetica Neue', 'Lucida Grande',
-    sans-serif;
-  font-size: 1.5em;
-  font-weight: normal !important;
-  margin-top: 3px !important;
-  margin-bottom: 0px;
+  text-align: center;
 }
+
+.brand {
+  font-size: 4em;
+  margin: 0;
+}
+
+.brand span {
+  color: #ff6c0a;
+}
+
+.status-panel,
+#repository_setup,
+#ready_state {
+  border-top: 1px solid #666;
+  margin-top: 24px;
+  padding-top: 20px;
+}
+
 #error {
-  font-family: 'Norwester', 'Helvetica Neue', 'Lucida Grande',
-    sans-serif;
-  font-weight: normal !important;
-  color: red !important;
-  margin-bottom: 0px;
+  color: #ff7777;
 }
 
 #success {
-  font-family: 'Norwester', 'Helvetica Neue', 'Lucida Grande',
-    sans-serif;
-  font-size: 1.1em;
-  font-weight: normal !important;
-  color: green !important;
-  margin-bottom: 0px;
+  color: #66d18f;
 }
 
-#unlink {
-  font-family: 'Norwester', 'Helvetica Neue', 'Lucida Grande',
-    sans-serif;
-  font-size: 1.1em;
-  font-weight: normal !important;
-  color: green !important;
-  margin-bottom: 0px;
-}
-
+.setup-form label,
+.divider,
+h2,
 p {
-  color: white !important;
+  color: #f5f5f5;
 }
-.onboarding {
-  font-family: sans-serif;
-  border-top: solid white 1px;
-  font-weight: 500;
-  font-size: medium;
+
+.setup-form .field {
+  margin-top: 15px;
+}
+
+.setup-form input,
+.setup-form select {
+  border: 1px solid #777;
+  border-radius: 5px;
+  box-sizing: border-box;
+  display: block;
+  margin-top: 6px;
+  padding: 10px;
+  width: 100%;
+}
+
+button {
+  background: #555;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  margin-top: 12px;
+  padding: 10px 14px;
+}
+
+button.primary,
+#connect_github {
+  background: #27864f;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.divider {
+  border-top: 1px solid #555;
+  margin: 24px 0 8px;
+  padding-top: 10px;
+  text-align: center;
+}
+
+.stats {
+  line-height: 1.8;
+  margin-top: 24px;
 }
 
 a {
-  color: white !important;
-  cursor: pointer;
+  color: #79c9d1;
 }

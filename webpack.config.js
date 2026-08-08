@@ -1,42 +1,37 @@
 import path from 'path';
 import CopyPlugin from 'copy-webpack-plugin';
 import FileManagerPlugin from 'filemanager-webpack-plugin';
-// https://stackoverflow.com/a/62892482/
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const entries = ['leetcode', 'welcome'];
 const extensionVersion = process.env.npm_package_version;
 
-// Ignore when copying
 const ignore = [
-  // non-essential
+  '.DS_Store',
   '**/dist/**',
   '**/.prettierrc',
-  '**/.eslintrc',
+  '**/.DS_Store',
+  '**/scripts/.DS_Store',
+  '**/eslint.config.js',
   '**/.env',
-  '**/assets/.DS_Store',
   '**/package*',
   '**/webpack*',
   '**/README.md',
-  '**/assets/extension', // web store assets
-  // webpack compiled files
-  '**/scripts/leetcode/**',
+  '**/PHASE-*.md',
+  '**/FINAL-*.md',
+  '**/assets/extension',
+  '**/scripts/core/**',
+  '**/scripts/gfg/**',
   '**/scripts/welcome.js',
   '**/scripts/popup.js',
   '**/manifest-chrome.json',
   '**/manifest-firefox.json',
-  // ...entries.map((entry) => `**/${entry}.js`),
 ];
 
-const folderIgnore = [
-  '**/chrome/**',
-  '**/firefox/**',
-  '**/manifest.json',
-]
+const folderIgnore = ['**/chrome/**', '**/firefox/**', '**/manifest.json'];
 
 const manifestTransform = content => {
   const filteredContent = content
@@ -52,7 +47,7 @@ const manifestTransform = content => {
 
 export default {
   entry: {
-    leetcode: path.resolve(__dirname, 'scripts', 'leetcode', 'leetcode.js'),
+    gfg: path.resolve(__dirname, 'scripts', 'gfg', 'index.js'),
     welcome: './scripts/welcome.js',
     popup: './scripts/popup.js',
   },
@@ -109,13 +104,8 @@ export default {
           transform: manifestTransform,
         },
         {
-          from: 'assets/**',
-          globOptions: {
-            ignore: [
-              ...ignore,
-              './assets/.DS_Store'
-            ],
-          },
+          from: 'assets/thumbnail.png',
+          to: 'assets/thumbnail.png',
         },
         {
           from: 'css',
@@ -128,11 +118,14 @@ export default {
     }),
     new FileManagerPlugin({
       events: {
+        onStart: {
+          delete: ['./dist/chrome', './dist/firefox'],
+        },
         onEnd: {
           move: [
             {
-              source: './dist/leetcode.js',
-              destination: './dist/scripts/leetcode.js',
+              source: './dist/gfg.js',
+              destination: './dist/scripts/gfg.js',
             },
             {
               source: './dist/welcome.js',
@@ -143,7 +136,7 @@ export default {
               destination: './dist/scripts/popup.js',
             },
           ],
-          copy: [ // Copy everything to chrome and firefox
+          copy: [
             {
               source: './dist/**',
               destination: './dist/chrome',

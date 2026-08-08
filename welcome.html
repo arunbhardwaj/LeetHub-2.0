@@ -1,144 +1,85 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8" />
     <link rel="stylesheet" href="css/welcome.css" />
-    <script
-      src="scripts/jquery-3.3.1.min.js"
-    ></script>
-
-    <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css"
-      rel="stylesheet"
-    />
-    <script src="scripts/semantic-2.4.1.min.js"></script>
+    <script src="scripts/jquery-3.3.1.min.js"></script>
   </head>
 
   <body>
-    <div class="ui grid container">
-      <div class="sixteen wide center aligned column">
-        <br />
-        <p class="caption" style="font-size: 9em">
-          Leet<span style="color: #ff6c0a">Hub</span> v2
-        </p>
-        <p class="caption">
-          Automatically sync your code from LeetCode to GitHub
-        </p>
-        <br /><br /><br /><br /><br /><br /><br /><br />
-        <p hidden id="error"></p>
-        <p hidden id="success"></p>
-        <p hidden id="unlink">
-          Linked the wrong repo? <a>Unlink</a>.
-        </p>
-      </div>
+    <main class="setup-card">
+      <h1 class="caption brand">GFG<span>Hub</span></h1>
+      <p class="caption">Automatically sync accepted GeeksforGeeks solutions to GitHub</p>
 
-      <!-- Create Hook -->
-      <div
-        style="display: none"
-        id="hook_mode"
-        class="ui grid container"
-      >
-        <div class="six wide column">
-          <p class="caption ui large header center aligned">
-            To get started with LeetHub
-          </p>
+      <section class="status-panel">
+        <div>GitHub: <strong id="connection_status">Connecting</strong></div>
+        <div id="connect_required" hidden>
+          <p>Connect GitHub before choosing a repository.</p>
+          <button id="connect_github">Connect GitHub</button>
         </div>
-        <div class="four wide left aligned column">
-          <div class="ui form">
+      </section>
+
+      <p hidden id="error" role="alert"></p>
+      <p hidden id="success" role="status"></p>
+
+      <div id="repository_content" hidden>
+        <section id="repository_setup">
+          <h2>Select Repository</h2>
+          <p>Only repositories where your account has write access can be selected.</p>
+
+          <div class="setup-form">
             <div class="field">
-              <select id="type">
-                <option value="">Pick an Option</option>
-                <option value="new">
-                  Create a new Private Repository
-                </option>
-                <option value="link">
-                  Link an Existing Repository
-                </option>
+              <label for="repository_list">Existing repository</label>
+              <select id="repository_list">
+                <option value="">Choose a writable repository</option>
               </select>
             </div>
-          </div>
-        </div>
-        <div class="six wide column">
-          <div class="ui form">
+            <button id="refresh_repositories">Refresh List</button>
+
+            <div class="divider">or</div>
+
             <div class="field">
+              <label for="repository_name">Repository owner/name</label>
               <input
+                id="repository_name"
                 autocomplete="off"
-                id="name"
-                placeholder="Repository Name"
-                type="text"
+                placeholder="your-account/gfg-solutions"
               />
             </div>
-          </div>
-        </div>
+            <button id="save_repository" class="primary">Use Repository</button>
 
-        <div class="sixteen wide right aligned column">
-          <br />
-          <button
-            id="hook_button"
-            disabled
-            class="positive ui button"
-          >
-            Get Started
-          </button>
-        </div>
+            <div class="divider">or create one</div>
+
+            <div class="field">
+              <label for="new_repository_name">New private repository name</label>
+              <input id="new_repository_name" autocomplete="off" placeholder="gfg-solutions" />
+            </div>
+            <button id="create_repository">Create Private Repository</button>
+          </div>
+        </section>
+
+        <section id="ready_state" hidden>
+          <h2>Sync: Ready</h2>
+          <p>
+            Repository:
+            <a id="selected_repository_link" target="_blank" rel="noopener noreferrer">
+              <strong id="selected_repository"></strong>
+            </a>
+          </p>
+          <button id="change_repository">Change Repository</button>
+
+          <div class="stats">
+            <div>Solved: <span id="p_solved">0</span></div>
+            <div>
+              Easy: <span id="p_solved_easy">0</span> · Medium:
+              <span id="p_solved_medium">0</span> · Hard: <span id="p_solved_hard">0</span>
+            </div>
+          </div>
+        </section>
       </div>
+    </main>
 
-      <!-- Show stats -->
-      <div
-        style="display: none"
-        id="commit_mode"
-        class="ui grid container"
-      >
-        <div class="eight wide center aligned column">
-          <br /><br />
-          <div
-            style="font-size: 2.3em"
-            class="ui inverted large header"
-          >
-            Problems Solved: <span id="p_solved">0</span>
-          </div>
-          <div
-            styl="font-size: 2.3em"
-            class="ui inverted large header"
-          >
-            <span style="color: #5cb85c">Easy:</span>
-            <span id="p_solved_easy" style="color: #5cb85c">0 </span>
-            <span style="color: #f0ad4e">&ensp; &ensp; Medium:</span>
-            <span id="p_solved_medium" style="color: #f0ad4e"
-              >0
-            </span>
-            <span style="color: #d9534f">&ensp; &ensp; Hard:</span>
-            <span id="p_solved_hard" style="color: #d9534f">0 </span>
-          </div>
-        </div>
-        <div class="eight wide center aligned column">
-          <br /><br /><br />
-          <div class="ui inverted large header">
-            Want more features? <br /><a
-              style="color: aqua !important; font-size: 0.8em"
-              target="_blank"
-              href="https://github.com/arunbhardwaj/LeetHub-2.0/labels/feature"
-              >Request a feature!</a
-            >
-          </div>
-        </div>
-      </div>
-
-      <!-- Rate on GitHub -->
-      <div class="sixteen wide right aligned column">
-        <br /><br /><br /><br /><br />
-        <div class="ui inverted small header">
-          <a
-            style="color: rgb(143, 202, 202) !important"
-            target="_blank"
-            href="https://github.com/arunbhardwaj/LeetHub-2.0"
-            >Star <span style="color: white">Leet</span
-            ><span style="color: #ff6c0a !important">Hub</span> on
-            GitHub</a
-          >
-        </div>
-      </div>
-    </div>
-
+    <script src="scripts/oauth2.js"></script>
     <script type="text/javascript" src="scripts/welcome.js"></script>
   </body>
 </html>

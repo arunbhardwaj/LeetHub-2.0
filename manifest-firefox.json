@@ -1,14 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "LeetHub v2",
-  "description": "Automatically integrate your Leetcode & GeeksforGeeks submissions to GitHub",
-  "homepage_url": "https://github.com/arunbhardwaj/LeetHub-2.0",
+  "name": "GFGHub",
+  "description": "Automatically sync accepted GeeksforGeeks solutions to GitHub",
   "version": "__LH_VERSION__",
   "author": "Arun Bhardwaj",
   "action": {
     "default_icon": "assets/thumbnail.png",
     "default_popup": "popup.html",
-    "default_title": "Upload your LeetCode solutions to GitHub"
+    "default_title": "GFGHub — Sync accepted solutions to GitHub"
   },
   "icons": {
     "16": "assets/thumbnail.png",
@@ -18,20 +17,20 @@
   "background": {
     "scripts": ["scripts/background.js"]
   },
-  "permissions": ["unlimitedStorage", "storage", "webNavigation"],
+  "permissions": ["storage"],
+  "host_permissions": ["https://api.github.com/*"],
   "content_scripts": [
-    {
-      "matches": ["https://leetcode.com/*"],
-      "js": ["scripts/leetcode.js"],
-      "run_at": "document_idle"
-    },
     {
       "matches": ["https://github.com/*"],
       "js": ["scripts/authorize.js"]
     },
     {
-      "matches": ["https://practice.geeksforgeeks.org/*"],
-      "js": ["scripts/gfg.js"]
+      "matches": [
+        "https://www.geeksforgeeks.org/problems/*",
+        "https://geeksforgeeks.org/problems/*"
+      ],
+      "js": ["scripts/gfg.js"],
+      "run_at": "document_idle"
     }
   ],
   "content_security_policy": {

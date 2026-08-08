@@ -1,7 +1,4 @@
-/* 
-    (needs patch) 
-    IMPLEMENTATION OF AUTHENTICATION ROUTE AFTER REDIRECT FROM GITHUB.
-*/
+const authApi = typeof browser !== 'undefined' ? browser : chrome;
 
 const localAuth = {
   /**
@@ -9,10 +6,8 @@ const localAuth = {
    */
   init() {
     this.KEY = 'leethub_token';
-    this.ACCESS_TOKEN_URL =
-      'https://github.com/login/oauth/access_token';
-    this.AUTHORIZATION_URL =
-      'https://github.com/login/oauth/authorize';
+    this.ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token';
+    this.AUTHORIZATION_URL = 'https://github.com/login/oauth/authorize';
     this.CLIENT_ID = '0114dd35b156d4729fac';
     this.CLIENT_SECRET = 'cfc3301d9745530bf1b31e92528ad9c31fd3f995';
     this.REDIRECT_URL = 'https://github.com/'; // for example, https://github.com
@@ -25,14 +20,13 @@ const localAuth = {
    * @param url The url containing the access code.
    */
   parseAccessCode(url) {
-    if (url.match(/\?error=(.+)/)) {
-      chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        var tab = tabs[0];
-        chrome.tabs.remove(tab.id, function() {})
-      });
-    } else {
-      this.requestToken(url.match(/\?code=([\w\/\-]+)/)[1]);
+    const parsed = new URL(url);
+    const code = parsed.searchParams.get('code');
+    if (!code || parsed.searchParams.has('error')) {
+      void authApi.runtime.sendMessage({ closeWebPage: true, isSuccess: false });
+      return;
     }
+    this.requestToken(code);
   },
 
   /**
@@ -51,11 +45,11 @@ const localAuth = {
     xhr.addEventListener('readystatechange', function () {
       if (xhr.readyState === 4) {
         if (xhr.status === 200) {
-          that.finish(
-            xhr.responseText.match(/access_token=([^&]*)/)[1],
-          );
+          const token = new URLSearchParams(xhr.responseText).get('access_token');
+          if (token) that.finish(token);
+          else void authApi.runtime.sendMessage({ closeWebPage: true, isSuccess: false });
         } else {
-          chrome.runtime.sendMessage({
+          void authApi.runtime.sendMessage({
             closeWebPage: true,
             isSuccess: false,
           });
@@ -81,13 +75,14 @@ const localAuth = {
       if (xhr.readyState === 4) {
         if (xhr.status === 200) {
           const username = JSON.parse(xhr.responseText).login;
-          chrome.runtime.sendMessage({
+          void authApi.runtime.sendMessage({
             closeWebPage: true,
             isSuccess: true,
             token,
             username,
-            KEY: this.KEY,
           });
+        } else {
+          void authApi.runtime.sendMessage({ closeWebPage: true, isSuccess: false });
         }
       }
     });
@@ -102,7 +97,7 @@ const link = window.location.href;
 
 /* Check for open pipe */
 if (window.location.host === 'github.com') {
-  chrome.storage.local.get('pipe_leethub', (data) => {
+  authApi.storage.local.get('pipe_leethub').then(data => {
     if (data && data.pipe_leethub) {
       localAuth.parseAccessCode(link);
     }
