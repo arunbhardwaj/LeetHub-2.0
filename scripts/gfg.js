@@ -10,7 +10,7 @@ const README_MSG = 'Create README - LeetHub';
 const SUBMIT_MSG = 'Added solution - LeetHub';
 const UPDATE_MSG = 'Updated solution - LeetHub';
 let START_MONITOR = true;
-const toKebabCase = (string) => {
+const toKebabCase = string => {
   return string
     .replace(/[^a-zA-Z0-9\. ]/g, '') // remove special chars
     .replace(/([a-z])([A-Z])/g, '$1-$2') // get all lowercase letters that are near to uppercase ones
@@ -26,14 +26,11 @@ async function uploadGit(
   operation,
   sha,
   optionals,
-  difficulty,
+  difficulty
 ) {
   try {
-    const data = await new Promise((resolve) => {
-      chrome.storage.local.get(
-        ['leethub_token', 'mode_type', 'leethub_hook', 'stats'],
-        resolve,
-      );
+    const data = await new Promise(resolve => {
+      chrome.storage.local.get(['leethub_token', 'mode_type', 'leethub_hook', 'stats'], resolve);
     });
 
     const token = data.leethub_token;
@@ -102,9 +99,7 @@ async function uploadGit(
       });
 
       if (!latestResponse.ok) {
-        throw new Error(
-          `Unable to get existing GitHub file: ${latestResponse.status}`,
-        );
+        throw new Error(`Unable to get existing GitHub file: ${latestResponse.status}`);
       }
 
       const latestFile = await latestResponse.json();
@@ -122,24 +117,14 @@ async function uploadGit(
       });
 
       if (!retryResponse.ok) {
-        throw new Error(
-          `GitHub upload failed: ${retryResponse.status}`,
-        );
+        throw new Error(`GitHub upload failed: ${retryResponse.status}`);
       }
 
       const retryData = await retryResponse.json();
 
-      console.log(
-        `LeetHub: Successfully uploaded ${path} to GitHub`,
-      );
+      console.log(`LeetHub: Successfully uploaded ${path} to GitHub`);
 
-      updateGfgStats(
-        data.stats,
-        problemName,
-        filename,
-        retryData.content.sha,
-        difficulty,
-      );
+      updateGfgStats(data.stats, problemName, filename, retryData.content.sha, difficulty);
 
       return retryData;
     }
@@ -147,24 +132,14 @@ async function uploadGit(
     if (!response.ok) {
       const errorText = await response.text();
 
-      throw new Error(
-        `GitHub upload failed: ${response.status} ${errorText}`,
-      );
+      throw new Error(`GitHub upload failed: ${response.status} ${errorText}`);
     }
 
     const result = await response.json();
 
-    console.log(
-      `LeetHub: Successfully uploaded ${path} to GitHub`,
-    );
+    console.log(`LeetHub: Successfully uploaded ${path} to GitHub`);
 
-    updateGfgStats(
-      data.stats,
-      problemName,
-      filename,
-      result.content.sha,
-      difficulty,
-    );
+    updateGfgStats(data.stats, problemName, filename, result.content.sha, difficulty);
 
     return result;
   } catch (error) {
@@ -172,13 +147,7 @@ async function uploadGit(
   }
 }
 
-function updateGfgStats(
-  stats,
-  problemName,
-  filename,
-  sha,
-  difficulty,
-) {
+function updateGfgStats(stats, problemName, filename, sha, difficulty) {
   if (!stats) {
     stats = {
       shas: {},
@@ -212,9 +181,102 @@ function updateGfgStats(
   chrome.storage.local.set({ stats });
 }
 
+async function updateGfgRepoReadme(problemName) {
+  try {
+    const data = await new Promise(resolve => {
+      chrome.storage.local.get(['leethub_token', 'leethub_hook'], resolve);
+    });
+
+    const token = data.leethub_token;
+    const hook = data.leethub_hook;
+
+    if (!token || !hook) {
+      return;
+    }
+
+    const url = `https://api.github.com/repos/${hook}/contents/README.md`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `token ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(
+        `LeetHub: Failed to fetch repository README: ${response.status}`,
+      );
+      return;
+    }
+
+    const readmeData = await response.json();
+
+    const readme = decodeURIComponent(
+      escape(atob(readmeData.content.replace(/\n/g, ''))),
+    );
+
+    const problemUrl = `https://github.com/${hook}/tree/master/${encodeURIComponent(problemName)}`;
+    const problemEntry = `| [${problemName}](${problemUrl}) |`;
+
+    // Do not add the problem if it already exists.
+    if (readme.includes(problemEntry)) {
+      return;
+    }
+
+    const gfgSection = /## GeeksforGeeks[\s\S]*?(?=\n## |\s*$)/;
+
+    if (gfgSection.test(readme)) {
+      const section = readme.match(gfgSection)[0];
+
+      const updatedSection = `${section.trimEnd()}\n${problemEntry}\n`;
+
+      var updatedReadme = readme.replace(gfgSection, updatedSection);
+    } else {
+      var updatedReadme =
+        `${readme.trimEnd()}\n\n` +
+        `## GeeksforGeeks\n\n` +
+        `| Problem |\n` +
+        `| ------- |\n` +
+        `${problemEntry}\n`;
+    }
+
+    const encodedReadme = btoa(
+      unescape(encodeURIComponent(updatedReadme)),
+    );
+
+    const uploadResponse = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: `token ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: 'Update README - GeeksforGeeks',
+        content: encodedReadme,
+        sha: readmeData.sha,
+      }),
+    });
+
+    if (!uploadResponse.ok) {
+      console.error(
+        `LeetHub: Failed to update repository README: ${uploadResponse.status}`,
+      );
+      return;
+    }
+
+    console.log(
+      `LeetHub: Successfully updated repository README with ${problemName}`,
+    );
+  } catch (error) {
+    console.error('LeetHub GFG README update error:', error);
+  }
+}
+
 function findGfgLanguage() {
-  const ele = document.getElementsByClassName('divider text')[0]
-    .innerText;
+  const ele = document.getElementsByClassName('divider text')[0].innerText;
   const lang = ele.split('(')[0].trim();
   if (lang.length > 0 && languages[lang]) {
     return languages[lang];
@@ -223,8 +285,7 @@ function findGfgLanguage() {
 }
 
 function findTitle() {
-  const ele = document.querySelector('[class^="problems_header_content__title"] > h3')
-    .innerText;
+  const ele = document.querySelector('[class^="problems_header_content__title"] > h3').innerText;
   if (ele != null) {
     return ele;
   }
@@ -232,7 +293,8 @@ function findTitle() {
 }
 
 function findDifficulty() {
-  const ele = document.querySelectorAll('[class^="problems_header_description"]')[0].children[0].innerText;
+  const ele = document.querySelectorAll('[class^="problems_header_description"]')[0].children[0]
+    .innerText;
 
   if (ele != null) {
     if (ele.trim() == 'Basic' || ele.trim() === 'School') {
@@ -275,23 +337,16 @@ const gfgLoader = setInterval(() => {
   let language = null;
   let difficulty = null;
 
-  if (
-    window.location.href.includes(
-      'www.geeksforgeeks.org/problems',
-    )
-  ) {
-
-    const submitBtn = document.evaluate(".//button[text()='Submit']", document.body, null, XPathResult.ANY_TYPE, null).iterateNext();
+  if (window.location.href.includes('www.geeksforgeeks.org/problems')) {
+    const submitBtn = document
+      .evaluate(".//button[text()='Submit']", document.body, null, XPathResult.ANY_TYPE, null)
+      .iterateNext();
 
     submitBtn.addEventListener('click', function () {
       START_MONITOR = true;
       const submission = setInterval(() => {
-        const output = document.querySelectorAll('[class^="problems_content"]')[0]
-          .innerText;
-        if (
-          output.includes('Problem Solved Successfully') &&
-          START_MONITOR
-        ) {
+        const output = document.querySelectorAll('[class^="problems_content"]')[0].innerText;
+        if (output.includes('Problem Solved Successfully') && START_MONITOR) {
           // clear timeout
           START_MONITOR = false;
           clearInterval(gfgLoader);
@@ -310,7 +365,7 @@ const gfgLoader = setInterval(() => {
 
           // if language was found
           if (language !== null) {
-            chrome.storage.local.get('stats', (s) => {
+            chrome.storage.local.get('stats', s => {
               const { stats } = s;
               const fileName = toKebabCase(title + language);
               const filePath = probName + fileName;
@@ -334,13 +389,13 @@ const gfgLoader = setInterval(() => {
                 'upload',
                 undefined,
                 undefined,
-                difficulty,
+                difficulty
               );
               // }
 
               if (code !== '') {
-                setTimeout(function () {
-                  uploadGit(
+                setTimeout(async function () {
+                  await uploadGit(
                     btoa(unescape(encodeURIComponent(code))),
                     probName,
                     toKebabCase(title + language),
@@ -348,8 +403,10 @@ const gfgLoader = setInterval(() => {
                     'upload',
                     undefined,
                     undefined,
-                    difficulty,
+                    difficulty
                   );
+
+                  await updateGfgRepoReadme(probName);
                 }, 1000);
               }
             });
@@ -359,8 +416,7 @@ const gfgLoader = setInterval(() => {
           clearInterval(submission);
         } else if (
           !START_MONITOR &&
-          (output.includes('Compilation Error') ||
-            output.includes('Correct Answer'))
+          (output.includes('Compilation Error') || output.includes('Correct Answer'))
         ) {
           clearInterval(submission);
         }
