@@ -1,10 +1,9 @@
-/* Enum for languages supported by GeeksForGeeks. */
-// const gfgLanguages = {
-//   Python3: '.py',
-//   'C++': '.cpp',
-//   Java: '.java',
-//   Javascript: '.js',
-// };
+const languages = {
+  Python3: '.py',
+  'C++': '.cpp',
+  Java: '.java',
+  Javascript: '.js',
+};
 
 /* Commit messages */
 const README_MSG = 'Create README - LeetHub';
@@ -18,6 +17,200 @@ const toKebabCase = (string) => {
     .replace(/[\s_]+/g, '-') // replace all spaces and low dash
     .toLowerCase(); // convert to lower case
 };
+
+async function uploadGit(
+  content,
+  problemName,
+  filename,
+  commitMsg,
+  operation,
+  sha,
+  optionals,
+  difficulty,
+) {
+  try {
+    const data = await new Promise((resolve) => {
+      chrome.storage.local.get(
+        ['leethub_token', 'mode_type', 'leethub_hook', 'stats'],
+        resolve,
+      );
+    });
+
+    const token = data.leethub_token;
+    const hook = data.leethub_hook;
+
+    if (!token) {
+      throw new Error('LeetHub GitHub token not found');
+    }
+
+    if (!hook) {
+      throw new Error('LeetHub GitHub repository not configured');
+    }
+
+    if (data.mode_type !== 'commit') {
+      throw new Error('LeetHub is not authorized with GitHub');
+    }
+
+    const path = `${problemName}/${filename}`;
+    const url = `https://api.github.com/repos/${hook}/contents/${path}`;
+
+    let currentSha = sha || '';
+
+    // Get existing file SHA if we don't already have it.
+    if (!currentSha) {
+      const existingResponse = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+      });
+
+      if (existingResponse.ok) {
+        const existingFile = await existingResponse.json();
+        currentSha = existingFile.sha;
+      }
+    }
+
+    const body = {
+      message: commitMsg,
+      content: content,
+    };
+
+    if (currentSha) {
+      body.sha = currentSha;
+    }
+
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: `token ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    // Handle GitHub conflict by getting the latest SHA and retrying.
+    if (response.status === 409) {
+      const latestResponse = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+      });
+
+      if (!latestResponse.ok) {
+        throw new Error(
+          `Unable to get existing GitHub file: ${latestResponse.status}`,
+        );
+      }
+
+      const latestFile = await latestResponse.json();
+
+      body.sha = latestFile.sha;
+
+      const retryResponse = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!retryResponse.ok) {
+        throw new Error(
+          `GitHub upload failed: ${retryResponse.status}`,
+        );
+      }
+
+      const retryData = await retryResponse.json();
+
+      console.log(
+        `LeetHub: Successfully uploaded ${path} to GitHub`,
+      );
+
+      updateGfgStats(
+        data.stats,
+        problemName,
+        filename,
+        retryData.content.sha,
+        difficulty,
+      );
+
+      return retryData;
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+
+      throw new Error(
+        `GitHub upload failed: ${response.status} ${errorText}`,
+      );
+    }
+
+    const result = await response.json();
+
+    console.log(
+      `LeetHub: Successfully uploaded ${path} to GitHub`,
+    );
+
+    updateGfgStats(
+      data.stats,
+      problemName,
+      filename,
+      result.content.sha,
+      difficulty,
+    );
+
+    return result;
+  } catch (error) {
+    console.error('LeetHub GFG GitHub upload error:', error);
+  }
+}
+
+function updateGfgStats(
+  stats,
+  problemName,
+  filename,
+  sha,
+  difficulty,
+) {
+  if (!stats) {
+    stats = {
+      shas: {},
+      solved: 0,
+      easy: 0,
+      medium: 0,
+      hard: 0,
+    };
+  }
+
+  if (!stats.shas) {
+    stats.shas = {};
+  }
+
+  if (!stats.shas[problemName]) {
+    stats.shas[problemName] = {};
+  }
+
+  stats.shas[problemName][filename] = sha;
+
+  stats.solved = (stats.solved || 0) + 1;
+
+  if (difficulty === 'Easy') {
+    stats.easy = (stats.easy || 0) + 1;
+  } else if (difficulty === 'Medium') {
+    stats.medium = (stats.medium || 0) + 1;
+  } else if (difficulty === 'Hard') {
+    stats.hard = (stats.hard || 0) + 1;
+  }
+
+  chrome.storage.local.set({ stats });
+}
 
 function findGfgLanguage() {
   const ele = document.getElementsByClassName('divider text')[0]
@@ -56,39 +249,23 @@ function getProblemStatement() {
 }
 
 function getCode() {
+  const editor = document.getElementById('ace-editor');
 
-  const scriptContent = `
-  var editor = ace.edit("ace-editor");
-  var editorContent = editor.getValue();
-  var para = document.createElement("pre");
-  para.innerText+=editorContent;
-  para.setAttribute("id","codeDataLeetHub")
-  document.body.appendChild(para);
-  `;
+  if (!editor) {
+    console.error('LeetHub: GFG Ace editor not found');
+    return '';
+  }
 
-  var script = document.createElement('script');
-  script.id = 'tmpScript';
-  script.appendChild(document.createTextNode(scriptContent));
-  (
-    document.body ||
-    document.head ||
-    document.documentElement
-  ).appendChild(script);
-  const text = document.getElementById('codeDataLeetHub').innerText;
+  const lines = editor.querySelectorAll('.ace_line');
 
-  const nodeDeletionScript = `
-  document.body.removeChild(para)
-  `;
-  var script = document.createElement('script');
-  script.id = 'tmpScript';
-  script.appendChild(document.createTextNode(nodeDeletionScript));
-  (
-    document.body ||
-    document.head ||
-    document.documentElement
-  ).appendChild(script);
+  if (lines.length === 0) {
+    console.error('LeetHub: GFG editor content not found');
+    return '';
+  }
 
-  return text || '';
+  return Array.from(lines)
+    .map(line => line.innerText)
+    .join('\n');
 }
 
 const gfgLoader = setInterval(() => {
@@ -100,7 +277,7 @@ const gfgLoader = setInterval(() => {
 
   if (
     window.location.href.includes(
-      'practice.geeksforgeeks.org/problems',
+      'www.geeksforgeeks.org/problems',
     )
   ) {
 

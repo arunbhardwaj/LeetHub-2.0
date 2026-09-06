@@ -34,7 +34,7 @@
       "js": ["scripts/authorize.js"]
     },
     {
-      "matches": ["https://practice.geeksforgeeks.org/*"],
+      "matches": ["https://www.geeksforgeeks.org/*"],
       "js": ["scripts/gfg.js"]
     }
   ],
