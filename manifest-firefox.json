@@ -21,7 +21,7 @@
   "permissions": ["unlimitedStorage", "storage", "webNavigation"],
   "content_scripts": [
     {
-      "matches": ["https://leetcode.com/*"],
+      "matches": ["https://leetcode.com/*", "https://leetcode.cn/*"],
       "js": ["scripts/leetcode.js"],
       "run_at": "document_idle"
     },

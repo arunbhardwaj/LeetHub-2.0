@@ -45,7 +45,7 @@ function handleMessage(request, sender, sendResponse) {
         sendResponse({ submissionId });
         api.webNavigation.onHistoryStateUpdated.removeListener(e);
       }),
-      { url: [{ hostSuffix: 'leetcode.com' }, { pathContains: 'submissions' }] }
+      { url: [{ hostSuffix: 'leetcode.com', pathContains: 'submissions' }, { hostSuffix: 'leetcode.cn', pathContains: 'submissions' }] }
     );
   }
   return true;

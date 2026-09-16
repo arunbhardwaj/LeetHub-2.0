@@ -102,7 +102,7 @@ const createRepo = async (token, name) => {
   await api.storage.local.remove('stats');
   $('#error').hide();
   $('#success').html(
-    `Successfully created <a target="blank" href="${res.html_url}">${name}</a>. Start <a href="http://leetcode.com">LeetCoding</a>!`
+    `Successfully created <a target="blank" href="${res.html_url}">${name}</a>. Start <a href="https://leetcode.com">LeetCoding</a>!`
   );
   $('#success').show();
   $('#unlink').show();
@@ -164,7 +164,7 @@ const linkRepo = (token, name) => {
       () => {
         $('#error').hide();
         $('#success').html(
-          `Successfully linked <a target="blank" href="${res.html_url}">${name}</a> to LeetHub. Start <a href="http://leetcode.com">LeetCoding</a> now!`
+          `Successfully linked <a target="blank" href="${res.html_url}">${name}</a> to LeetHub. Start <a href="https://leetcode.com">LeetCoding</a> now!`
         );
         $('#success').show();
         $('#unlink').show();

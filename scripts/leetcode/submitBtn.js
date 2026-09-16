@@ -72,33 +72,45 @@ function setupManualSubmitBtn(submitBtnHandler) {
     }
   });
 
-  // For continued SPA use, detect when LeetCode dynamic layout loads, set up click listener, then listen for btns. 
+  // For continued SPA use, detect when LeetCode dynamic layout loads, set up click listener, then listen for btns.
   const pageObserver = new MutationObserver((_, observer) => {
     // Display submission button on refresh trigger
-    if (window.location.href.match(/leetcode\.com\/(.*)\/submissions\/(\d+)/)) {
+    if (window.location.href.match(/leetcode\.(com|cn)\/(.*)\/submissions\/(\d+)/)) {
       submissionPageBtnsObserver.observe(document.body, {
         childList: true,
         subtree: true,
       });
       return
-    } 
+    }
 
     const dynamicLayout = document.querySelector('.flexlayout__layout');
     if (!dynamicLayout) {
       return;
     }
-    
+
     observer.disconnect()
 
-    dynamicLayout.addEventListener('click', async () => {
-      const submissionId = await listenForSubmissionId();
-      if (submissionId) {
-        // listen for submission buttons
-        submissionPageBtnsObserver.observe(document.body, {
-          childList: true,
-          subtree: true,
-        });
-      }
+    // Only intercept clicks on the actual submit button to avoid spamming
+    // the background worker with messages on every random click.
+    dynamicLayout.addEventListener('click', event => {
+      const target = event.target;
+      const isSubmitBtn =
+        target.matches('[data-e2e-locator="console-submit-button"]') ||
+        target.closest('[data-e2e-locator="console-submit-button"]') ||
+        target.matches('[data-cy="submit-code-btn"]') ||
+        target.closest('[data-cy="submit-code-btn"]');
+      if (!isSubmitBtn) return;
+
+      listenForSubmissionId().then(submissionId => {
+        if (submissionId) {
+          submissionPageBtnsObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+          });
+        }
+      }).catch(() => {
+        // Message channel may close if URL never changed (e.g. submit aborted)
+      });
     });
   });
 
@@ -110,13 +122,23 @@ function setupManualSubmitBtn(submitBtnHandler) {
 
 // Get SubmissionID by listening for URL changes to `/submissions/(d+)` format
 async function listenForSubmissionId() {
-  const { submissionId } = await api.runtime.sendMessage({
-    type: 'LEETCODE_SUBMISSION',
-  });
-  if (submissionId == null) {
+  try {
+    // Race against a timeout — if the URL never changes (e.g. submit failed
+    // validation), the background's onHistoryStateUpdated never fires and the
+    // message channel closes, rejecting the promise.
+    const result = await Promise.race([
+      api.runtime.sendMessage({ type: 'LEETCODE_SUBMISSION' }).catch(() => {}),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('ListenForSubmissionId timed out')), 15000)
+      ),
+    ]);
+    if (!result || result.submissionId == null) {
+      return;
+    }
+    return result.submissionId;
+  } catch {
     return;
   }
-  return submissionId;
 }
 
 export default setupManualSubmitBtn;
