@@ -12,14 +12,10 @@ api.runtime.onInstalled.addListener(details => {
 api.runtime.onMessage.addListener(handleMessage);
 
 function handleMessage(request, sender, sendResponse) {
-  if (request && request.closeWebPage === true && request.isSuccess === true) {
-    /* Set username */
+  if (request && request.closeWebPage === true && request.isSuccess === true)
+  {
     api.storage.local.set({ leethub_username: request.username });
-
-    /* Set token */
     api.storage.local.set({ leethub_token: request.token });
-
-    /* Close pipe */
     api.storage.local.set({ pipe_leethub: false }, () => {
       console.log('Closed pipe.');
     });
@@ -29,16 +25,20 @@ function handleMessage(request, sender, sendResponse) {
       api.tabs.remove(tab.id);
     });
 
-    /* Go to onboarding for UX */
+    /* Go to onboarding UX */
     const urlOnboarding = api.runtime.getURL('welcome.html');
     api.tabs.create({ url: urlOnboarding, active: true }); // creates new tab
-  } else if (request && request.closeWebPage === true && request.isSuccess === false) {
+  } 
+  else if (request && request.closeWebPage === true && request.isSuccess === false)
+  {
     alert('Something went wrong while trying to authenticate your profile!');
     api.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
       var tab = tabs[0];
       api.tabs.remove(tab.id);
     });
-  } else if (request.type === 'LEETCODE_SUBMISSION') {
+  } 
+  else if (request.type === 'LEETCODE_SUBMISSION')
+  {
     api.webNavigation.onHistoryStateUpdated.addListener(
       (e = function (details) {
         const submissionId = details.url.match(/\/submissions\/(\d+)\//)[1];

@@ -171,7 +171,7 @@ const linkRepo = (token, name) => {
         console.log('Successfully set new repo hook');
       }
     );
-    /* Get Persistent Stats or Create new stats */
+    /* Get Persistent Stats or Use current stats/Create new stats */
     api.storage.local
       .get('sync_stats')
       .then(data => (data?.sync_stats ? syncStats() : api.storage.local.get('stats')))
