@@ -16,6 +16,7 @@ const ignore = [
   // non-essential
   '**/dist/**',
   '**/.prettierrc',
+  '**/.gitattributes',
   '**/.eslintrc',
   '**/.env',
   '**/assets/.DS_Store',
