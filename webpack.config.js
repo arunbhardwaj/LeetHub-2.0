@@ -65,7 +65,7 @@ export default {
   output: {
     path: path.resolve(__dirname, 'dist'),
     publicPath: '/dist/',
-    filename: '[name].js',
+    filename: 'scripts/[name].js',
     clean: true,
   },
   module: {
@@ -129,20 +129,6 @@ export default {
     new FileManagerPlugin({
       events: {
         onEnd: {
-          move: [
-            {
-              source: './dist/leetcode.js',
-              destination: './dist/scripts/leetcode.js',
-            },
-            {
-              source: './dist/welcome.js',
-              destination: './dist/scripts/welcome.js',
-            },
-            {
-              source: './dist/popup.js',
-              destination: './dist/scripts/popup.js',
-            },
-          ],
           copy: [ // Copy everything to chrome and firefox
             {
               source: './dist/**',
