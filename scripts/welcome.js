@@ -128,8 +128,39 @@ const handleLinkRepoError = (statusCode, name) => {
   $('#unlink').show();
 };
 
-/* 
-    Method for linking hook with an existing repository 
+/* Unable to gain access to repo in commit mode. Must switch to hook mode. */
+const resetToHookMode = (statusCode, name) => {
+  /* Set mode type to hook and Repo Hook to NONE */
+  handleLinkRepoError(statusCode, name);
+  api.storage.local.set({ mode_type: 'hook', leethub_hook: null }, () => {
+    console.log(`Error linking ${name} to LeetHub`);
+    console.log('Defaulted repo hook to NONE');
+  });
+
+  /* Hide accordingly */
+  document.getElementById('hook_mode').style.display = 'inherit';
+  document.getElementById('commit_mode').style.display = 'none';
+};
+
+const handleLinkRepoSuccess = (htmlUrl, name) => {
+  $('#error').hide();
+  $('#success').html(
+    `Successfully linked <a target="blank" href="${htmlUrl}">${name}</a> to LeetHub. Start <a href="http://leetcode.com">LeetCoding</a> now!`
+  );
+  $('#success').show();
+  $('#unlink').show();
+};
+
+const displayStats = stats => {
+  /* Get problems solved count */
+  $('#p_solved').text(stats?.solved ?? 0);
+  $('#p_solved_easy').text(stats?.easy ?? 0);
+  $('#p_solved_medium').text(stats?.medium ?? 0);
+  $('#p_solved_hard').text(stats?.hard ?? 0);
+};
+
+/*
+    Method for linking hook with an existing repository
     Steps:
     1. Check if existing repository exists and the user has write access to it.
     2. Link Hook to it (chrome Storage).
@@ -143,18 +174,7 @@ const linkRepo = (token, name) => {
       return;
     }
     if (xhr.status !== 200) {
-      // BUG FIX
-      // unable to gain access to repo in commit mode. Must switch to hook mode.
-      /* Set mode type to hook and Repo Hook to NONE */
-      handleLinkRepoError(xhr.status, name);
-      api.storage.local.set({ mode_type: 'hook', leethub_hook: null }, () => {
-        console.log(`Error linking ${name} to LeetHub`);
-        console.log('Defaulted repo hook to NONE');
-      });
-
-      /* Hide accordingly */
-      document.getElementById('hook_mode').style.display = 'inherit';
-      document.getElementById('commit_mode').style.display = 'none';
+      resetToHookMode(xhr.status, name);
       return;
     }
 
@@ -162,12 +182,7 @@ const linkRepo = (token, name) => {
     api.storage.local.set(
       { mode_type: 'commit', repo: res.html_url, leethub_hook: res.full_name },
       () => {
-        $('#error').hide();
-        $('#success').html(
-          `Successfully linked <a target="blank" href="${res.html_url}">${name}</a> to LeetHub. Start <a href="http://leetcode.com">LeetCoding</a> now!`
-        );
-        $('#success').show();
-        $('#unlink').show();
+        handleLinkRepoSuccess(res.html_url, name);
         console.log('Successfully set new repo hook');
       }
     );
@@ -175,14 +190,7 @@ const linkRepo = (token, name) => {
     api.storage.local
       .get('sync_stats')
       .then(data => (data?.sync_stats ? syncStats() : api.storage.local.get('stats')))
-      .then(data => {
-        /* Get problems solved count */
-        const stats = data?.stats;
-        $('#p_solved').text(stats?.solved ?? 0);
-        $('#p_solved_easy').text(stats?.easy ?? 0);
-        $('#p_solved_medium').text(stats?.medium ?? 0);
-        $('#p_solved_hard').text(stats?.hard ?? 0);
-      });
+      .then(data => displayStats(data?.stats));
 
     /* Hide accordingly */
     document.getElementById('hook_mode').style.display = 'none';
@@ -193,6 +201,33 @@ const linkRepo = (token, name) => {
   xhr.setRequestHeader('Authorization', `token ${token}`);
   xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
   xhr.send();
+};
+
+/*
+    Method for confirming access to the already linked repository on page load.
+    Does not re-link the repository or sync stats; displays the locally stored stats.
+    `hook` is the linked repository's full name, in the form `{username}/{repoName}`.
+*/
+const checkRepoAccess = async (token, hook) => {
+  const res = await fetch(`https://api.github.com/repos/${hook}`, {
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+    },
+  });
+  if (!res.ok) {
+    return resetToHookMode(res.status, hook);
+  }
+
+  const repo = await res.json();
+  if (repo.full_name !== hook) {
+    /* Repository was renamed or transferred; GitHub redirected us to it */
+    await api.storage.local.set({ repo: repo.html_url, leethub_hook: repo.full_name });
+  }
+
+  handleLinkRepoSuccess(repo.html_url, repo.full_name);
+  const { stats } = await api.storage.local.get('stats');
+  displayStats(stats);
 };
 
 const unlinkRepo = () => {
@@ -298,26 +333,28 @@ api.storage.local.get('mode_type', data => {
         /* Hide accordingly */
         document.getElementById('hook_mode').style.display = 'inherit';
         document.getElementById('commit_mode').style.display = 'none';
-      } else {
-        /* Get access to repo */
-        api.storage.local.get('leethub_hook', repoName => {
-          const hook = repoName.leethub_hook;
-          if (!hook) {
-            /* Not authorized yet. */
-            $('#error').text(
-              'Improper Authorization error - Grant LeetHub access to your GitHub account to continue (click LeetHub extension on the top right to proceed)'
-            );
-            $('#error').show();
-            $('#success').hide();
-            /* Hide accordingly */
-            document.getElementById('hook_mode').style.display = 'inherit';
-            document.getElementById('commit_mode').style.display = 'none';
-          } else {
-            /* Username exists, at least in storage. Confirm this */
-            linkRepo(token, hook);
-          }
-        });
+        return;
       }
+      
+      /* Get access to repo */
+      api.storage.local.get('leethub_hook', res => {
+        const hook = res.leethub_hook;
+        if (!hook) {
+          /* Not authorized yet. */
+          $('#error').text(
+            'Improper Authorization error - Grant LeetHub access to your GitHub account to continue (click LeetHub extension on the top right to proceed)'
+          );
+          $('#error').show();
+          $('#success').hide();
+          /* Hide accordingly */
+          document.getElementById('hook_mode').style.display = 'inherit';
+          document.getElementById('commit_mode').style.display = 'none';
+          return
+        } 
+
+        /* Username exists, at least in storage. Confirm this */
+        checkRepoAccess(token, hook);
+      });
     });
 
     document.getElementById('hook_mode').style.display = 'none';

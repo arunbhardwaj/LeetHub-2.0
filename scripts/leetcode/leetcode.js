@@ -93,7 +93,7 @@ const upload = async (token, hook, content, problem, filename, sha, message) => 
   if (!res.ok) {
     throw new LeetHubError(res.status, { cause: res });
   }
-  console.log(`Successfully committed ${getPath(problem, filename)} to github`);
+  console.log('[LeetHubv2]', `Successfully committed ${getPath(problem, filename)} to github`);
 
   const body = await res.json();
   //TODO: Think, should we be setting stats state here?
@@ -371,7 +371,7 @@ function createRepoReadme() {
 
 async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
   if (topicTags == null) {
-    console.log(new LeetHubError('TopicTagsNotFound'));
+    console.log('[LeetHubv2]', new LeetHubError('TopicTagsNotFound'));
     return;
   }
 
@@ -496,7 +496,7 @@ function loader(leetCode) {
       clearInterval(intervalId);
 
       if (!(err instanceof LeetHubError)) {
-        console.error(err);
+        console.error('[LeetHubv2]', err);
         return;
       }
     }
@@ -525,7 +525,7 @@ async function listenForSubmissionId() {
     type: 'LEETCODE_SUBMISSION',
   });
   if (submissionId == null) {
-    console.log(new LeetHubError('SubmissionIdNotFound'));
+    console.log('[LeetHubv2]', new LeetHubError('SubmissionIdNotFound'));
     return;
   }
   return submissionId;
@@ -608,10 +608,10 @@ api.storage.local.get('isSync', data => {
       });
     });
     api.storage.local.set({ isSync: true }, () => {
-      console.log('LeetHub Synced to local values');
+      console.log('[LeetHubv2]', 'LeetHub Synced to local values');
     });
   } else {
-    console.log('LeetHub Local storage already synced!');
+    console.log('[LeetHubv2]', 'LeetHub Local storage already synced!');
   }
 });
 

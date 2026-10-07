@@ -169,7 +169,7 @@ LeetCodeV1.prototype.getSuccessStateAndUpdate = function () {
     successTag[0].className === 'success__3Ai7' &&
     successTag[0].innerText.trim() === 'Success'
   ) {
-    console.log(successTag[0]);
+    console.log('[LeetHubv2]', successTag[0]);
     successTag[0].classList.add('marked_as_success');
     return true;
   }
@@ -260,7 +260,7 @@ LeetCodeV1.prototype.startSpinner = function () {
     elem.innerHTML = `<div id="${this.progressSpinnerElementId}" class="${this.progressSpinnerElementClass}"></div>`;
     this.insertToAnchorElement(elem);
   } catch (error) {
-    console.log(error);
+    console.log('[LeetHubv2]', error);
   }
 };
 /* Injects css style required for the upload progress indicator */
@@ -411,7 +411,7 @@ LeetCodeV2.prototype.getProblemNameSlug = function () {
 LeetCodeV2.prototype.getSuccessStateAndUpdate = function () {
   const successTag = document.querySelectorAll('[data-e2e-locator="submission-result"]');
   if (checkElem(successTag)) {
-    console.log(successTag[0]);
+    console.log('[LeetHubv2]', successTag[0]);
     successTag[0].classList.add('marked_as_success');
     return true;
   }
