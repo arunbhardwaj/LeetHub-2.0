@@ -23,6 +23,7 @@ const ignore = [
   '**/webpack*',
   '**/README.md',
   '**/assets/extension', // web store assets
+  '**/features.test',
   // webpack compiled files
   '**/scripts/leetcode/**',
   '**/scripts/welcome.js',
