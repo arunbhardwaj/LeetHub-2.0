@@ -355,11 +355,21 @@ LeetCodeV2.prototype.init = async function () {
     },
     body: JSON.stringify(questionDetailsQuery),
   };
-  const frontendId = await fetch('https://leetcode.com/graphql/', questionDetailsOptions)
+  const questionData = await fetch('https://leetcode.com/graphql/', questionDetailsOptions)
     .then(res => res.json())
-    .then(res => res.data.question.questionFrontendId)
-    
-  submissionData.question.questionFrontendId = frontendId;
+    .then(res => res?.data?.question);
+
+  if (questionData) {
+    submissionData.question.questionFrontendId = questionData.questionFrontendId;
+    submissionData.question.categoryTitle = questionData.categoryTitle;
+    if (
+      (!submissionData.question.topicTags || submissionData.question.topicTags.length === 0) &&
+      questionData.topicTags &&
+      questionData.topicTags.length > 0
+    ) {
+      submissionData.question.topicTags = questionData.topicTags;
+    }
+  }
 
   this.submissionData = submissionData;
 };

@@ -10,7 +10,11 @@ import {
   LeetHubError,
   mergeStats,
 } from './util.js';
-import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics.js';
+import {
+  appendProblemToReadme,
+  sortTopicsInReadme,
+  getTopicTags,
+} from './readmeTopics.js';
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
@@ -369,8 +373,9 @@ function createRepoReadme() {
   return uploadGitWith409Retry(content, readmeFilename, '', readmeMsg);
 }
 
-async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
-  if (topicTags == null) {
+async function updateReadmeTopicTagsWithProblem(topicTags, problemName, fallbackOptions = {}) {
+  const topics = getTopicTags(topicTags, fallbackOptions);
+  if (!topics || topics.length === 0) {
     console.log('[LeetHubv2]', new LeetHubError('TopicTagsNotFound'));
     return;
   }
@@ -400,7 +405,7 @@ async function updateReadmeTopicTagsWithProblem(topicTags, problemName) {
     throw err;
   }
   readme = decode(readme);
-  for (let topic of topicTags) {
+  for (let topic of topics) {
     readme = appendProblemToReadme(topic.name, readme, leethub_hook, problemName);
   }
   readme = sortTopicsInReadme(readme);
@@ -480,7 +485,14 @@ function loader(leetCode) {
       /* Group problem into its relevant topics */
       const updateRepoReadMe = updateReadmeTopicTagsWithProblem(
         leetCode.submissionData?.question?.topicTags,
-        problemName
+        problemName,
+        {
+          categoryTitle: leetCode.submissionData?.question?.categoryTitle,
+          language:
+            leetCode.submissionData?.lang?.verboseName ||
+            leetCode.submissionData?.lang?.name ||
+            leetCode.getLanguageExtension(),
+        }
       );
 
       const newSHAs = await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMe]);
