@@ -22,8 +22,23 @@ const languages = Object.freeze({
   Ruby: '.rb',
   Rust: '.rs',
   Scala: '.scala',
+  SQL: '.sql',
+  'PostgreSQL': '.sql',
+  'SQLite': '.sql',
+  'SQL Server': '.sql',
   Swift: '.swift',
   TypeScript: '.ts',
+});
+
+/** SQL dialects mapping for proper file naming */
+const sqlDialects = Object.freeze({
+  MySQL: 'mysql',
+  'MS SQL Server': 'mssql',
+  Oracle: 'oracle',
+  SQL: 'sql',
+  PostgreSQL: 'postgresql',
+  SQLite: 'sqlite',
+  'SQL Server': 'sqlserver',
 });
 
 /** @enum */
@@ -222,4 +237,5 @@ export {
   languages,
   LeetHubError,
   mergeStats,
+  sqlDialects,
 };

@@ -28,6 +28,41 @@ $('#reset_stats').on('click', () => {
   })
 });
 
+// Settings modal handlers
+$('#open_settings').on('click', () => {
+  // Load current settings
+  api.storage.local.get('custom_commit_messages', (data) => {
+    const messages = data.custom_commit_messages || {
+      solution: 'Added solution - LeetHub',
+      readme: 'Create README - LeetHub',
+      notes: 'Attach NOTES - LeetHub',
+      discussion: 'Prepend discussion post - LeetHub',
+    };
+    $('#msg_solution').val(messages.solution);
+    $('#msg_readme').val(messages.readme);
+    $('#msg_notes').val(messages.notes);
+    $('#msg_discussion').val(messages.discussion);
+    $('#settings_modal').show();
+  });
+});
+
+$('#close_settings').on('click', () => {
+  $('#settings_modal').hide();
+});
+
+$('#save_settings').on('click', () => {
+  const messages = {
+    solution: $('#msg_solution').val() || 'Added solution - LeetHub',
+    readme: $('#msg_readme').val() || 'Create README - LeetHub',
+    notes: $('#msg_notes').val() || 'Attach NOTES - LeetHub',
+    discussion: $('#msg_discussion').val() || 'Prepend discussion post - LeetHub',
+  };
+  api.storage.local.set({ custom_commit_messages: messages }, () => {
+    $('#settings_modal').hide();
+    alert('Commit messages saved!');
+  });
+});
+
 api.storage.local.get('leethub_token', data => {
   const token = data.leethub_token;
   if (token === null || token === undefined) {
