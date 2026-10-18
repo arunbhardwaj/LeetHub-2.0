@@ -56,6 +56,21 @@
             <span style="color: #d9534f">&ensp; &ensp; Hard:</span>
             <span id="p_solved_hard" style="color: #000000; opacity: 0.75">0 </span>
           </p>
+
+          <!-- Smart Revision Tracker Widget -->
+          <div id="revision_tracker_widget" style="margin: 14px 0; padding: 12px; background: #ffffff; border-radius: 8px; border: 1px solid #d4d4d5; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <strong style="color: #222; font-size: 13px;">🧠 Smart Revision Tracker</strong>
+              <span id="tracker_due_badge" class="ui red mini label" style="display:none;">0 Due</span>
+            </div>
+            <div id="tracker_quick_info" style="font-size: 12px; color: #555; margin-bottom: 10px;">
+              Loading revision schedule...
+            </div>
+            <button id="open_tracker" class="ui mini fluid button" style="background-color: #ff6c0a; color: white; font-weight: 600;">
+              📊 Open Full Revision Dashboard
+            </button>
+          </div>
+
           <button id="reset_stats" type="button">Reset all stats</button>
           <div id="reset_confirmation" style="position:absolute; display:none; top:200px; left:50%; width:500px; margin-left:-250px; border:1px solid blue; padding:20px; background-color:white;">
             <p>Are you sure you want to delete your stats?</p>

@@ -29,6 +29,7 @@ const ignore = [
   '**/scripts/leetcode/**',
   '**/scripts/welcome.js',
   '**/scripts/popup.js',
+  '**/scripts/tracker/**',
   '**/manifest-chrome.json',
   '**/manifest-firefox.json',
   // ...entries.map((entry) => `**/${entry}.js`),
@@ -57,6 +58,7 @@ export default {
     leetcode: path.resolve(__dirname, 'scripts', 'leetcode', 'leetcode.js'),
     welcome: './scripts/welcome.js',
     popup: './scripts/popup.js',
+    tracker: './scripts/tracker/trackerPage.js',
   },
   watchOptions: {
     ignored: '**/dist/**',

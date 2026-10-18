@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LeetHub v2 — Smart Revision Tracker</title>
+    <link rel="stylesheet" href="css/tracker.css" />
+  </head>
+  <body>
+    <div class="tracker-container">
+      <!-- Top Header -->
+      <header class="tracker-header">
+        <div class="brand">
+          <div>
+            <h1>Leet<span>Hub</span> Smart Revision Tracker</h1>
+            <div class="subtitle">Evidence-based DSA pattern detection & spaced repetition queue</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="btnRefresh" class="btn btn-secondary">
+            🔄 Refresh Data
+          </button>
+          <button id="btnExport" class="btn btn-secondary">
+            📥 Export Data
+          </button>
+          <a href="https://leetcode.com/problemset/" target="_blank" class="btn btn-primary">
+            🚀 Practice on LeetCode
+          </a>
+        </div>
+      </header>
+
+      <!-- Navigation Tabs -->
+      <nav class="tracker-nav" role="tablist">
+        <button class="nav-tab active" data-tab="overview">📊 Overview</button>
+        <button class="nav-tab" data-tab="topics">🧠 Topic Analysis</button>
+        <button class="nav-tab" data-tab="queue">⏱️ Revision Queue <span id="queueBadge" class="badge badge-prio-high" style="display:none; margin-left:4px;">0</span></button>
+        <button class="nav-tab" data-tab="recommendations">💡 Recommendations</button>
+        <button class="nav-tab" data-tab="weekly">📈 Weekly Reports</button>
+        <button class="nav-tab" data-tab="history">📋 Progress & History</button>
+      </nav>
+
+      <!-- TAB 1: OVERVIEW -->
+      <section id="tab-overview" class="tab-content active">
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Tracked Problems</div>
+            <div class="kpi-value" id="kpiTotalProblems">0</div>
+            <div class="kpi-subtext" id="kpiDiffBreakdown">0 Easy • 0 Med • 0 Hard</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Due for Revision</div>
+            <div class="kpi-value" id="kpiDueCount" style="color: var(--prio-high);">0</div>
+            <div class="kpi-subtext">Based on Spaced Repetition</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Weekly Success Rate</div>
+            <div class="kpi-value" id="kpiSuccessRate">N/A</div>
+            <div class="kpi-subtext" id="kpiSuccessSub">From verified submissions</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Revisions Completed</div>
+            <div class="kpi-value" id="kpiRevisionsCompleted">0</div>
+            <div class="kpi-subtext" id="kpiRevisionsSub">Total review sessions</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>🚨 Immediate Revision Priorities</span>
+            <button class="btn btn-secondary btn-sm" id="btnGoToQueue">View Full Queue →</button>
+          </div>
+          <div id="overviewPriorityContainer">
+            <!-- Dynamically populated or empty state -->
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>⚡ Weak Topic Areas (Pattern Detection)</span>
+            <button class="btn btn-secondary btn-sm" id="btnGoToTopics">View Topic Breakdown →</button>
+          </div>
+          <div id="overviewWeakTopicsContainer">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: TOPIC ANALYSIS (DSA Pattern Detection) -->
+      <section id="tab-topics" class="tab-content">
+        <div class="card">
+          <div class="card-title">DSA Pattern Detection & Strengths / Weaknesses</div>
+          <p class="subtitle" style="margin-bottom: 16px; color: var(--text-muted); font-size: 13px;">
+            Insights are derived strictly from your verified submission attempts, outcomes, and topic tags.
+            Topics with insufficient attempts are explicitly flagged as <em>Insufficient Data</em>.
+          </p>
+          <div id="topicsContainer">
+            <!-- Dynamically rendered -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: RANKED REVISION QUEUE -->
+      <section id="tab-queue" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <span>Ranked Revision Queue</span>
+            <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">
+              Prioritized by Ebbinghaus forgetting intervals, difficulty, and failed attempts
+            </span>
+          </div>
+
+          <div class="filter-bar">
+            <input type="text" id="queueSearch" class="search-input" placeholder="Search problem name or ID..." />
+            <select id="queueDiffFilter" class="select-filter">
+              <option value="all">All Difficulties</option>
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
+            </select>
+            <select id="queuePrioFilter" class="select-filter">
+              <option value="all">All Priority Levels</option>
+              <option value="High">High Priority</option>
+              <option value="Medium">Medium Priority</option>
+              <option value="Low">Low Priority</option>
+            </select>
+            <select id="queueDueFilter" class="select-filter">
+              <option value="all">All Problems</option>
+              <option value="due">Due for Revision Only</option>
+            </select>
+          </div>
+
+          <div class="table-responsive">
+            <table class="custom-table" id="queueTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Problem</th>
+                  <th>Difficulty</th>
+                  <th>Priority</th>
+                  <th>Revision Stage</th>
+                  <th>Scoring Rationale</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="queueTableBody">
+                <!-- Dynamically rendered rows -->
+              </tbody>
+            </table>
+          </div>
+          <div id="queueEmptyState" class="empty-state" style="display: none;">
+            <h3>No problems match the current filter</h3>
+            <p>Try adjusting your search query or filters.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: SIMILAR PROBLEM RECOMMENDATIONS -->
+      <section id="tab-recommendations" class="tab-content">
+        <div class="card">
+          <div class="card-title">Evidence-Based Problem Recommendations</div>
+          <p class="subtitle" style="margin-bottom: 16px; color: var(--text-muted); font-size: 13px;">
+            Targeted recommendations based on verified LeetCode topic tags, demonstrated weak areas, and similar challenges from LeetCode.
+          </p>
+          <div id="recommendationsContainer">
+            <!-- Dynamically rendered -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: WEEKLY PERFORMANCE REPORTS -->
+      <section id="tab-weekly" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <span>Weekly Performance Report</span>
+            <span id="weeklyPeriodLabel" style="font-size: 13px; color: var(--text-muted); font-weight: normal;"></span>
+          </div>
+          <div id="weeklyReportContainer">
+            <!-- Dynamically rendered -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: PROGRESS & HISTORY -->
+      <section id="tab-history" class="tab-content">
+        <div class="card">
+          <div class="card-title">Completed Revisions Log</div>
+          <div class="table-responsive">
+            <table class="custom-table" id="revisionsTable">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Problem</th>
+                  <th>Result</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="revisionsTableBody">
+                <!-- Dynamically rendered -->
+              </tbody>
+            </table>
+          </div>
+          <div id="revisionsEmptyState" class="empty-state" style="display: none;">
+            <h3>No revisions completed yet</h3>
+            <p>Click "Mark as Revised" in your Revision Queue after practicing a problem to start tracking your mastery progression.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Recent Submissions Log</div>
+          <div class="table-responsive">
+            <table class="custom-table" id="submissionsTable">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Problem</th>
+                  <th>Outcome</th>
+                  <th>Runtime</th>
+                  <th>Memory</th>
+                </tr>
+              </thead>
+              <tbody id="submissionsTableBody">
+                <!-- Dynamically rendered -->
+              </tbody>
+            </table>
+          </div>
+          <div id="submissionsEmptyState" class="empty-state" style="display: none;">
+            <h3>No submissions recorded yet</h3>
+            <p>Submissions will be automatically logged as you solve problems on LeetCode with the extension active.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Mark Revised Modal -->
+    <div id="revisionModal" class="modal-backdrop">
+      <div class="modal-content">
+        <h3 class="modal-title" id="modalProblemTitle">Mark Problem as Revised</h3>
+        <p class="modal-body" id="modalProblemDesc">
+          Record that you have reviewed and practiced this problem. This updates your spaced repetition schedule.
+        </p>
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; margin-bottom: 6px; color: var(--text-muted);">Revision Outcome:</label>
+          <select id="modalOutcome" class="select-filter" style="width: 100%;">
+            <option value="Completed with ease">Completed with ease (Optimal recall)</option>
+            <option value="Completed with minor hints">Completed with minor hints</option>
+            <option value="Needed to review solution">Needed to review solution (Needs sooner follow-up)</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 12px; margin-bottom: 6px; color: var(--text-muted);">Optional Notes / Takeaway:</label>
+          <input type="text" id="modalNotes" class="search-input" style="width: 100%;" placeholder="e.g. Remember to handle duplicate values in two-pointer scan" />
+        </div>
+        <div class="modal-actions">
+          <button id="modalBtnCancel" class="btn btn-secondary">Cancel</button>
+          <button id="modalBtnConfirm" class="btn btn-primary">Save Revision</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="scripts/tracker.js"></script>
+  </body>
+</html>

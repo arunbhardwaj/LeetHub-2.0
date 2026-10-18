@@ -11,6 +11,7 @@ import {
   mergeStats,
 } from './util.js';
 import { appendProblemToReadme, sortTopicsInReadme } from './readmeTopics.js';
+import { recordSubmissionAttempt } from '../tracker/storage.js';
 
 /* Commit messages */
 const readmeMsg = 'Create README - LeetHub';
@@ -434,6 +435,29 @@ function loader(leetCode) {
       // For v2, query LeetCode API for submission results
       await leetCode.init();
 
+      // Check if submission failed (e.g. Wrong Answer, TLE, Runtime Error)
+      if (leetCode.submissionData && leetCode.submissionData.statusCode !== 10) {
+        const problemName = leetCode.getProblemNameSlug();
+        const topicTags = leetCode.submissionData?.question?.topicTags || [];
+        const similarQuestions = leetCode.submissionData?.question?.similarQuestionList || [];
+        await recordSubmissionAttempt({
+          submissionId: leetCode.submissionId,
+          problemSlug: problemName,
+          frontendId: leetCode.submissionData?.question?.questionFrontendId,
+          title: leetCode.submissionData?.question?.title || leetCode.parseQuestionTitle(),
+          difficulty: leetCode.parseDifficulty(),
+          topicTags,
+          outcome: 'Failed',
+          statusCode: leetCode.submissionData.statusCode,
+          timestamp: leetCode.submissionData?.timestamp ? leetCode.submissionData.timestamp * 1000 : Date.now(),
+          runtimeDisplay: leetCode.submissionData?.runtimeDisplay,
+          memoryDisplay: leetCode.submissionData?.memoryDisplay,
+          similarQuestions,
+        });
+        console.log('[LeetHub Smart Tracker]', `Logged failed attempt for ${problemName}`);
+        return;
+      }
+
       const probStats = leetCode.parseStats();
       if (!probStats) {
         throw new LeetHubError('SubmissionStatsNotFound');
@@ -486,6 +510,24 @@ function loader(leetCode) {
       const newSHAs = await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMe]);
 
       leetCode.markUploaded();
+
+      // Log successful completion in Smart Revision Tracker
+      const topicTags = leetCode.submissionData?.question?.topicTags || [];
+      const similarQuestions = leetCode.submissionData?.question?.similarQuestionList || [];
+      await recordSubmissionAttempt({
+        submissionId: leetCode.submissionId,
+        problemSlug: problemName,
+        frontendId: leetCode.submissionData?.question?.questionFrontendId,
+        title: leetCode.submissionData?.question?.title || leetCode.parseQuestionTitle(),
+        difficulty: leetCode.difficulty,
+        topicTags,
+        outcome: 'Accepted',
+        statusCode: 10,
+        timestamp: leetCode.submissionData?.timestamp ? leetCode.submissionData.timestamp * 1000 : Date.now(),
+        runtimeDisplay: leetCode.submissionData?.runtimeDisplay,
+        memoryDisplay: leetCode.submissionData?.memoryDisplay,
+        similarQuestions,
+      });
 
       if (!alreadyCompleted) {
         // Increments local and persistent stats

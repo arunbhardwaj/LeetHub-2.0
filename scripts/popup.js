@@ -1,4 +1,6 @@
 import { getBrowser } from "./leetcode/util.js";
+import { getRevisionData } from "./tracker/storage.js";
+import { prioritizeProblems } from "./tracker/prioritizer.js";
 
 let action = false;
 
@@ -8,6 +10,10 @@ $('#authenticate').on('click', () => {
   if (action) {
     oAuth2.begin();
   }
+});
+
+$('#open_tracker').on('click', () => {
+  api.tabs.create({ url: api.runtime.getURL('tracker.html'), active: true });
 });
 
 /* Get URL for welcome page */
@@ -59,6 +65,7 @@ api.storage.local.get('leethub_token', data => {
                   );
                 }
               });
+              updateTrackerWidget();
             } else {
               $('#hook_mode').show();
             }
@@ -79,3 +86,33 @@ api.storage.local.get('leethub_token', data => {
     xhr.send();
   }
 });
+
+async function updateTrackerWidget() {
+  try {
+    const revData = await getRevisionData(api);
+    const problems = revData.problems || {};
+    const prioResult = prioritizeProblems(problems);
+    const dueCount = prioResult.dueCount;
+
+    if (dueCount > 0) {
+      $('#tracker_due_badge').text(`${dueCount} Due`).show();
+    } else {
+      $('#tracker_due_badge').hide();
+    }
+
+    const top = prioResult.rankedQueue[0];
+    if (top) {
+      const dueText = top.isDue ? '🚨 Due for review' : `Next in ${top.targetIntervalDays - (top.elapsedDays || 0)}d`;
+      $('#tracker_quick_info').html(`
+        <strong style="color:#222;">${top.frontendId ? `#${top.frontendId} ` : ''}${top.title}</strong>
+        <div style="font-size: 11px; color: #666; margin-top: 3px;">${dueText} • Priority: ${top.priorityLevel}</div>
+      `);
+    } else {
+      $('#tracker_quick_info').text('Solve problems on LeetCode to populate revision schedules.');
+    }
+  } catch (err) {
+    console.error('[LeetHub Tracker Popup]', err);
+    $('#tracker_quick_info').text('Click below to open Smart Revision Tracker.');
+  }
+}
+
