@@ -25,5 +25,8 @@
     "puppeteer": "^22.11.2",
     "webpack": "^5.92.0",
     "webpack-cli": "^5.1.4"
+  },
+  "allowScripts": {
+    "puppeteer@22.15.0": true
   }
 }
