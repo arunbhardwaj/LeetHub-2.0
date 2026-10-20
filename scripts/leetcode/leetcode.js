@@ -477,13 +477,13 @@ function loader(leetCode) {
       const code = leetCode.findCode(probStats);
       const uploadCode = uploadGitWith409Retry(encode(code), problemName, filename, probStats);
 
-      /* Group problem into its relevant topics */
-      const updateRepoReadMe = updateReadmeTopicTagsWithProblem(
-        leetCode.submissionData?.question?.topicTags,
-        problemName
-      );
+      // /* Group problem into its relevant topics */
+      // const updateRepoReadMe = updateReadmeTopicTagsWithProblem(
+      //   leetCode.submissionData?.question?.topicTags,
+      //   problemName
+      // );
 
-      const newSHAs = await Promise.all([uploadReadMe, uploadNotes, uploadCode, updateRepoReadMe]);
+      const newSHAs = await Promise.all([uploadReadMe, uploadNotes, uploadCode]);
 
       leetCode.markUploaded();
 
