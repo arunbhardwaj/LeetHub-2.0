@@ -567,24 +567,18 @@ const submitBtnObserver = new MutationObserver(function (_mutations, observer) {
       ? textareaList[0]
       : textareaList[1];
 
-  if (v1SubmitBtn) {
-    observer.disconnect();
-
+  if (v1SubmitBtn && !v1SubmitBtn.dataset.leethubHooked) {
+    v1SubmitBtn.dataset.leethubHooked = 'true';
     const leetCode = new LeetCodeV1();
     v1SubmitBtn.addEventListener('click', () => loader(leetCode));
-    return;
   }
 
-  if (v2SubmitBtn && textarea) {
-    observer.disconnect();
-
+  if (v2SubmitBtn && textarea && !v2SubmitBtn.dataset.leethubHooked) {
     const leetCode = new LeetCodeV2();
     // Mark the button ourselves; LeetCode may set its own onclick, which we must not overwrite
-    if (!v2SubmitBtn.dataset.leethubHooked) {
-      v2SubmitBtn.dataset.leethubHooked = 'true';
-      textarea.addEventListener('keydown', e => v2SubmissionHandler(e, leetCode));
-      v2SubmitBtn.addEventListener('click', e => v2SubmissionHandler(e, leetCode));
-    }
+    v2SubmitBtn.dataset.leethubHooked = 'true';
+    textarea.addEventListener('keydown', e => v2SubmissionHandler(e, leetCode));
+    v2SubmitBtn.addEventListener('click', e => v2SubmissionHandler(e, leetCode));
   }
 });
 
