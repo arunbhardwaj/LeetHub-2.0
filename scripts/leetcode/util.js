@@ -24,6 +24,10 @@ const languages = Object.freeze({
   Scala: '.scala',
   Swift: '.swift',
   TypeScript: '.ts',
+  PostgreSQL: '.sql',
+  MySQL: '.sql',
+  'MS SQL Server': '.sql',
+  Oracle: '.sql'
 });
 
 /** @enum */
