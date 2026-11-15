@@ -447,7 +447,7 @@ LeetCodeV2.prototype.parseQuestion = function () {
   let markdown;
   if (this.submissionData != null) {
     const questionUrl = window.location.href.split('/submissions')[0];
-    const qTitle = `${this.submissionData.question.questionId}. ${this.submissionData.question.title}`;
+    const qTitle = `${this.submissionData.question.questionFrontendId}. ${this.submissionData.question.title}`;
     const qBody = this.parseQuestionDescription();
 
     this.difficulty = getDifficulty(this.submissionData.question.difficulty);
