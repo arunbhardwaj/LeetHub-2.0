@@ -401,7 +401,32 @@ LeetCodeV2.prototype.getLanguageExtension = function () {
 
   return languages[lang];
 };
-LeetCodeV2.prototype.getNotesIfAny = function () {};
+LeetCodeV2.prototype.getNotesIfAny = function () {
+  // there are no notes on expore
+  if (document.URL.startsWith('https://leetcode.com/explore/')) return '';
+
+  let notes = '';
+  if (
+    checkElem(document.getElementsByClassName('EasyMDEContainer')) &&
+    checkElem(
+      document.getElementsByClassName('EasyMDEContainer')[0].getElementsByClassName('CodeMirror')
+    )
+  ) {
+    let notesdiv = document
+      .getElementsByClassName('EasyMDEContainer')[0]
+      .getElementsByClassName('CodeMirror-code')[0];
+    if (notesdiv) {
+      for (let i = 0; i < notesdiv.childNodes.length; i++) {
+        if (notesdiv.childNodes[i].childNodes.length == 0) continue;
+        const text = notesdiv.childNodes[i].childNodes[0].innerText;
+        if (text) {
+          notes = `${notes}\n${text.trim()}`.trim();
+        }
+      }
+    }
+  }
+  return notes.trim();
+};
 LeetCodeV2.prototype.getProblemNameSlug = function () {
   const slugTitle = this.submissionData.question.titleSlug;
   const qNum = this.submissionData.question.questionFrontendId;
