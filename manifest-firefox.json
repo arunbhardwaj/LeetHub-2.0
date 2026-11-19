@@ -30,7 +30,7 @@
       "js": ["scripts/authorize.js"]
     },
     {
-      "matches": ["https://practice.geeksforgeeks.org/*"],
+      "matches": ["https://geeksforgeeks.org/*"],
       "js": ["scripts/gfg.js"]
     }
   ],
