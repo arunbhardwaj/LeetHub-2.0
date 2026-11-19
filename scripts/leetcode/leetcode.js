@@ -473,9 +473,11 @@ function loader(leetCode) {
         uploadNotes = uploadGitWith409Retry(encode(notes), problemName, 'NOTES.md', createNotesMsg);
       }
 
-      /* Upload code to Git */
-      const code = leetCode.findCode(probStats);
-      const uploadCode = uploadGitWith409Retry(encode(code), problemName, filename, probStats);
+  /* Upload code to Git */
+  const code = leetCode.findCode(probStats);
+  // Use V2 commit message if available, otherwise use probStats (old format)
+  const commitMsg = typeof leetCode.getCommitMessage === 'function' ? leetCode.getCommitMessage() : probStats;
+  const uploadCode = uploadGitWith409Retry(encode(code), problemName, filename, commitMsg);
 
       /* Group problem into its relevant topics */
       const updateRepoReadMe = updateReadmeTopicTagsWithProblem(
